@@ -9,8 +9,14 @@ adb shell wm size 720x1280
 adb shell wm density 320
 adb logcat -G 16M
 adb logcat -c
-./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Dorg.gradle.jvmargs=-Xmx3g -Pandroid.testInstrumentationRunnerArguments.class=jp.n624.takupoke.android.ScreenTest -Ptakupoke.captureScreenshots=true
 mkdir -p "$RUNNER_TEMP/takupoke-screenshots"
-adb logcat -d -v raw -s TakupokeScreenshots:I '*:S' > "$RUNNER_TEMP/takupoke-screenshots/capture.log"
+# Stream during the test, before Gradle's device teardown can clear app data or logs.
+adb logcat -v raw -s TakupokeScreenshots:I '*:S' > "$RUNNER_TEMP/takupoke-screenshots/capture.log" &
+capture_log_pid=$!
+trap 'kill "$capture_log_pid" 2>/dev/null || true' EXIT
+./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Dorg.gradle.jvmargs=-Xmx3g -Pandroid.testInstrumentationRunnerArguments.class=jp.n624.takupoke.android.ScreenTest -Ptakupoke.captureScreenshots=true
+kill "$capture_log_pid"
+wait "$capture_log_pid" || true
+trap - EXIT
 node scripts/screenshot-transfer.mjs decode "$RUNNER_TEMP/takupoke-screenshots/capture.log" "$RUNNER_TEMP/takupoke-screenshots/verified"
 node scripts/screenshot-transfer.mjs encode "$RUNNER_TEMP/takupoke-screenshots/verified"
