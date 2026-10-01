@@ -9,6 +9,7 @@ android {
         versionCode = providers.environmentVariable("TKPK_VERSION_CODE").orNull?.toInt() ?: 1
         versionName = providers.environmentVariable("TKPK_VERSION_NAME").orNull ?: "0.1.0"
         testInstrumentationRunner = "jp.n624.takupoke.android.OfflineRunner"
+        testInstrumentationRunnerArguments["takupokeScreenshots"] = providers.gradleProperty("takupoke.captureScreenshots").orElse("false").get()
     }
     signingConfigs {
         create("distribution") {

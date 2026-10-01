@@ -35,7 +35,7 @@ class ScreenTest {
         screenshot("05-materials")
     }
     private fun screenshot(name: String) {
-        if (InstrumentationRegistry.getArguments().getString("screenshots") != "true") return
+        if (InstrumentationRegistry.getArguments().getString("takupokeScreenshots") != "true") return
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         instrumentation.waitForIdleSync()
