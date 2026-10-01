@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -25,38 +26,59 @@ fun openLink(context: android.content.Context, url: String, inApp: Boolean) {
         else context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     } catch (_: android.content.ActivityNotFoundException) { android.widget.Toast.makeText(context, "対応するアプリが見つかりませんでした。", android.widget.Toast.LENGTH_SHORT).show() }
 }
-@Composable fun LinkButton(link: LinkItem, settings: Settings, modifier: Modifier = Modifier) {
+@Composable fun LinkButton(link: LinkItem, settings: Settings, modifier: Modifier = Modifier, edit: (() -> Unit)? = null) {
     val context = LocalContext.current
     val color = settings.linkColors[link.id] ?: link.color
     val palette = listOf(0xFF0369A1, 0xFF1D4ED8, 0xFF047857, 0xFF15803D, 0xFF92400E, 0xFF854D0E, 0xFFC2410C, 0xFFBE123C, 0xFFB91C1C, 0xFF4338CA, 0xFF7E22CE, 0xFFBE185D, 0xFF0F766E, 0xFF475569, 0xFF4B5563)
     val dark = listOf(0xFF7DD3FC, 0xFF93C5FD, 0xFF6EE7B7, 0xFF86EFAC, 0xFFFCD34D, 0xFFFDE047, 0xFFFDBA74, 0xFFFDA4AF, 0xFFFCA5A5, 0xFFA5B4FC, 0xFFD8B4FE, 0xFFF9A8D4, 0xFF5EEAD4, 0xFFCBD5E1, 0xFFD1D5DB)
     val chosen = if (isSystemInDarkTheme()) dark else palette
     val parsed = linkColorNames.indexOf(color).takeIf { it >= 0 }?.let { Color(chosen[it]) } ?: runCatching { Color(android.graphics.Color.parseColor(color)) }.getOrNull()
-    OutlinedButton(onClick = { openLink(context, link.href, settings.inAppBrowser) }, modifier = modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = parsed ?: MaterialTheme.colorScheme.primary)) { Text(link.label) }
+    OutlinedCard(modifier = modifier.fillMaxWidth().combinedClickable(onClick = { openLink(context, link.href, settings.inAppBrowser) }, onLongClick = edit)) {
+        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Text("↗", color = parsed ?: MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 12.dp))
+            Text(link.label, Modifier.weight(1f))
+            if (link.id in settings.favorites) Text("★", color = Color(0xFFB08900))
+        }
+    }
 }
-@Composable fun LinksScreen(state: AppState, change: ((Settings) -> Settings) -> Unit) {
+@Composable fun LinksScreen(state: AppState, account: () -> Unit, change: ((Settings) -> Settings) -> Unit) {
     val context = LocalContext.current
-    var query by rememberSaveable { mutableStateOf("") }; var mode by rememberSaveable { mutableIntStateOf(0) }; var editing by remember { mutableStateOf<LinkItem?>(null) }
+    var query by rememberSaveable { mutableStateOf("") }; var hidden by rememberSaveable { mutableStateOf(false) }; var editing by remember { mutableStateOf<LinkItem?>(null) }
     val all = state.links?.categories.orEmpty().sortedBy { it.sortOrder }
     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
         OutlinedTextField(query, { query = it }, label = { Text("リンクを検索") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-        Row { listOf("すべて", "お気に入り", "非表示").forEachIndexed { i, label -> FilterChip(mode == i, { mode = i }, label = { Text(label) }, modifier = Modifier.padding(end = 8.dp)) } }
-        if (all.isEmpty()) Text("設定の「リンク・名称・授業時刻」から学校アカウントで取得してください。")
+        TextButton(onClick = { hidden = !hidden }) { Text(if (hidden) "一覧" else "非表示のリンク") }
+        val visible = all.flatMap { it.buttons }.filter { it.visible && if (hidden) it.id in state.settings.hidden else it.id !in state.settings.hidden }
+        if (hidden) Text("非表示のリンク", style = MaterialTheme.typography.titleMedium)
+        if (state.links == null && !hidden) {
+            Text(if (state.busy) "一覧を取得中⋯" else "一覧はまだ取得されていません。")
+            TextButton(onClick = account, enabled = !state.busy) { Text("リンク一覧を取得") }
+        } else if (visible.isEmpty()) Text(if (hidden) "非表示のリンクはありません。" else "表示できるリンクがありません。")
+        else if (!hidden && query.isNotBlank()) {
+            Text("検索結果", style = MaterialTheme.typography.titleMedium)
+            if (visible.none { LinkSearch.score(it.searchTerms, query) >= 0 }) Text("該当するリンクがありません。")
+        }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             all.forEach { category ->
-                val values = category.buttons.filter { link -> link.visible && when (mode) { 1 -> link.id in state.settings.favorites && link.id !in state.settings.hidden; 2 -> link.id in state.settings.hidden; else -> link.id !in state.settings.hidden } && (query.isBlank() || LinkSearch.score(link.searchTerms, query) >= 0) }.sortedWith(compareByDescending<LinkItem> { if (query.isBlank()) 0 else LinkSearch.score(it.searchTerms, query) }.thenBy { it.sortOrder }.thenBy { it.label })
-                if (values.isNotEmpty()) { item { Text(category.label, style = MaterialTheme.typography.titleMedium) }; items(values, key = { it.id }) { link -> Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { LinkButton(link, state.settings, Modifier.weight(1f)); TextButton(onClick = { editing = link }) { Text("編集") } } } }
+                val values = category.buttons.filter { link -> link in visible && (query.isBlank() || LinkSearch.score(link.searchTerms, query) >= 0) }.sortedWith(compareByDescending<LinkItem> { if (query.isBlank()) 0 else LinkSearch.score(it.searchTerms, query) }.thenBy { it.sortOrder })
+                if (values.isNotEmpty()) {
+                    if (!hidden) item { Text(category.label, style = MaterialTheme.typography.titleMedium) }
+                    items(values, key = { it.id }) { link ->
+                        if (hidden) Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { Text(link.label, Modifier.weight(1f)); TextButton(onClick = { change { it.copy(hidden = it.hidden - link.id) } }) { Text("再表示") } }
+                        else LinkButton(link, state.settings, edit = { editing = link })
+                    }
+                }
             }
         }
     }
     editing?.let { link -> AlertDialog(onDismissRequest = { editing = null }, title = { Text(link.label) }, text = { Column(Modifier.verticalScroll(rememberScrollState())) {
         TextButton(onClick = { openLink(context, link.href, true) }, enabled = Uri.parse(link.href).scheme == "https") { Text("アプリ内で開く") }
-        TextButton(onClick = { openLink(context, link.href, false) }) { Text("外部アプリで開く") }
-        Toggle("お気に入り", link.id in state.settings.favorites) { v -> change { it.copy(favorites = if (v) it.favorites + link.id else it.favorites - link.id) } }
-        Toggle("一覧で非表示", link.id in state.settings.hidden) { v -> change { it.copy(hidden = if (v) it.hidden + link.id else it.hidden - link.id) } }
-        Text("色")
-        val labels = listOf("水色", "青", "エメラルド", "緑", "琥珀", "黄色", "オレンジ", "ローズ", "赤", "藍色", "紫", "ピンク", "青緑", "スレート", "グレー")
+        TextButton(onClick = { openLink(context, link.href, false) }) { Text("デフォルトのブラウザで開く") }
+        TextButton(onClick = { change { it.copy(favorites = if (link.id in it.favorites) it.favorites - link.id else it.favorites + link.id) } }) { Text(if (link.id in state.settings.favorites) "お気に入りを解除" else "お気に入りに追加") }
+        TextButton(onClick = { change { it.copy(hidden = it.hidden + link.id) }; editing = null }) { Text("非表示") }
+        Text("色を変更")
+        val labels = listOf("スカイ", "ブルー", "エメラルド", "グリーン", "アンバー", "イエロー", "オレンジ", "ローズ", "レッド", "インディゴ", "パープル", "ピンク", "ティール", "スレート", "グレー")
         linkColorNames.forEachIndexed { i, name -> TextButton(onClick = { change { it.copy(linkColors = it.linkColors + (link.id to name)) } }) { Text(labels[i]) } }
-        TextButton(onClick = { change { it.copy(linkColors = it.linkColors - link.id) } }) { Text("元の色に戻す") }
+        if (link.id in state.settings.linkColors) TextButton(onClick = { change { it.copy(linkColors = it.linkColors - link.id) } }) { Text("既定色に戻す") }
     } }, confirmButton = { TextButton(onClick = { editing = null }) { Text("閉じる") } }) }
 }

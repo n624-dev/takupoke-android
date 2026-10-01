@@ -20,43 +20,52 @@ private fun slots(state: AppState, date: LocalDate, changes: Boolean): List<Slot
         Slot(period, values.flatMap { it.lessons }.distinct(), values.flatMap { it.changes }, values.firstOrNull { it.type != "通常" }?.type ?: "通常", values.mapNotNull { it.time }.distinct().singleOrNull())
     }
 }
-@Composable fun HomeScreen(state: AppState, account: () -> Unit, select: (Pair<LocalDate, Slot>) -> Unit, timetable: () -> Unit) {
+@Composable fun HomeScreen(state: AppState, account: () -> Unit, classes: () -> Unit, select: (Pair<LocalDate, Slot>) -> Unit, timetable: () -> Unit) {
     val date = today()
     Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("たくポケ", style = MaterialTheme.typography.headlineMedium)
-        Text("${date.year}年${date.monthValue}月${date.dayOfMonth}日（${"月火水木金土日"[date.dayOfWeek.value - 1]}）")
-        if (state.updates.isNotEmpty()) Card { Column(Modifier.padding(12.dp)) { Text("リンク・名称・授業時刻の更新があります"); TextButton(onClick = account) { Text("データを取得する") } } }
-        if (state.settings.primaryClass.isEmpty()) Text("設定からクラスと時間割ファイルを選択してください。")
-        Schedule.events(date, state.events).forEach { Text("${it.title}（${it.tag}）", style = MaterialTheme.typography.titleMedium) }
+        if (state.updates.isNotEmpty()) TextButton(onClick = account) { Text(listOf("links-revision" to "一覧", "mapping-revision" to "名称データ", "timetable-times-revision" to "授業時刻").filter { it.first in state.updates }.joinToString("・") { it.second } + "に更新があります") }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { Text("今日の予定", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium); TextButton(onClick = timetable) { Text("時間割を見る") } }
+        Text("${date.monthValue}月${date.dayOfMonth}日（${"月火水木金土日"[date.dayOfWeek.value - 1]}）")
+        if (state.settings.primaryClass.isEmpty()) TextButton(onClick = classes) { Text("クラスを選択") }
+        Schedule.events(date, state.events).forEach { Text(it.title, style = MaterialTheme.typography.titleMedium) }
         slots(state, date, true).filter { it.lessons.isNotEmpty() }.forEach { slot ->
-            OutlinedCard(onClick = { select(date to slot) }, modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) { Text("${slot.period}時限　${slot.time.orEmpty()}　${slot.type}"); slot.lessons.forEach { Text(it.names.subject, style = MaterialTheme.typography.titleMedium); Text(listOf(it.names.teacher, it.names.room).filter(String::isNotEmpty).joinToString("　")) } } }
+            OutlinedCard(onClick = { select(date to slot) }, modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) { Text("${slot.period}限　${slot.time.orEmpty()}　${slot.type}"); slot.lessons.forEach { Text(it.names.subject, style = MaterialTheme.typography.titleMedium); Text(listOf(it.names.teacher, it.names.room).filter(String::isNotEmpty).joinToString("　")) } } }
         }
-        Button(onClick = timetable) { Text("週間時間割を見る") }
-        val recommended = state.links?.categories.orEmpty().flatMap { it.buttons }.filter { it.visible && it.recommended && it.id !in state.settings.hidden }.sortedBy { it.recommendationOrder }
+        val visible = state.links?.categories.orEmpty().flatMap { it.buttons }.filter { it.visible && it.id !in state.settings.hidden }
+        val favorites = visible.filter { it.id in state.settings.favorites }
+        if (favorites.isNotEmpty()) Text("お気に入り", style = MaterialTheme.typography.titleMedium)
+        favorites.forEach { LinkButton(it, state.settings) }
+        val recommended = visible.filter { it.recommended }.sortedBy { it.recommendationOrder }
         if (recommended.isNotEmpty()) Text("おすすめ", style = MaterialTheme.typography.titleMedium)
         recommended.forEach { LinkButton(it, state.settings) }
     }
 }
-@Composable fun TimetableScreen(state: AppState, change: ((Settings) -> Settings) -> Unit, select: (Pair<LocalDate, Slot>) -> Unit) {
+@Composable fun TimetableScreen(state: AppState, classes: () -> Unit, select: (Pair<LocalDate, Slot>) -> Unit) {
     var mondayText by rememberSaveable { mutableStateOf(Schedule.week(today()).toString()) }
     var changes by rememberSaveable { mutableStateOf(true) }
-    var days by rememberSaveable { mutableIntStateOf(5) }
-    var font by rememberSaveable { mutableIntStateOf(14) }
+    val font = 14
     val monday = LocalDate.parse(mondayText)
-    Column(Modifier.fillMaxSize()) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val days = if ((5..6).any { Schedule.events(monday.plusDays(it.toLong()), state.events).isNotEmpty() || slots(state, monday.plusDays(it.toLong()), changes).any { slot -> slot.lessons.isNotEmpty() } }) 7 else 5
+    Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
+        Text("表示クラス", style = MaterialTheme.typography.titleMedium)
+        ClassSelectionRow(state.settings, classes)
+        Text("週の時間割", style = MaterialTheme.typography.titleMedium)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = { mondayText = monday.minusWeeks(1).toString() }) { Text("前の週") }
-            TextButton(onClick = { mondayText = Schedule.week(today()).toString() }) { Text("今週") }
-            TextButton(onClick = { mondayText = monday.plusWeeks(1).toString() }) { Text("次の週") }
+            TextButton(onClick = { mondayText = monday.minusWeeks(1).toString() }) { Text("前週") }
+            TextButton(onClick = {
+                android.app.DatePickerDialog(context, { _, year, month, day -> mondayText = Schedule.week(LocalDate.of(year, month + 1, day)).toString() }, monday.year, monday.monthValue - 1, monday.dayOfMonth).apply {
+                    setTitle("週を選ぶ")
+                    setButton(android.content.DialogInterface.BUTTON_NEGATIVE, "キャンセル") { dialog, _ -> dialog.cancel() }
+                    show()
+                    getButton(android.content.DialogInterface.BUTTON_POSITIVE).text = "この週へ移動"
+                }
+            }) { val end = monday.plusDays(6); Text("${monday.monthValue}/${monday.dayOfMonth}〜${end.monthValue}/${end.dayOfMonth}") }
+            TextButton(onClick = { mondayText = monday.plusWeeks(1).toString() }) { Text("翌週") }
         }
-        Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Text("${monday.monthValue}/${monday.dayOfMonth}〜", Modifier.weight(1f))
-            TextButton(onClick = { days = if (days == 5) 7 else 5 }) { Text("${days}日表示") }
-            TextButton(onClick = { font = if (font >= 20) 12 else font + 2 }) { Text("文字 $font") }
-        }
-        Row(Modifier.padding(horizontal = 12.dp)) { FilterChip(changes, { changes = !changes }, label = { Text("変更を反映") }); Spacer(Modifier.width(8.dp)); Text(state.settings.primaryClass.replace('_', '-'), Modifier.padding(8.dp)) }
-        Column(Modifier.padding(horizontal = 12.dp)) { ClassSettings(state.settings, change) }
-        Column(Modifier.weight(1f).horizontalScroll(rememberScrollState()).verticalScroll(rememberScrollState())) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { FilterChip(!changes, { changes = false }, label = { Text("通常") }); FilterChip(changes, { changes = true }, label = { Text("変更込み") }) }
+        if (state.settings.primaryClass.isEmpty()) TextButton(onClick = classes) { Text("クラスを選択") }
+        else Column(Modifier.weight(1f).horizontalScroll(rememberScrollState()).verticalScroll(rememberScrollState())) {
             Row { Spacer(Modifier.width(44.dp)); (0 until days).forEach { offset -> val date = monday.plusDays(offset.toLong()); Column(Modifier.width(128.dp).padding(6.dp)) { Text("${date.monthValue}/${date.dayOfMonth}（${"月火水木金土日"[date.dayOfWeek.value - 1]}）", color = if (date == today()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface); Schedule.events(date, state.events).forEach { Text(it.title, fontSize = 12.sp) } } } }
             val weekSlots = (0 until days).map { slots(state, monday.plusDays(it.toLong()), changes) }
             (1..8).forEach { period -> Row(Modifier.height(IntrinsicSize.Min)) {

@@ -1,5 +1,7 @@
 package jp.n624.takupoke.android
 
+import android.content.Intent
+import android.net.Uri
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
@@ -21,12 +23,19 @@ import java.io.File
     val context = LocalContext.current
     var document by remember { mutableStateOf<String?>(null) }
     Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("たくポケ Android ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.headlineSmall)
-        Text("時間割・変更・学校行事を確認する非公式アプリです。学校の公式サービスではありません。重要な予定は必ず学校の原資料で確認してください。")
+        Text("アプリ情報", style = MaterialTheme.typography.titleMedium)
+        Text("香川高専詫間キャンパスの学生向けに個人が開発・運営する非公式アプリです。")
+        Text("バージョン: ${BuildConfig.VERSION_NAME}")
+        Text("ビルド: ${BuildConfig.VERSION_CODE}")
         Button(onClick = { repository.action { repository.checkRelease() } }, enabled = !state.busy) { Text("アプリの更新を確認") }
         state.updateUrl?.let { url -> TextButton(onClick = { openLink(context, url, state.settings.inAppBrowser) }) { Text("配布ページを開く") } }
-        TextButton(onClick = { openLink(context, "https://github.com/n624-dev/takupoke-android", state.settings.inAppBrowser) }) { Text("ソースコード・お問い合わせ") }
-        listOf("プライバシー" to "privacy.txt", "利用上の注意" to "terms.txt").forEach { (label, file) -> TextButton(onClick = { document = context.assets.open(file).bufferedReader().use { it.readText() } }) { Text(label) } }
+        Text("規約・プライバシー", style = MaterialTheme.typography.titleMedium)
+        listOf("利用規約" to "terms.txt", "プライバシーポリシー" to "privacy.txt").forEach { (label, file) -> TextButton(onClick = { document = context.assets.open(file).bufferedReader().use { it.readText() } }) { Text(label) } }
+        listOf("たくにんの利用規約" to "https://takuma-gakunin.n624.jp/terms", "たくにんのプライバシーポリシー" to "https://takuma-gakunin.n624.jp/privacy").forEach { (label, url) -> TextButton(onClick = { openLink(context, url, state.settings.inAppBrowser) }) { Text(label) } }
+        Text("問い合わせ・配布", style = MaterialTheme.typography.titleMedium)
+        TextButton(onClick = { openLink(context, "https://github.com/n624-dev/takupoke-android", state.settings.inAppBrowser) }) { Text("ソースコード") }
+        TextButton(onClick = { try { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:takupoke@n624.jp"))) } catch (_: android.content.ActivityNotFoundException) { android.widget.Toast.makeText(context, "対応するアプリが見つかりませんでした。", android.widget.Toast.LENGTH_SHORT).show() } }) { Text("問い合わせ") }
+        Text("ライセンス", style = MaterialTheme.typography.titleMedium)
         Text("オープンソースライセンス", style = MaterialTheme.typography.titleMedium)
         listOf("PDFBox-Android" to "pdfbox", "AndroidX" to "androidx", "Kotlin / kotlinx.serialization" to "kotlin", "OkHttp" to "okhttp", "Okio" to "okio", "Bouncy Castle" to "bouncycastle").forEach { (label, name) -> TextButton(onClick = { document = context.assets.open("license-$name.txt").bufferedReader().use { it.readText() } }) { Text(label) } }
     }
@@ -35,11 +44,11 @@ import java.io.File
 @Composable fun HelpScreen() {
     Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         listOf(
-            "データの設定" to "設定から通常時間割PDF・時間割変更XLSX・試験PDF・試験返却PDFを選択し、クラスを設定します。ファイルの選択はAndroid標準の画面で行います。元ファイルは変更しません。",
-            "ホーム・リンク一覧" to "ホームに今日の授業とおすすめを表示します。一覧で検索・お気に入り・非表示・色を設定できます。リンクはアプリ内ブラウザまたは外部アプリで開きます。",
-            "時間割" to "週を切り替え、変更反映の有無、5日・7日表示、文字サイズを選べます。授業をタップすると元の記載・名称・変更の詳細を確認できます。",
-            "ファイルの更新" to "選択したファイルを起動時・手動・バックグラウンドで確認します。クラウドの更新がAndroidに届くまで遅れる場合があります。同じファイルの再取得でも変わらない場合は、選び直して原資料を確認してください。",
-            "保存と通知" to "4月・10月の保存期間切り替え時に学校の非公開データとファイルのアクセス権を削除します。元ファイル、個人設定、公開学校行事は削除しません。通知には授業名などの内容を含めません。"
+            "はじめに" to "「設定」→「リンク・名称・授業時刻」で学校アカウントのデータを取得し、「時間割ファイル」で通常時間割のPDFと時間割変更のExcelファイルを選びます。「クラス」で表示するクラスを選びます。試験時間割・試験返却時間割のPDFは、手元にある場合に選んでください。元ファイルは変更しません。",
+            "時間割を見る" to "ホームに今日の授業と行事を表示します。「時間割を見る」で今日を含む週を開きます。「前週」「翌週」で週を移動し、週の日付からカレンダーで移動先を選べます。「通常」「変更込み」で表示を切り替えます。授業を押すと詳細を確認できます。",
+            "リンクを使う" to "一覧タブでリンクを押します。検索欄から名前を探せます。「設定」→「リンクの開き方」で、アプリ内かデフォルトのブラウザかを選びます。リンクを長押しして「お気に入りに追加」「色を変更」「非表示」を選びます。お気に入りはホームにも表示されます。「非表示のリンク」から「再表示」で戻せます。",
+            "更新と通知" to "選択済みファイルは起動時・手動・バックグラウンドで確認します。「設定」→「通知」で「時間割変更」「試験・返却」のオン・オフを切り替えます。初回の取り込みは通知せず、その後の変更を通知します。4月・10月の保存期間切り替え時に学校の非公開データとファイルのアクセス権を削除します。元ファイル、個人設定、公開学校行事は削除しません。",
+            "困ったとき" to "OneDriveを開いて対象ファイルの同期状況を確認します。最新版が届く時期はOneDriveの同期状況によって異なります。読み取れない場合は「設定」→「時間割ファイル」で選び直します。解析に失敗した場合は「詳細を見る」でエラーを確認し、ファイルを確認した後「解析する」を押してください。前回の正常な結果があれば保持します。"
         ).forEach { (title, description) -> Text(title, style = MaterialTheme.typography.titleMedium); Text(description) }
     }
 }
