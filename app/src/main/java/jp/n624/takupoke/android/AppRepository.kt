@@ -65,8 +65,10 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         if (db.value("period") == current) return
         stopObserving(); auth.cancel()
         try {
-            val sources = db.records().map { it.uri }.distinct()
-            context.contentResolver.persistedUriPermissions.filter { it.uri.toString() in sources }.forEach { permission -> context.contentResolver.releasePersistableUriPermission(permission.uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            context.contentResolver.persistedUriPermissions.forEach { permission ->
+                val flags = (if (permission.isReadPermission) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or (if (permission.isWritePermission) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)
+                if (flags != 0) context.contentResolver.releasePersistableUriPermission(permission.uri, flags)
+            }
             if (root.exists()) require(root.deleteRecursively())
             require(root.mkdirs())
             Notifications(context).clear()
@@ -86,9 +88,8 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
             val old = db.records().firstOrNull { it.kind == kind }
             try {
                 acquire(kind, uri, old, manual = false)
-                if (old != null && old.uri != uri.toString() && db.records().none { it.uri == old.uri }) release(old.uri)
             } catch (e: Exception) { if (!alreadyHeld && db.records().none { it.uri == uri.toString() }) release(uri.toString()); throw e }
-            finally { reload() }
+            finally { try { if (old != null && old.uri != uri.toString() && db.records().none { it.uri == old.uri }) release(old.uri) } finally { reload() } }
         }
         observe()
     }
@@ -111,7 +112,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
             } } }
             require(total > 0); currentCoroutineContext().ensureActive(); require(generation == retentionPeriod())
             val hash = digest.digest().joinToString("") { "%02x".format(it) }; val now = System.currentTimeMillis()
-            if (old?.digest == hash && old.uri == uri.toString() && old.analysis != null && old.parsedDigest == hash && old.analysis.parserVersion == 1) { db.save(old.copy(checkedAt = now, failure = null)); return }
+            if (old?.digest == hash && old.uri == uri.toString() && old.analysis != null && old.parsedDigest == hash && old.analysis.parserVersion == PARSER_VERSION) { db.save(old.copy(checkedAt = now, failure = null)); return }
             val destination = File(root, "${kind.name}-$hash.${kind.extension}")
             if (!destination.exists()) require(staging.renameTo(destination))
             val selected = MaterialRecord(kind, uri.toString(), name, hash, now, now, modified, old?.parsedAt, old?.parsedDigest, old?.analysis, year = old?.year ?: schoolYear())

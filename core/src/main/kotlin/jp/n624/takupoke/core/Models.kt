@@ -22,7 +22,8 @@ fun canonicalClass(name: String): String = Regex("^([1-9])_AI$").matchEntire(nam
 }
 @Serializable data class Names(val subject: String, val teacher: String = "", val room: String = "", val subjectFull: String = "", val teacherFull: String = "", val roomFull: String = "")
 @Serializable data class Lesson(val className: String, val weekday: Int, val period: Int, val names: Names, val sourceText: String = "", val date: String? = null, val spanStart: Int = period, val spanEnd: Int = period, val time: String? = null)
-@Serializable data class Analysis(val kind: MaterialKind, val schoolYear: Int, val term: Int = 0, val lessons: List<Lesson> = emptyList(), val changes: List<Change> = emptyList(), val dates: List<String> = emptyList(), val classes: List<String> = emptyList(), val parserVersion: Int = 1)
+const val PARSER_VERSION = 2
+@Serializable data class Analysis(val kind: MaterialKind, val schoolYear: Int, val term: Int = 0, val lessons: List<Lesson> = emptyList(), val changes: List<Change> = emptyList(), val dates: List<String> = emptyList(), val classes: List<String> = emptyList(), val parserVersion: Int = PARSER_VERSION, val specialTimes: List<DayTimes> = emptyList())
 @Serializable data class Change(val date: String, val className: String, val period: String, val before: String, val after: String, val teacher: String = "", val room: String = "", val note: String = "", val raw: String = "") {
     fun periods(): List<Int> {
         val value = key(period).removeSuffix("時限").removeSuffix("限目").removeSuffix("限")

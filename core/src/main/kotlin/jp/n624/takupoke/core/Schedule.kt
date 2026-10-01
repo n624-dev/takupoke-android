@@ -29,9 +29,9 @@ object Schedule {
                 listOf(Lesson(cls, day.dayOfWeek.value, period, names.copy(subject = names.subject.ifEmpty { "休講" }), c.raw, day.toString()))
             }
             val lessons = (updated ?: (selected + base)).map { it.copy(names = mapping?.apply(it.names, cls, schoolYear(day)) ?: it.names) }
-            val specialTime = selected.mapNotNull { it.time }.distinct().singleOrNull()
+            val specialTime = selected.mapNotNull { it.time }.distinct().singleOrNull() ?: special.flatMap { it.specialTimes }.filter { it.date == day.toString() }.flatMap { it.periods }.filter { it.period == period }.map { "${it.start}〜${it.end}" }.distinct().singleOrNull()
             val hasUnresolvedSpecialTime = selected.isNotEmpty() && specialTime == null
-            val normalAllowed = selected.isEmpty() && "テスト" !in tags && "テスト返却" !in tags
+            val normalAllowed = special.isEmpty() && "テスト" !in tags && "テスト返却" !in tags
             val time = specialTime ?: if (hasUnresolvedSpecialTime) null else times?.days?.firstOrNull { it.date == day.toString() }?.periods?.firstOrNull { it.period == period }?.let { "${it.start}〜${it.end}" } ?: if (normalAllowed) normalTimes[period - 1] else null
             Slot(period, lessons, changes, if (changes.isNotEmpty()) "変更" else if (selected.isNotEmpty()) (if (special.any { it.kind == MaterialKind.EXAM }) "試験" else "返却") else "通常", time)
         }

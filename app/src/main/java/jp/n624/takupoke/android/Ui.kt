@@ -36,11 +36,13 @@ val darkMainColors = listOf(Color(0xFF90CAF9), Color(0xFFA5D6A7), Color(0xFFFFF5
     var tab by rememberSaveable { mutableIntStateOf(0) }; var page by rememberSaveable { mutableStateOf("") }; var setupOffered by rememberSaveable { mutableStateOf(false) }
     var selectedLesson by remember { mutableStateOf<Pair<LocalDate, Slot>?>(null) }
     var source by remember { mutableStateOf<MaterialRecord?>(null) }
+    var clockPeriod by remember { mutableStateOf(retentionPeriod()) }
+    var expiryQueued by remember(state.period) { mutableStateOf(false) }
     val colors = if (isSystemInDarkTheme()) darkColorScheme(primary = darkMainColors[state.settings.color.coerceIn(0, 6)]) else lightColorScheme(primary = mainColors[state.settings.color.coerceIn(0, 6)])
     fun settings(block: (Settings) -> Settings) { repository.action { repository.settings(block) } }
     LaunchedEffect(state.ready) { if (state.ready && !state.settings.setupComplete && !setupOffered) { page = "setup"; setupOffered = true } }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(state.ready, lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { while (true) { kotlinx.coroutines.delay(1000); if (state.ready && state.period != retentionPeriod()) repository.action { repository.activate(false) } } } }
+    LaunchedEffect(state.ready, lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { while (true) { kotlinx.coroutines.delay(1000); clockPeriod = retentionPeriod(); if (state.ready && state.period != clockPeriod && !expiryQueued) { expiryQueued = true; repository.cancel(); repository.action(queued = true) { repository.activate(false) } } } } }
     LaunchedEffect(state.period) { selectedLesson = null; source = null }
     MaterialTheme(colorScheme = colors) {
         BackHandler(page.isNotEmpty()) { page = "" }
@@ -51,7 +53,7 @@ val darkMainColors = listOf(Color(0xFF90CAF9), Color(0xFFA5D6A7), Color(0xFFFFF5
         }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
                 if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (!state.ready) { Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) { Text(if (state.retentionFailure) "保存データを削除できませんでした。古いデータの利用を停止しています。" else if (state.startupFailure) "保存データを読み込めませんでした。削除はしていません。" else "読み込み中⋯"); if (state.retentionFailure || state.startupFailure) Button(onClick = { repository.action { repository.activate() } }) { Text("再試行") } } }
+                if (!state.ready || state.period != clockPeriod) { Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) { Text(if (state.retentionFailure) "保存データを削除できませんでした。古いデータの利用を停止しています。" else if (state.startupFailure) "保存データを読み込めませんでした。削除はしていません。" else if (state.ready && state.period != clockPeriod) "保存期間が切り替わりました。古いデータの利用を停止しています。" else "読み込み中⋯"); if (state.retentionFailure || state.startupFailure || state.ready && state.period != clockPeriod) Button(onClick = { repository.action { repository.activate() } }, enabled = !state.busy) { Text("再試行") } } }
                 else when (page) {
                     "materials" -> MaterialsScreen(state, repository, pick) { source = it }
                     "account" -> AccountScreen(state, repository, login)

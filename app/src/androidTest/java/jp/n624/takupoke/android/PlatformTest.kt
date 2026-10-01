@@ -67,17 +67,25 @@ class PlatformTest {
         val c = isolated(); val db = Database(c); val repository = AppRepository(c, RejectNetwork, db, MemorySettings())
         val uri = DocumentsContract.buildDocumentUri(SyntheticDocuments.AUTHORITY, "changes")
         val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
-        instrumentation.context.contentResolver.call(SyntheticDocuments.AUTHORITY, "replaceSynthetic", null, Bundle().apply { putByteArray("bytes", syntheticXlsx("理科")) })
-        instrumentation.context.grantUriPermission(context.packageName, uri, flags)
+        instrumentation.uiAutomation.adoptShellPermissionIdentity()
+        try {
+            instrumentation.context.contentResolver.call(SyntheticDocuments.AUTHORITY, "replaceSynthetic", null, Bundle().apply { putByteArray("bytes", syntheticXlsx("理科")) })
+            instrumentation.context.grantUriPermission(context.packageName, uri, flags)
+        } finally { instrumentation.uiAutomation.dropShellPermissionIdentity() }
         repository.select(MaterialKind.CHANGES, uri, flags)
         val initial = db.records().single(); assertEquals("理科", initial.analysis!!.changes.single().after); assertTrue(context.contentResolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission })
-        instrumentation.context.contentResolver.call(SyntheticDocuments.AUTHORITY, "replaceSynthetic", null, Bundle().apply { putByteArray("bytes", syntheticXlsx("英語")) })
+        replaceDocument(syntheticXlsx("英語"))
         repository.refresh(true)
         val changed = db.records().single(); assertNotEquals(initial.digest, changed.digest); assertEquals("英語", changed.analysis!!.changes.single().after)
-        instrumentation.context.contentResolver.call(SyntheticDocuments.AUTHORITY, "replaceSynthetic", null, Bundle().apply { putByteArray("bytes", "invalid synthetic file".toByteArray()) })
+        replaceDocument("invalid synthetic file".toByteArray())
         repository.refresh(true)
         val failed = db.records().single(); assertNotNull(failed.failure); assertEquals("英語", failed.analysis!!.changes.single().after); assertEquals(changed.digest, failed.parsedDigest); assertNotEquals(changed.digest, failed.digest)
         repository.stopObserving(); c.contentResolver.releasePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    private fun replaceDocument(bytes: ByteArray) {
+        instrumentation.uiAutomation.adoptShellPermissionIdentity()
+        try { instrumentation.context.contentResolver.call(SyntheticDocuments.AUTHORITY, "replaceSynthetic", null, Bundle().apply { putByteArray("bytes", bytes) }) }
+        finally { instrumentation.uiAutomation.dropShellPermissionIdentity() }
     }
     @Test fun runtimeXmlDefensesAndPrivateBackupLocation() {
         assertEquals(1, XlsxParser.parse(syntheticXlsx("理科"), 2026).changes.size)

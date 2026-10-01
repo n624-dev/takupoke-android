@@ -27,13 +27,18 @@ object PdfSchoolParser {
             if (firstTimes != null && firstTimes != times) fail("ページ間の授業時刻")
             firstTimes = times
             val parsed = if (kind == MaterialKind.EXAM) exam(page, year, index + 1, times) else returned(page, year, times)
+            if (parsed.dates != parsed.dates.sorted()) fail("日付順")
             if (dates != null && dates != parsed.dates.sorted()) fail("ページ間の日付")
             if (parsed.classes.any { it in classes }) fail("クラスの重複")
             dates = parsed.dates.sorted(); classes += parsed.classes; lessons += parsed.lessons
             require(lessons.size <= 20000)
         }
         if (classes.size != 17 || lessons.isEmpty()) fail("クラス数・授業数")
-        return Analysis(kind, year, lessons = lessons, dates = dates.orEmpty(), classes = classes.sorted())
+        val clocks = dates.orEmpty().mapIndexed { index, date ->
+            val values = if (kind == MaterialKind.RETURN && index > 0) Schedule.normalTimes.mapIndexed { i, value -> i + 1 to value }.toMap() else firstTimes!!.single
+            DayTimes(date, values.entries.sortedBy { it.key }.map { (period, value) -> PeriodTime(period, value.substringBefore('〜'), value.substringAfter('〜')) })
+        }
+        return Analysis(kind, year, lessons = lessons, dates = dates.orEmpty(), classes = classes.sorted(), specialTimes = clocks)
     }
     private fun header(page: Page, sequence: String, count: Int): List<Glyph> {
         val rows = Grid.rows(page.glyphs.filter { it.cy < page.height / 4 }).filter { key(it.joinToString("") { g -> g.text }) == sequence.repeat(count) }

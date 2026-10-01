@@ -34,7 +34,8 @@ data class XmlNode(val name: String, val attrs: Map<String, String>, val childre
 object SafeXml {
     fun parse(bytes: ByteArray): XmlNode {
         require(bytes.size <= 8 * 1024 * 1024)
-        val prefix = bytes.toString(Charsets.UTF_8)
+        val prefix = Charsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT).onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT).decode(java.nio.ByteBuffer.wrap(bytes)).toString()
+        require('\u0000' !in prefix)
         require(!prefix.contains("<!DOCTYPE", true) && !prefix.contains("<!ENTITY", true) && !prefix.contains("UTF-16", true))
         val factory = SAXParserFactory.newInstance(); factory.isNamespaceAware = true
         factory.setFeature("http://xml.org/sax/features/external-general-entities", false)
