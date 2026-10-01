@@ -4,6 +4,9 @@ import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -26,10 +29,13 @@ fun openLink(context: android.content.Context, url: String, inApp: Boolean) {
     val context = LocalContext.current
     val color = settings.linkColors[link.id] ?: link.color
     val palette = listOf(0xFF0369A1, 0xFF1D4ED8, 0xFF047857, 0xFF15803D, 0xFF92400E, 0xFF854D0E, 0xFFC2410C, 0xFFBE123C, 0xFFB91C1C, 0xFF4338CA, 0xFF7E22CE, 0xFFBE185D, 0xFF0F766E, 0xFF475569, 0xFF4B5563)
-    val parsed = linkColorNames.indexOf(color).takeIf { it >= 0 }?.let { Color(palette[it]) } ?: runCatching { Color(android.graphics.Color.parseColor(color)) }.getOrNull()
+    val dark = listOf(0xFF7DD3FC, 0xFF93C5FD, 0xFF6EE7B7, 0xFF86EFAC, 0xFFFCD34D, 0xFFFDE047, 0xFFFDBA74, 0xFFFDA4AF, 0xFFFCA5A5, 0xFFA5B4FC, 0xFFD8B4FE, 0xFFF9A8D4, 0xFF5EEAD4, 0xFFCBD5E1, 0xFFD1D5DB)
+    val chosen = if (isSystemInDarkTheme()) dark else palette
+    val parsed = linkColorNames.indexOf(color).takeIf { it >= 0 }?.let { Color(chosen[it]) } ?: runCatching { Color(android.graphics.Color.parseColor(color)) }.getOrNull()
     OutlinedButton(onClick = { openLink(context, link.href, settings.inAppBrowser) }, modifier = modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = parsed ?: MaterialTheme.colorScheme.primary)) { Text(link.label) }
 }
 @Composable fun LinksScreen(state: AppState, change: ((Settings) -> Settings) -> Unit) {
+    val context = LocalContext.current
     var query by rememberSaveable { mutableStateOf("") }; var mode by rememberSaveable { mutableIntStateOf(0) }; var editing by remember { mutableStateOf<LinkItem?>(null) }
     val all = state.links?.categories.orEmpty().sortedBy { it.sortOrder }
     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
@@ -43,11 +49,14 @@ fun openLink(context: android.content.Context, url: String, inApp: Boolean) {
             }
         }
     }
-    editing?.let { link -> AlertDialog(onDismissRequest = { editing = null }, title = { Text(link.label) }, text = { Column {
+    editing?.let { link -> AlertDialog(onDismissRequest = { editing = null }, title = { Text(link.label) }, text = { Column(Modifier.verticalScroll(rememberScrollState())) {
+        TextButton(onClick = { openLink(context, link.href, true) }, enabled = Uri.parse(link.href).scheme == "https") { Text("アプリ内で開く") }
+        TextButton(onClick = { openLink(context, link.href, false) }) { Text("外部アプリで開く") }
         Toggle("お気に入り", link.id in state.settings.favorites) { v -> change { it.copy(favorites = if (v) it.favorites + link.id else it.favorites - link.id) } }
         Toggle("一覧で非表示", link.id in state.settings.hidden) { v -> change { it.copy(hidden = if (v) it.hidden + link.id else it.hidden - link.id) } }
         Text("色")
-        listOf("blue", "green", "yellow", "orange", "red", "pink", "purple").forEachIndexed { i, name -> TextButton(onClick = { change { it.copy(linkColors = it.linkColors + (link.id to name)) } }) { Text(colorNames[i]) } }
+        val labels = listOf("水色", "青", "エメラルド", "緑", "琥珀", "黄色", "オレンジ", "ローズ", "赤", "藍色", "紫", "ピンク", "青緑", "スレート", "グレー")
+        linkColorNames.forEachIndexed { i, name -> TextButton(onClick = { change { it.copy(linkColors = it.linkColors + (link.id to name)) } }) { Text(labels[i]) } }
         TextButton(onClick = { change { it.copy(linkColors = it.linkColors - link.id) } }) { Text("元の色に戻す") }
     } }, confirmButton = { TextButton(onClick = { editing = null }) { Text("閉じる") } }) }
 }

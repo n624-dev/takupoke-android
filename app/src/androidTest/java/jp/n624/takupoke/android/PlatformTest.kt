@@ -40,6 +40,7 @@ class PlatformTest {
         try {
             repository.select(MaterialKind.CHANGES, uri, flags); assertTrue(manager.activeNotifications.isEmpty())
             replaceDocument(syntheticXlsx("英語", date)); repository.refresh(true)
+            kotlinx.coroutines.withTimeout(5000) { while (manager.activeNotifications.isEmpty()) kotlinx.coroutines.delay(10) }
             val notification = manager.activeNotifications.single().notification
             assertEquals("時間割変更が1件あります", notification.extras.getCharSequence(android.app.Notification.EXTRA_TEXT).toString())
             assertEquals(android.app.Notification.VISIBILITY_PRIVATE, notification.visibility)

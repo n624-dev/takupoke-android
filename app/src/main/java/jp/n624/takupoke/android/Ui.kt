@@ -39,7 +39,7 @@ val darkMainColors = listOf(Color(0xFF90CAF9), Color(0xFFA5D6A7), Color(0xFFFFF5
     var clockPeriod by remember { mutableStateOf(retentionPeriod()) }
     var expiryQueued by remember(state.period) { mutableStateOf(false) }
     val colors = if (isSystemInDarkTheme()) darkColorScheme(primary = darkMainColors[state.settings.color.coerceIn(0, 6)]) else lightColorScheme(primary = mainColors[state.settings.color.coerceIn(0, 6)])
-    fun settings(block: (Settings) -> Settings) { repository.action { repository.settings(block) } }
+    fun settings(block: (Settings) -> Settings) { repository.preferenceAction(block) }
     LaunchedEffect(state.ready) { if (state.ready && !state.settings.setupComplete && !setupOffered) { page = "setup"; setupOffered = true } }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(state.ready, lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { while (true) { kotlinx.coroutines.delay(1000); clockPeriod = retentionPeriod(); if (state.ready && state.period != clockPeriod && !expiryQueued) { expiryQueued = true; repository.cancel(); repository.action(queued = true) { repository.activate(false) } } } } }

@@ -52,6 +52,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         else -> "取得または処理を完了できませんでした。保存済みの結果は保持しています。"
     }
     suspend fun settings(transform: (Settings) -> Settings) { preferences.updateData(transform) }
+    fun preferenceAction(transform: (Settings) -> Settings) { scope.launch { try { settings(transform) } catch (_: Exception) { mutable.update { it.copy(message = "個人設定を保存できませんでした。") } } } }
     private fun locked() = context.getSystemService(KeyguardManager::class.java).isDeviceLocked
     suspend fun activate(refresh: Boolean = true) {
         if (locked()) return

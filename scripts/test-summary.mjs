@@ -21,7 +21,10 @@ for (const file of files) {
   if (!tag) continue;
   const attribute = name => clean(tag.match(new RegExp(`${name}="([^"]*)"`))?.[1] ?? '0').replace(/\|/g, '\\|');
   summary.push(`| ${attribute('name')} | ${attribute('tests')} | ${attribute('failures')} | ${attribute('errors')} | ${attribute('skipped')} |`);
-  for (const match of xml.matchAll(/<(failure|error)\b[^>]*>([\s\S]*?)<\/\1>/g)) failures.push(clean(match[2].replace(/^<!\[CDATA\[|\]\]>$/g, '')).split('\n').slice(0, 60).join('\n'));
+  for (const match of xml.matchAll(/<(failure|error)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/\1>)/g)) {
+    const message = match[2].match(/message="([^"]*)"/)?.[1] ?? '';
+    failures.push(clean([message, (match[3] ?? '').replace(/^<!\[CDATA\[|\]\]>$/g, '')].filter(Boolean).join('\n')).split('\n').slice(0, 60).join('\n'));
+  }
 }
 if (files.length === 0) summary.push('| No test report produced | — | — | — | — |');
 if (failures.length) summary.push('', 'Failure details (synthetic test data only):', '```text', ...failures, '```');
