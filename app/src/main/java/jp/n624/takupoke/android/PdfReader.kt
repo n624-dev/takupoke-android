@@ -6,6 +6,7 @@ import com.tom_roush.pdfbox.contentstream.PDFGraphicsStreamEngine
 import com.tom_roush.pdfbox.cos.COSName
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPage
+import com.tom_roush.pdfbox.io.MemoryUsageSettings
 import com.tom_roush.pdfbox.pdmodel.font.PDFont
 import com.tom_roush.pdfbox.pdmodel.graphics.form.PDFormXObject
 import com.tom_roush.pdfbox.pdmodel.graphics.image.PDImage
@@ -20,7 +21,9 @@ object PdfReader {
     }
     internal fun readPages(file: File): List<Page> {
         require(file.length() in 1..50L * 1024 * 1024)
-        PDDocument.load(file).use { document ->
+        val scratch = File(file.parentFile, "scratch").also { require(it.isDirectory || it.mkdirs()) }
+        val memory = MemoryUsageSettings.setupMixed(8L * 1024 * 1024, 64L * 1024 * 1024).setTempDir(scratch)
+        PDDocument.load(file, memory).use { document ->
             require(!document.isEncrypted && document.numberOfPages in 1..12)
             return document.pages.map { page -> Engine(page).read() }
         }

@@ -26,7 +26,7 @@ jobs:
       - name: Check public files and cache policy
         run: bash scripts/check-public.sh
       - name: Unit tests, Android lint, debug and optimized release builds
-        run: ./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease --no-daemon --no-build-cache
+        run: ./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease --no-daemon --no-build-cache -Dorg.gradle.jvmargs=-Xmx3g
       - name: Test summary
         if: always()
         run: bash scripts/test-summary.sh
@@ -65,7 +65,7 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
-          script: ./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache
+          script: ./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Dorg.gradle.jvmargs=-Xmx3g
       - name: Test summary
         if: always()
         run: bash scripts/test-summary.sh

@@ -7,6 +7,13 @@ import java.util.zip.ZipOutputStream
 import kotlin.test.*
 
 class CoreTest {
+    @Test fun kanaAndRomajiSearch() {
+        assertEquals(LinkSearch.normalize("システム"), LinkSearch.normalize("しすてむ"))
+        assertTrue(LinkSearch.score("しすてむ|system", "sisutemu") >= 0)
+        assertTrue(LinkSearch.score("じこくひょう|時刻表", "zikokuhyo") >= 0)
+        assertTrue(LinkSearch.score("Office 365|オフィス", "ｏｆｆｉｃｅ") >= 0)
+        assertEquals(-1, LinkSearch.score("system", "unrelated"))
+    }
     @Test fun schoolCalendarAndWeekend() {
         assertEquals(2025, schoolYear(LocalDate.parse("2026-03-31")))
         assertEquals("2026-1", retentionPeriod(LocalDate.parse("2026-04-01")))

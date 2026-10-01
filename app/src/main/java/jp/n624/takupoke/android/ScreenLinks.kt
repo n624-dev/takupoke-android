@@ -38,7 +38,7 @@ fun openLink(context: android.content.Context, url: String, inApp: Boolean) {
         if (all.isEmpty()) Text("設定の「リンク・名称・授業時刻」から学校アカウントで取得してください。")
         LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             all.forEach { category ->
-                val values = category.buttons.filter { link -> link.visible && when (mode) { 1 -> link.id in state.settings.favorites && link.id !in state.settings.hidden; 2 -> link.id in state.settings.hidden; else -> link.id !in state.settings.hidden } && (query.isBlank() || key(link.label + " " + link.searchTerms + " " + link.searchAliases.joinToString(" ")).contains(key(query))) }.sortedBy { it.sortOrder }
+                val values = category.buttons.filter { link -> link.visible && when (mode) { 1 -> link.id in state.settings.favorites && link.id !in state.settings.hidden; 2 -> link.id in state.settings.hidden; else -> link.id !in state.settings.hidden } && (query.isBlank() || LinkSearch.score(link.searchTerms, query) >= 0) }.sortedWith(compareByDescending<LinkItem> { if (query.isBlank()) 0 else LinkSearch.score(it.searchTerms, query) }.thenBy { it.sortOrder }.thenBy { it.label })
                 if (values.isNotEmpty()) { item { Text(category.label, style = MaterialTheme.typography.titleMedium) }; items(values, key = { it.id }) { link -> Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { LinkButton(link, state.settings, Modifier.weight(1f)); TextButton(onClick = { editing = link }) { Text("編集") } } } }
             }
         }

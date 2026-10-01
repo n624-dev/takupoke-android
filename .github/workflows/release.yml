@@ -1,0 +1,72 @@
+name: Signed Android release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version name (for example 0.1.0)
+        required: true
+        default: '0.1.0'
+      version_code:
+        description: Increasing Android version code
+        required: true
+        default: '1'
+permissions:
+  contents: read
+concurrency:
+  group: signed-android-release
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Use disposable Gradle home
+        run: echo "GRADLE_USER_HOME=$RUNNER_TEMP/takupoke-gradle" >> "$GITHUB_ENV"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Require complete verification of this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh run list --workflow android.yml --commit "$GITHUB_SHA" --status success --json databaseId --jq 'length > 0')" = true
+          bash scripts/check-public.sh
+      - name: Build, verify and publish signed APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TKPK_VERSION_NAME: ${{ inputs.version }}
+          TKPK_VERSION_CODE: ${{ inputs.version_code }}
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          TKPK_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          TKPK_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          TKPK_KEY_ALIAS: takupoke
+        run: |
+          set -euo pipefail
+          [[ "$TKPK_VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$TKPK_VERSION_CODE" =~ ^[1-9][0-9]{0,8}$ ]]
+          test -n "$KEYSTORE_BASE64" && test -n "$TKPK_STORE_PASSWORD"
+          umask 077
+          mkdir -p "$RUNNER_TEMP/takupoke-signing"
+          export TKPK_KEYSTORE="$RUNNER_TEMP/takupoke-signing/release.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$TKPK_KEYSTORE"
+          unset KEYSTORE_BASE64
+          ./gradlew :app:assembleRelease --no-daemon --no-build-cache -Dorg.gradle.jvmargs=-Xmx3g
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
+          apk="takupoke-android-$TKPK_VERSION_NAME.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$apk"
+          sha256sum "$apk" > "$apk.sha256"
+          gh release create "v$TKPK_VERSION_NAME" "$apk" "$apk.sha256" --target "$GITHUB_SHA" --title "たくポケ Android $TKPK_VERSION_NAME" --notes '初回Android配布版。非公式アプリです。学校の原資料で重要な予定を確認してください。OneDrive・学校アカウント・通知・バックグラウンド更新は実端末の提供元や設定の影響を受けます。'
+      - name: Remove temporary signing and build data
+        if: always()
+        run: |
+          ./gradlew --stop || true
+          rm -rf -- "$RUNNER_TEMP/takupoke-signing" "$RUNNER_TEMP/takupoke-gradle" app/build core/build .gradle
+          find . -maxdepth 1 -type f \( -name 'takupoke-android-*.apk' -o -name 'takupoke-android-*.apk.sha256' \) -delete

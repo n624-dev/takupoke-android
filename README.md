@@ -24,6 +24,8 @@ Kotlin / Jetpack Compose。JDK 21、Android SDK 36、Gradle Wrapperを使用し�
 
 リリースビルドは環境変数 `TKPK_KEYSTORE`、`TKPK_STORE_PASSWORD`、`TKPK_KEY_ALIAS`、`TKPK_KEY_PASSWORD` を設定した場合だけ配布用鍵で署名します。未設定なら未署名です。鍵・パスワードをコミットしないでください。バージョンは `TKPK_VERSION_NAME`、`TKPK_VERSION_CODE` で指定できます。
 
+手動の「Signed Android release」Actionsは、同じコミットの全検証成功を確認してから署名APKとSHA-256をGitHub Releasesへ公開します。署名情報はGitHub Secretsで管理し、実行後の一時ファイルを削除します。配布鍵は将来の更新にも必要なので、リポジトリ外で安全にバックアップしてください。
+
 GitHub Actionsで単体テスト、lint、debug/releaseビルド、API 29 / 36のエミュレータテストを実行します。テスト資料はコードで生成した架空データです。テスト用アプリはHTTP通信を拒否するトランスポートへ置き換え、学校サイト・本番API・実アカウントへ接続しません。
 
 Actionsの永続キャッシュと成果物のアップロードは使用しません。ジョブ中のGradleファイルはrunnerの一時領域に置き、成功・失敗時とも削除します。実行ログとテスト要約はGitHubの標準実行履歴で確認できます。
