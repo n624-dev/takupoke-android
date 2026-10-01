@@ -21,6 +21,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import jp.n624.takupoke.core.*
 import java.time.LocalDate
 
@@ -36,7 +39,9 @@ val darkMainColors = listOf(Color(0xFF90CAF9), Color(0xFFA5D6A7), Color(0xFFFFF5
     val colors = if (isSystemInDarkTheme()) darkColorScheme(primary = darkMainColors[state.settings.color.coerceIn(0, 6)]) else lightColorScheme(primary = mainColors[state.settings.color.coerceIn(0, 6)])
     fun settings(block: (Settings) -> Settings) { repository.action { repository.settings(block) } }
     LaunchedEffect(state.ready) { if (state.ready && !state.settings.setupComplete && !setupOffered) { page = "setup"; setupOffered = true } }
-    LaunchedEffect(state.ready) { while (true) { kotlinx.coroutines.delay(30000); if (state.ready) repository.action { repository.activate(false) } } }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(state.ready, lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { while (true) { kotlinx.coroutines.delay(1000); if (state.ready && state.period != retentionPeriod()) repository.action { repository.activate(false) } } } }
+    LaunchedEffect(state.period) { selectedLesson = null; source = null }
     MaterialTheme(colorScheme = colors) {
         BackHandler(page.isNotEmpty()) { page = "" }
         Scaffold(topBar = { TopAppBar(title = { Text(if (page.isEmpty()) listOf("ホーム", "一覧", "時間割", "設定")[tab] else mapOf("materials" to "時間割ファイル", "events" to "学校行事", "account" to "リンク・名称・授業時刻", "notifications" to "通知", "about" to "このアプリについて", "help" to "使い方", "setup" to "初期設定")[page].orEmpty()) }, navigationIcon = { if (page.isNotEmpty()) IconButton(onClick = { page = "" }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "戻る") } }, actions = { if (state.busy) TextButton(onClick = repository::cancel) { Text("中止") } }) }, bottomBar = {
@@ -78,8 +83,10 @@ val darkMainColors = listOf(Color(0xFF90CAF9), Color(0xFFA5D6A7), Color(0xFFFFF5
             }
         }
         state.message?.let { message -> AlertDialog(onDismissRequest = repository::clearMessage, title = { Text("たくポケ") }, text = { Text(message) }, confirmButton = { TextButton(onClick = repository::clearMessage) { Text("閉じる") } }) }
-        selectedLesson?.let { (date, slot) -> AlertDialog(onDismissRequest = { selectedLesson = null }, title = { Text("${date.monthValue}/${date.dayOfMonth} ${slot.period}時限") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) { slot.time?.let { Text(it) }; slot.lessons.forEach { lesson -> val n = lesson.names; Text(n.subjectFull.ifEmpty { n.subject }, fontWeight = FontWeight.Bold); Text(listOf(n.teacherFull.ifEmpty { n.teacher }, n.roomFull.ifEmpty { n.room }).filter(String::isNotEmpty).joinToString("\n")); if (lesson.sourceText.isNotEmpty()) Text("元の記載\n${lesson.sourceText}") }; slot.changes.forEach { Text("${it.before} → ${it.after}\n${it.note}") } } }, confirmButton = { TextButton(onClick = { selectedLesson = null }) { Text("閉じる") } }) }
-        source?.let { record -> PdfScreen(repository.file(record)) { source = null } }
+        if (state.ready && state.period == retentionPeriod()) {
+            selectedLesson?.let { (date, slot) -> AlertDialog(onDismissRequest = { selectedLesson = null }, title = { Text("${date.monthValue}/${date.dayOfMonth} ${slot.period}時限") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) { slot.time?.let { Text(it) }; slot.lessons.forEach { lesson -> val n = lesson.names; Text(n.subjectFull.ifEmpty { n.subject }, fontWeight = FontWeight.Bold); Text(listOf(n.teacherFull.ifEmpty { n.teacher }, n.roomFull.ifEmpty { n.room }).filter(String::isNotEmpty).joinToString("\n")); if (lesson.sourceText.isNotEmpty()) Text("元の記載\n${lesson.sourceText}") }; slot.changes.forEach { Text("${it.before} → ${it.after}\n${it.note}") } } }, confirmButton = { TextButton(onClick = { selectedLesson = null }) { Text("閉じる") } }) }
+            source?.let { record -> PdfScreen(repository.file(record)) { source = null } }
+        }
     }
 }
 @Composable fun Toggle(label: String, value: Boolean, change: (Boolean) -> Unit) { Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) { Text(label, Modifier.weight(1f)); Switch(value, change) } }

@@ -13,6 +13,11 @@ import java.security.spec.ECGenParameterSpec
 import java.util.Base64
 
 class AuthTest {
+    @Test fun androidCanResolveTheRegisteredHostlessCallback() {
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(Endpoints.CALLBACK + "?state=synthetic&code=synthetic")).addCategory(android.content.Intent.CATEGORY_BROWSABLE)
+        assertTrue(context.packageManager.queryIntentActivities(intent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY).any { it.activityInfo.packageName == context.packageName && it.activityInfo.name == MainActivity::class.java.name })
+    }
     private fun encode(bytes: ByteArray) = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     private fun encode(text: String) = encode(text.toByteArray())
     @Test fun pkceSignedIdTokenAndOneUseCallback() {

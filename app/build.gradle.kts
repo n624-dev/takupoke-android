@@ -37,6 +37,10 @@ dependencies {
     implementation("androidx.datastore:datastore:1.1.7")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    // Avoid the PDF port's old transitive cryptography versions.
+    implementation("org.bouncycastle:bcprov-jdk15to18:1.86")
+    implementation("org.bouncycastle:bcpkix-jdk15to18:1.86")
+    implementation("org.bouncycastle:bcutil-jdk15to18:1.86")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")

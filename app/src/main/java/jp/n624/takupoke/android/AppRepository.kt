@@ -22,7 +22,7 @@ import java.security.MessageDigest
 import java.time.LocalDate
 import java.util.UUID
 
-data class AppState(val ready: Boolean = false, val busy: Boolean = false, val settings: Settings = Settings(), val materials: List<MaterialRecord> = emptyList(), val events: List<EventsPayload> = emptyList(), val links: LinksPayload? = null, val mapping: Mapping? = null, val times: TimesPayload? = null, val updates: Set<String> = emptySet(), val message: String? = null, val retentionFailure: Boolean = false, val updateUrl: String? = null, val sourceCheckMessage: String? = null, val startupFailure: Boolean = false) {
+data class AppState(val ready: Boolean = false, val busy: Boolean = false, val settings: Settings = Settings(), val materials: List<MaterialRecord> = emptyList(), val events: List<EventsPayload> = emptyList(), val links: LinksPayload? = null, val mapping: Mapping? = null, val times: TimesPayload? = null, val updates: Set<String> = emptySet(), val message: String? = null, val retentionFailure: Boolean = false, val updateUrl: String? = null, val sourceCheckMessage: String? = null, val startupFailure: Boolean = false, val period: String = "") {
     val analyses get() = materials.mapNotNull { it.analysis }
 }
 class AppRepository(val context: Context, private val transport: Transport = HttpTransport(), private val db: Database = Database(context), private val preferences: DataStore<Settings> = settingsStore(context)) {
@@ -76,7 +76,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
     }
     private fun reload() {
         fun <T> decode(key: String, reader: (String) -> T): T? = db.value(key)?.let(reader)
-        mutable.update { it.copy(ready = true, startupFailure = false, materials = db.records(), events = db.events(), links = decode("links") { json.decodeFromString<LinksPayload>(it).validate() }, mapping = decode("mapping") { json.decodeFromString<Mapping>(it) }, times = decode("times") { json.decodeFromString<TimesPayload>(it).validate() }) }
+        mutable.update { it.copy(ready = true, startupFailure = false, period = db.value("period").orEmpty(), materials = db.records(), events = db.events(), links = decode("links") { json.decodeFromString<LinksPayload>(it).validate() }, mapping = decode("mapping") { json.decodeFromString<Mapping>(it) }, times = decode("times") { json.decodeFromString<TimesPayload>(it).validate() }) }
     }
     suspend fun select(kind: MaterialKind, uri: Uri, flags: Int) = withContext(Dispatchers.IO) {
         mutex.withLock {

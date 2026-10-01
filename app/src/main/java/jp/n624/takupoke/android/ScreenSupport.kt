@@ -26,7 +26,9 @@ import java.io.File
         Button(onClick = { repository.action { repository.checkRelease() } }, enabled = !state.busy) { Text("アプリの更新を確認") }
         state.updateUrl?.let { url -> TextButton(onClick = { openLink(context, url, state.settings.inAppBrowser) }) { Text("配布ページを開く") } }
         TextButton(onClick = { openLink(context, "https://github.com/n624-dev/takupoke-android", state.settings.inAppBrowser) }) { Text("ソースコード・お問い合わせ") }
-        listOf("プライバシー" to "privacy.txt", "利用上の注意" to "terms.txt", "オープンソースライセンス" to "licenses.txt").forEach { (label, file) -> TextButton(onClick = { document = context.assets.open(file).bufferedReader().use { it.readText() } }) { Text(label) } }
+        listOf("プライバシー" to "privacy.txt", "利用上の注意" to "terms.txt").forEach { (label, file) -> TextButton(onClick = { document = context.assets.open(file).bufferedReader().use { it.readText() } }) { Text(label) } }
+        Text("オープンソースライセンス", style = MaterialTheme.typography.titleMedium)
+        listOf("PDFBox-Android" to "pdfbox", "AndroidX" to "androidx", "Kotlin / kotlinx.serialization" to "kotlin", "OkHttp" to "okhttp", "Okio" to "okio", "Bouncy Castle" to "bouncycastle").forEach { (label, name) -> TextButton(onClick = { document = context.assets.open("license-$name.txt").bufferedReader().use { it.readText() } }) { Text(label) } }
     }
     document?.let { text -> AlertDialog(onDismissRequest = { document = null }, text = { Text(text, Modifier.verticalScroll(rememberScrollState())) }, confirmButton = { TextButton(onClick = { document = null }) { Text("閉じる") } }) }
 }

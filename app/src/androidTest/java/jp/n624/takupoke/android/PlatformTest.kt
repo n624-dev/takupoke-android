@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.junit.Assert.*
+import org.junit.Assert.fail
 import org.junit.runner.RunWith
 import java.io.File
 import okhttp3.RequestBody
