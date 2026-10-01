@@ -7,9 +7,10 @@ case "$SCREENSHOT_THEME" in
 esac
 adb shell wm size 720x1280
 adb shell wm density 320
+adb logcat -G 16M
+adb logcat -c
 ./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Dorg.gradle.jvmargs=-Xmx3g -Pandroid.testInstrumentationRunnerArguments.class=jp.n624.takupoke.android.ScreenTest -Pandroid.testInstrumentationRunnerArguments.screenshots=true
 mkdir -p "$RUNNER_TEMP/takupoke-screenshots"
-for name in 00-setup 01-home 02-links 03-timetable 04-settings 05-materials; do
-  adb exec-out run-as jp.n624.takupoke.android cat "files/screenshots/$name.png" > "$RUNNER_TEMP/takupoke-screenshots/$name.png"
-done
-node scripts/screenshot-transfer.mjs encode "$RUNNER_TEMP/takupoke-screenshots"
+adb logcat -d -v raw -s TakupokeScreenshots:I '*:S' > "$RUNNER_TEMP/takupoke-screenshots/capture.log"
+node scripts/screenshot-transfer.mjs decode "$RUNNER_TEMP/takupoke-screenshots/capture.log" "$RUNNER_TEMP/takupoke-screenshots/verified"
+node scripts/screenshot-transfer.mjs encode "$RUNNER_TEMP/takupoke-screenshots/verified"

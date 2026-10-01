@@ -4,7 +4,11 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import android.graphics.Bitmap
-import java.io.File
+import android.util.Base64
+import android.util.Log
+import java.io.ByteArrayOutputStream
+import java.security.MessageDigest
+import org.json.JSONObject
 import org.junit.Rule
 import org.junit.Test
 
@@ -38,8 +42,16 @@ class ScreenTest {
         // Draw the actual window, including the system bars; not a mockup or Compose preview.
         val bitmap = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
         try {
-            val directory = File(instrumentation.targetContext.filesDir, "screenshots").also { check(it.mkdirs() || it.isDirectory) }
-            File(directory, "$name.png").outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+            val output = ByteArrayOutputStream()
+            check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output))
+            val bytes = output.toByteArray(); check(bytes.size in 9..2 * 1024 * 1024)
+            val filename = "$name.png"
+            fun emit(record: JSONObject) { Log.i("TakupokeScreenshots", "TAKUPOKE_SCREENSHOT $record") }
+            val sha256 = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+            emit(JSONObject().put("type", "begin").put("name", filename).put("size", bytes.size).put("sha256", sha256))
+            val data = Base64.encodeToString(bytes, Base64.NO_WRAP)
+            for (offset in data.indices step 2048) emit(JSONObject().put("type", "chunk").put("name", filename).put("offset", offset).put("data", data.substring(offset, minOf(offset + 2048, data.length))))
+            emit(JSONObject().put("type", "end").put("name", filename))
         } finally { bitmap.recycle() }
     }
 }
