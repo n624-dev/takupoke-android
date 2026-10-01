@@ -8,11 +8,11 @@ permissions:
 concurrency:
   group: android-${{ github.ref }}
   cancel-in-progress: true
-env:
-  GRADLE_USER_HOME: ${{ runner.temp }}/takupoke-gradle
 jobs:
   build:
     runs-on: ubuntu-24.04
+    env:
+      GRADLE_USER_HOME: ${{ runner.temp }}/takupoke-gradle
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -37,6 +37,8 @@ jobs:
           rm -rf -- "$RUNNER_TEMP/takupoke-gradle" app/build core/build .gradle
   device:
     runs-on: ubuntu-24.04
+    env:
+      GRADLE_USER_HOME: ${{ runner.temp }}/takupoke-gradle
     timeout-minutes: 45
     strategy:
       fail-fast: false
