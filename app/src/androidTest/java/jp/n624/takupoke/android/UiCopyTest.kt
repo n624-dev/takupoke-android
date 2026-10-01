@@ -1,5 +1,6 @@
 package jp.n624.takupoke.android
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.*
@@ -38,7 +39,7 @@ class UiCopyTest {
 
     @Test fun classLabelsAndSelectionMatchExistingWording() {
         val settings = mutableStateOf(Settings())
-        compose.setContent { MaterialTheme { ClassSettings(settings.value) { settings.value = it(settings.value) } } }
+        compose.setContent { MaterialTheme { Column { ClassSettings(settings.value) { settings.value = it(settings.value) } } } }
         compose.onNodeWithText("クラスを選択").assertIsDisplayed()
         compose.onNodeWithText("追加クラス（1年生のみ・任意）").assertIsDisplayed()
         compose.onNodeWithText("追加なし").assertIsDisplayed()
