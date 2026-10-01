@@ -51,7 +51,15 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         is SecurityException -> "ファイルへのアクセスが必要です。ファイルを選び直してください。"
         else -> "取得または処理を完了できませんでした。保存済みの結果は保持しています。"
     }
-    suspend fun settings(transform: (Settings) -> Settings) { preferences.updateData(transform) }
+    suspend fun settings(transform: (Settings) -> Settings) {
+        val saved = preferences.updateData(transform)
+        withContext(Dispatchers.IO) { mutex.withLock {
+            listOf(MaterialKind.CHANGES, MaterialKind.EXAM, MaterialKind.RETURN).filter { if (it == MaterialKind.CHANGES) !saved.changeNotifications else !saved.examNotifications }.forEach { kind ->
+                db.writableDatabase.execSQL("DELETE FROM value_store WHERE key LIKE ?", arrayOf("notification:${kind.name}:%"))
+                Notifications(context).clearKind(kind.name)
+            }
+        } }
+    }
     fun preferenceAction(transform: (Settings) -> Settings) { scope.launch { try { settings(transform) } catch (_: Exception) { mutable.update { it.copy(message = "個人設定を保存できませんでした。") } } } }
     private fun locked() = context.getSystemService(KeyguardManager::class.java).isDeviceLocked
     suspend fun activate(refresh: Boolean = true) {
@@ -134,8 +142,9 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
             val database = db.writableDatabase; database.beginTransaction()
             try {
                 db.save(record.copy(analysis = analysis, parsedAt = System.currentTimeMillis(), parsedDigest = record.digest, failure = null, year = year))
-                if ((changeCount > 0 && preferences.changeNotifications) || (examCount > 0 && preferences.examNotifications)) {
+                if (Notifications(context).allowed() && ((changeCount > 0 && preferences.changeNotifications) || (examCount > 0 && preferences.examNotifications))) {
                 val id = record.kind.name + ":" + record.digest
+                db.writableDatabase.execSQL("DELETE FROM value_store WHERE key LIKE ?", arrayOf("notification:${record.kind.name}:%"))
                 db.put("notification:$id", if (changeCount > 0) "時間割変更が${changeCount}件あります" else "${record.kind.title}が更新されました")
                 }
                 database.setTransactionSuccessful()
@@ -163,7 +172,12 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
     }
     private fun dispatchPendingNotifications() {
         db.readableDatabase.rawQuery("SELECT key,value FROM value_store WHERE key LIKE 'notification:%'", null).use { cursor ->
-            while (cursor.moveToNext()) { val key = cursor.getString(0); if (Notifications(context).send(key, cursor.getString(1))) db.writableDatabase.execSQL("DELETE FROM value_store WHERE key=?", arrayOf(key)) }
+            while (cursor.moveToNext()) {
+                val key = cursor.getString(0); val id = key.removePrefix("notification:")
+                val enabled = if (id.substringBefore(':') == MaterialKind.CHANGES.name) mutable.value.settings.changeNotifications else mutable.value.settings.examNotifications
+                val notifications = Notifications(context)
+                if (!enabled || !notifications.allowed() || notifications.send(id, cursor.getString(1))) db.writableDatabase.execSQL("DELETE FROM value_store WHERE key=?", arrayOf(key))
+            }
         }
     }
     private fun revision(path: String): String? {

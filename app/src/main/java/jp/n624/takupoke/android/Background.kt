@@ -27,12 +27,15 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
 class Notifications(private val context: Context) {
     private val manager = context.getSystemService(NotificationManager::class.java)
     fun channels() { manager.createNotificationChannel(NotificationChannel("updates", "資料・時間割の更新", NotificationManager.IMPORTANCE_DEFAULT)) }
+    fun allowed(): Boolean = (Build.VERSION.SDK_INT < 33 || context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) && manager.areNotificationsEnabled() && manager.getNotificationChannel("updates")?.importance != NotificationManager.IMPORTANCE_NONE
+    fun clearKind(kind: String) { manager.cancel("takupoke.$kind", 1) }
     fun send(id: String, text: String): Boolean {
-        if (Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return false
-        if (!manager.areNotificationsEnabled()) return false
+        if (!allowed()) return false
+        val tag = "takupoke.${id.substringBefore(':')}"
+        if (manager.activeNotifications.any { it.tag == tag && it.notification.extras.getString("revision") == id }) return true
         val intent = android.content.Intent(context, MainActivity::class.java)
         val pending = android.app.PendingIntent.getActivity(context, 0, intent, android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
-        manager.notify(id, 1, NotificationCompat.Builder(context, "updates").setSmallIcon(jp.n624.takupoke.android.R.drawable.ic_launcher).setContentTitle("たくポケ").setContentText(text).setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setContentIntent(pending).setAutoCancel(true).build())
+        manager.notify(tag, 1, NotificationCompat.Builder(context, "updates").setSmallIcon(jp.n624.takupoke.android.R.drawable.ic_launcher).setContentTitle("たくポケ").setContentText(text).setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setContentIntent(pending).addExtras(android.os.Bundle().apply { putString("revision", id) }).setAutoCancel(true).build())
         return true
     }
     fun clear() { manager.cancelAll() }

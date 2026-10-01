@@ -45,6 +45,10 @@ class PlatformTest {
             assertEquals("時間割変更が1件あります", notification.extras.getCharSequence(android.app.Notification.EXTRA_TEXT).toString())
             assertEquals(android.app.Notification.VISIBILITY_PRIVATE, notification.visibility)
             assertFalse(notification.extras.toString().contains("英語"))
+            repository.settings { it.copy(changeNotifications = false) }
+            kotlinx.coroutines.withTimeout(5000) { while (manager.activeNotifications.isNotEmpty()) kotlinx.coroutines.delay(10) }
+            replaceDocument(syntheticXlsx("国語", date)); repository.refresh(true)
+            assertTrue(manager.activeNotifications.isEmpty())
         } finally { repository.stopObserving(); Notifications(context).clear(); context.contentResolver.releasePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
     }
     @Test fun eventsConditionalResponsesPreserveLastValidPayloadAndOlderYears() = runBlocking {
