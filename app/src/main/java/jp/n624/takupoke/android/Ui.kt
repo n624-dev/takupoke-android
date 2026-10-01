@@ -31,7 +31,7 @@ val mainColors = listOf(Color(0xFF1674CD), Color(0xFF24833B), Color(0xFF8B7200),
 val colorNames = listOf("青", "緑", "黄色", "オレンジ", "赤", "ピンク", "紫")
 val darkMainColors = listOf(Color(0xFF90CAF9), Color(0xFFA5D6A7), Color(0xFFFFF59D), Color(0xFFFFCC80), Color(0xFFEF9A9A), Color(0xFFF48FB1), Color(0xFFCE93D8))
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable fun TakupokeUi(repository: AppRepository, pick: (MaterialKind) -> Unit, login: () -> Unit, notifyPermission: () -> Unit) {
+@Composable fun TakupokeUi(repository: AppRepository, pick: (MaterialKind) -> Unit, login: () -> Unit, notifyPermission: (String) -> Unit) {
     val state by repository.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }; var page by rememberSaveable { mutableStateOf("") }; var setupOffered by rememberSaveable { mutableStateOf(false) }
     var selectedLesson by remember { mutableStateOf<Pair<LocalDate, Slot>?>(null) }
@@ -59,8 +59,8 @@ val darkMainColors = listOf(Color(0xFF90CAF9), Color(0xFFA5D6A7), Color(0xFFFFF5
                     "account" -> AccountScreen(state, repository, login)
                     "events" -> EventsScreen(state, repository)
                     "notifications" -> Column(Modifier.padding(16.dp)) {
-                        Toggle("時間割変更", state.settings.changeNotifications) { enabled -> if (enabled) notifyPermission(); settings { it.copy(changeNotifications = enabled) } }
-                        Toggle("試験・返却PDFの更新", state.settings.examNotifications) { enabled -> if (enabled) notifyPermission(); settings { it.copy(examNotifications = enabled) } }
+                        Toggle("時間割変更", state.settings.changeNotifications) { enabled -> if (enabled) notifyPermission("changes") else settings { it.copy(changeNotifications = false, notificationsSetupComplete = true) } }
+                        Toggle("試験・返却PDFの更新", state.settings.examNotifications) { enabled -> if (enabled) notifyPermission("exam") else settings { it.copy(examNotifications = false, notificationsSetupComplete = true) } }
                         Text("初回取り込みは通知せず、その後の更新を通知します。更新の種類と件数を表示します。")
                         Text("バックグラウンドの実行時刻はAndroidが決定します。")
                     }
@@ -72,7 +72,7 @@ val darkMainColors = listOf(Color(0xFF90CAF9), Color(0xFFA5D6A7), Color(0xFFFFF5
                         Button(onClick = login, enabled = !state.busy) { Text("学校アカウントで取得") }
                         MaterialKind.entries.forEach { kind -> OutlinedButton(onClick = { pick(kind) }, enabled = !state.busy) { Text("${kind.title}を選択") } }
                         ClassSettings(state.settings) { transform -> settings(transform) }
-                        Button(onClick = { notifyPermission(); settings { it.copy(setupComplete = true, changeNotifications = true, examNotifications = true) }; page = "" }) { Text("はじめる") }
+                        Button(onClick = { if (!state.settings.notificationsSetupComplete) notifyPermission("setup"); settings { it.copy(setupComplete = true) }; page = "" }) { Text("はじめる") }
                         TextButton(onClick = { settings { it.copy(setupComplete = true) }; page = "" }) { Text("あとで設定") }
                     }
                     else -> when (tab) {

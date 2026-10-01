@@ -7,6 +7,19 @@ import java.util.zip.ZipOutputStream
 import kotlin.test.*
 
 class CoreTest {
+    @Test fun notificationPermissionAndSetupPreserveManualChoices() {
+        assertFalse(Settings().notificationChoice("changes", false).changeNotifications)
+        val enabled = Settings().notificationChoice("setup", true)
+        assertTrue(enabled.changeNotifications); assertTrue(enabled.examNotifications)
+        val manual = enabled.copy(changeNotifications = false)
+        assertEquals(manual, manual.notificationChoice("setup", true))
+        val denied = Settings().notificationChoice("setup", false)
+        assertFalse(denied.changeNotifications); assertFalse(denied.examNotifications)
+        assertTrue(denied.notificationsSetupComplete)
+        assertTrue(denied.notificationChoice("exam", true).examNotifications)
+        assertFalse(denied.notificationChoice("exam", true).changeNotifications)
+        assertFalse(json.decodeFromString<Settings>("{}").notificationsSetupComplete)
+    }
     @Test fun kanaAndRomajiSearch() {
         assertEquals(LinkSearch.normalize("システム"), LinkSearch.normalize("しすてむ"))
         assertTrue(LinkSearch.score("しすてむ|system", "sisutemu") >= 0)

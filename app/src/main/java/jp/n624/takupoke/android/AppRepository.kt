@@ -61,6 +61,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         } }
     }
     fun preferenceAction(transform: (Settings) -> Settings) { scope.launch { try { settings(transform) } catch (_: Exception) { mutable.update { it.copy(message = "個人設定を保存できませんでした。") } } } }
+    fun notificationChoice(mode: String, allowed: Boolean) { preferenceAction { it.notificationChoice(mode, allowed) }; if (!allowed) mutable.update { it.copy(message = "Androidの設定で通知を許可してください。") } }
     private fun locked() = context.getSystemService(KeyguardManager::class.java).isDeviceLocked
     suspend fun activate(refresh: Boolean = true) {
         if (locked()) return

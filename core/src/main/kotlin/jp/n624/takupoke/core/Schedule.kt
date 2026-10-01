@@ -3,7 +3,14 @@ package jp.n624.takupoke.core
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
 
-@Serializable data class Settings(val primaryClass: String = "", val additionalClass: String = "", val international: Boolean = false, val color: Int = 0, val inAppBrowser: Boolean = true, val favorites: Set<String> = emptySet(), val hidden: Set<String> = emptySet(), val linkColors: Map<String, String> = emptyMap(), val changeNotifications: Boolean = false, val examNotifications: Boolean = false, val setupComplete: Boolean = false)
+@Serializable data class Settings(val primaryClass: String = "", val additionalClass: String = "", val international: Boolean = false, val color: Int = 0, val inAppBrowser: Boolean = true, val favorites: Set<String> = emptySet(), val hidden: Set<String> = emptySet(), val linkColors: Map<String, String> = emptyMap(), val changeNotifications: Boolean = false, val examNotifications: Boolean = false, val setupComplete: Boolean = false, val notificationsSetupComplete: Boolean = false) {
+    fun notificationChoice(mode: String, allowed: Boolean): Settings = when (mode) {
+        "changes" -> copy(changeNotifications = allowed || changeNotifications, notificationsSetupComplete = true)
+        "exam" -> copy(examNotifications = allowed || examNotifications, notificationsSetupComplete = true)
+        "setup" -> if (notificationsSetupComplete) this else copy(changeNotifications = allowed, examNotifications = allowed, notificationsSetupComplete = true)
+        else -> error("Unknown notification choice")
+    }
+}
 data class Slot(val period: Int, val lessons: List<Lesson>, val changes: List<Change>, val type: String, val time: String?)
 object Schedule {
     val classes = listOf("1_1", "1_2", "1_3") + (1..5).flatMap { y -> listOf("CN", "ES", "IT").map { "${y}_$it" } } + listOf("AI_1", "AI_2")
