@@ -1,0 +1,61 @@
+name: Android screenshots
+on:
+  workflow_dispatch:
+    inputs:
+      api:
+        description: Android API level (29 = Android 10, 36 = Android 16)
+        type: choice
+        options: ['36', '29']
+        default: '36'
+      theme:
+        description: Screen theme
+        type: choice
+        options: [light, dark]
+        default: light
+permissions:
+  contents: read
+concurrency:
+  group: android-screenshots-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      SCREENSHOT_THEME: ${{ inputs.theme }}
+    steps:
+      - name: Use disposable Gradle home
+        run: echo "GRADLE_USER_HOME=$RUNNER_TEMP/takupoke-gradle" >> "$GITHUB_ENV"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Check public files and cache policy
+        run: bash scripts/check-public.sh
+      - name: Check screenshot log transport and corruption defenses
+        run: node scripts/test-screenshot-transfer.mjs
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Capture real screens without school data or network access
+        uses: ReactiveCircus/android-emulator-runner@4c44018e59b437e86cdfc41da381398f93ed8808 # v2
+        with:
+          api-level: ${{ inputs.api }}
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
+          script: bash scripts/capture-screenshots.sh
+      - name: Test summary
+        if: always()
+        run: bash scripts/test-summary.sh
+      - name: Remove all temporary capture and build data
+        if: always()
+        run: |
+          ./gradlew --stop || true
+          rm -rf -- "$RUNNER_TEMP/takupoke-screenshots" "$RUNNER_TEMP/takupoke-gradle" app/build core/build .gradle

@@ -30,6 +30,10 @@ GitHub Actionsで単体テスト、lint、debug/releaseビルド、API 29 / 36�
 
 Actionsの永続キャッシュと成果物のアップロードは使用しません。ジョブ中のGradleファイルはrunnerの一時領域に置き、成功・失敗時とも削除します。実行ログとテスト要約はGitHubの標準実行履歴で確認できます。
 
+手動の「Android screenshots」Actionsで、API 29 / 36とライト／ダークテーマを選び、初期設定・ホーム・一覧・時間割・設定・資料の実画面を撮影できます。新規インストールしたオフラインテスト用アプリを使うため、学校アカウントや学校資料は映りません。ログイン・資料選択前の画面であり、学校データの実動作確認ではありません。
+
+画像はチェックサム付きの分割Base64として実行ログだけに出力します。永続キャッシュやartifactを作らず、runner上の画像も終了時に削除します。画像の復元は撮影ジョブのログを取得して `node scripts/screenshot-transfer.mjs decode JOB_LOG PRIVATE_OUTPUT_DIRECTORY` で行えます。画像と取得ログはリポジトリ外またはGit除外した `private/` 以下へ保存してください。
+
 ## 認証
 
 OIDC public client `takupoke-android`、callback `jp.n624.takupoke.android:/oauth/callback`、PKCE S256、scope `openid mapping.read links.read` を使用します。認証サービス側にこのクライアント登録が必要です。アプリにクライアント秘密鍵や学校パスワードを含めません。

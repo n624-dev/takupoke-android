@@ -25,6 +25,8 @@ jobs:
           # Deliberately no cache input: nothing is saved to Actions cache storage.
       - name: Check public files and cache policy
         run: bash scripts/check-public.sh
+      - name: Check screenshot log transport and corruption defenses
+        run: node scripts/test-screenshot-transfer.mjs
       - name: Unit tests, Android lint, debug and optimized release builds
         run: ./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease --no-daemon --no-build-cache -Dorg.gradle.jvmargs=-Xmx3g
       - name: Test summary
