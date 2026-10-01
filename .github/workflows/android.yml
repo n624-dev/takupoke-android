@@ -11,10 +11,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    env:
-      GRADLE_USER_HOME: ${{ runner.temp }}/takupoke-gradle
     timeout-minutes: 35
     steps:
+      - name: Use disposable Gradle home
+        run: echo "GRADLE_USER_HOME=$RUNNER_TEMP/takupoke-gradle" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
@@ -37,14 +37,14 @@ jobs:
           rm -rf -- "$RUNNER_TEMP/takupoke-gradle" app/build core/build .gradle
   device:
     runs-on: ubuntu-24.04
-    env:
-      GRADLE_USER_HOME: ${{ runner.temp }}/takupoke-gradle
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         api: [29, 36]
     steps:
+      - name: Use disposable Gradle home
+        run: echo "GRADLE_USER_HOME=$RUNNER_TEMP/takupoke-gradle" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
