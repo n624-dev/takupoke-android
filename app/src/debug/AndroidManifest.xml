@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Instrumentation-only provider discovery. Not included in release builds. -->
+    <queries>
+        <provider android:authorities="jp.n624.takupoke.android.test.control" />
+        <provider android:authorities="jp.n624.takupoke.android.test.documents" />
+    </queries>
+</manifest>

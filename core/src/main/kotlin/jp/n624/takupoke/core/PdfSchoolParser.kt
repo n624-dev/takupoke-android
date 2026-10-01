@@ -131,11 +131,13 @@ object PdfSchoolParser {
         val note = key(Grid.rows(page.glyphs).joinToString("") { it.joinToString("") { g -> g.text } }).replace('〜', '~')
         val first = LocalDate.parse(days[0].second); val start = LocalDate.parse(days[1].second); val end = LocalDate.parse(days[4].second)
         if (start.monthValue != end.monthValue || !note.contains("${first.monthValue}月${first.dayOfMonth}日の時間割は以下のとおり") || !note.contains("${start.monthValue}月${start.dayOfMonth}日~${end.dayOfMonth}日は通常の授業日どおりの授業時間")) fail("返却時刻の注記")
-        val runs = Grid.runs(page.glyphs.filter { it.cx < hs[0].cx - step * .15 && it.cy > y + 5 && it.cy < page.height * .7 })
+        val grid = Grid(page)
+        val classRight = minOf(hs[0].cx - step * .15, grid.box(hs[0].cx, y).left - .3)
+        val runs = Grid.runs(page.glyphs.filter { it.cx < classRight && it.cy > y + 5 && it.cy < page.height * .7 })
         val grades = runs.filter { it.second.cx < hs[0].cx - step * .8 && it.first.matches(Regex("[1-5]|AI")) }
         val labels = runs.filter { it.second.cx >= hs[0].cx - step * .8 && it.first.matches(Regex("[1-3]|CN|ES|IT")) }
         if (grades.size != 6 || labels.size != 17) fail("返却クラス")
-        val lessons = mutableListOf<Lesson>(); val names = mutableListOf<String>(); val grid = Grid(page)
+        val lessons = mutableListOf<Lesson>(); val names = mutableListOf<String>()
         labels.forEach { (label, r) -> val grade = grades.minBy { abs(it.second.cy - r.cy) }; if (abs(grade.second.cy - r.cy) >= step * 2.5) fail("返却学年")
             val name = "${grade.first}_$label"; if (name in names) fail("返却クラス重複"); names += name
             val row = grid.box(r.cx, r.cy)

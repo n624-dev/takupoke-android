@@ -10,7 +10,7 @@ class ScreenTest {
     @Test fun startupAndNavigationRemainUsableOffline() {
         compose.waitUntil(15000) { compose.onAllNodesWithText("あとで設定").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("あとで設定").performScrollTo().performClick()
-        compose.onNodeWithText("ホーム").assertIsDisplayed()
+        compose.onAllNodesWithText("ホーム")[0].assertIsDisplayed()
         compose.onNodeWithText("一覧").performClick()
         compose.onNodeWithText("リンクを検索").assertIsDisplayed()
         compose.onNodeWithText("時間割").performClick()

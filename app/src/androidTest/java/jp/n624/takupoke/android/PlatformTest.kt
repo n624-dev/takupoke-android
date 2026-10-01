@@ -26,6 +26,26 @@ class PlatformTest {
         private val directory = File(context.cacheDir, "test-${java.util.UUID.randomUUID()}").also { it.mkdirs() }
         override fun getNoBackupFilesDir(): File = directory
     }
+    @Test fun notificationBaselineAndPrivateCountOnlyDelivery() = runBlocking {
+        if (android.os.Build.VERSION.SDK_INT >= 33) instrumentation.uiAutomation.grantRuntimePermission(context.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
+        val manager = context.getSystemService(android.app.NotificationManager::class.java)
+        val c = isolated(); val db = Database(c)
+        val repository = AppRepository(c, RejectNetwork, db, MemorySettings(Settings(primaryClass = "1_CN", changeNotifications = true)))
+        repository.activate(false)
+        kotlinx.coroutines.withTimeout(5000) { while (repository.state.value.settings.primaryClass != "1_CN") kotlinx.coroutines.delay(10) }
+        val uri = DocumentsContract.buildDocumentUri(SyntheticDocuments.AUTHORITY, "changes")
+        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+        val date = today().plusDays(2).toString()
+        replaceDocument(syntheticXlsx("理科", date), grant = true)
+        try {
+            repository.select(MaterialKind.CHANGES, uri, flags); assertTrue(manager.activeNotifications.isEmpty())
+            replaceDocument(syntheticXlsx("英語", date)); repository.refresh(true)
+            val notification = manager.activeNotifications.single().notification
+            assertEquals("時間割変更が1件あります", notification.extras.getCharSequence(android.app.Notification.EXTRA_TEXT).toString())
+            assertEquals(android.app.Notification.VISIBILITY_PRIVATE, notification.visibility)
+            assertFalse(notification.extras.toString().contains("英語"))
+        } finally { repository.stopObserving(); Notifications(context).clear(); context.contentResolver.releasePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+    }
     @Test fun eventsConditionalResponsesPreserveLastValidPayloadAndOlderYears() = runBlocking {
         val c = isolated(); val db = Database(c)
         val event = EventsPayload("v1", 2020, "a".repeat(64), events = listOf(Event("2020-10-01", "2020-10-01", "合成公開行事", "行事")))
@@ -67,11 +87,7 @@ class PlatformTest {
         val c = isolated(); val db = Database(c); val repository = AppRepository(c, RejectNetwork, db, MemorySettings())
         val uri = DocumentsContract.buildDocumentUri(SyntheticDocuments.AUTHORITY, "changes")
         val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
-        instrumentation.uiAutomation.adoptShellPermissionIdentity()
-        try {
-            instrumentation.context.contentResolver.call(SyntheticDocuments.AUTHORITY, "replaceSynthetic", null, Bundle().apply { putByteArray("bytes", syntheticXlsx("理科")) })
-            instrumentation.context.grantUriPermission(context.packageName, uri, flags)
-        } finally { instrumentation.uiAutomation.dropShellPermissionIdentity() }
+        replaceDocument(syntheticXlsx("理科"), grant = true)
         repository.select(MaterialKind.CHANGES, uri, flags)
         val initial = db.records().single(); assertEquals("理科", initial.analysis!!.changes.single().after); assertTrue(context.contentResolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission })
         replaceDocument(syntheticXlsx("英語"))
@@ -82,10 +98,8 @@ class PlatformTest {
         val failed = db.records().single(); assertNotNull(failed.failure); assertEquals("英語", failed.analysis!!.changes.single().after); assertEquals(changed.digest, failed.parsedDigest); assertNotEquals(changed.digest, failed.digest)
         repository.stopObserving(); c.contentResolver.releasePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    private fun replaceDocument(bytes: ByteArray) {
-        instrumentation.uiAutomation.adoptShellPermissionIdentity()
-        try { instrumentation.context.contentResolver.call(SyntheticDocuments.AUTHORITY, "replaceSynthetic", null, Bundle().apply { putByteArray("bytes", bytes) }) }
-        finally { instrumentation.uiAutomation.dropShellPermissionIdentity() }
+    private fun replaceDocument(bytes: ByteArray, grant: Boolean = false) {
+        context.contentResolver.call(SyntheticControl.AUTHORITY, "replaceSynthetic", null, Bundle().apply { putByteArray("bytes", bytes); putBoolean("grant", grant) })
     }
     @Test fun runtimeXmlDefensesAndPrivateBackupLocation() {
         assertEquals(1, XlsxParser.parse(syntheticXlsx("理科"), 2026).changes.size)
