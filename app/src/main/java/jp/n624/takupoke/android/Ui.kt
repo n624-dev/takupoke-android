@@ -26,14 +26,14 @@ import java.time.LocalDate
 
 val mainColors = listOf(Color(0xFF1674CD), Color(0xFF24833B), Color(0xFF8B7200), Color(0xFFBA5400), Color(0xFFC73535), Color(0xFFBE437E), Color(0xFF7F4CBB))
 val colorNames = listOf("青", "緑", "黄色", "オレンジ", "赤", "ピンク", "紫")
+val darkMainColors = listOf(Color(0xFF90CAF9), Color(0xFFA5D6A7), Color(0xFFFFF59D), Color(0xFFFFCC80), Color(0xFFEF9A9A), Color(0xFFF48FB1), Color(0xFFCE93D8))
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun TakupokeUi(repository: AppRepository, pick: (MaterialKind) -> Unit, login: () -> Unit, notifyPermission: () -> Unit) {
     val state by repository.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }; var page by rememberSaveable { mutableStateOf("") }; var setupOffered by rememberSaveable { mutableStateOf(false) }
     var selectedLesson by remember { mutableStateOf<Pair<LocalDate, Slot>?>(null) }
     var source by remember { mutableStateOf<MaterialRecord?>(null) }
-    val scope = rememberCoroutineScope()
-    val colors = if (isSystemInDarkTheme()) darkColorScheme(primary = mainColors[state.settings.color.coerceIn(0, 6)]) else lightColorScheme(primary = mainColors[state.settings.color.coerceIn(0, 6)])
+    val colors = if (isSystemInDarkTheme()) darkColorScheme(primary = darkMainColors[state.settings.color.coerceIn(0, 6)]) else lightColorScheme(primary = mainColors[state.settings.color.coerceIn(0, 6)])
     fun settings(block: (Settings) -> Settings) { repository.action { repository.settings(block) } }
     LaunchedEffect(state.ready) { if (state.ready && !state.settings.setupComplete && !setupOffered) { page = "setup"; setupOffered = true } }
     LaunchedEffect(state.ready) { while (true) { kotlinx.coroutines.delay(30000); if (state.ready) repository.action { repository.activate(false) } } }
@@ -46,7 +46,7 @@ val colorNames = listOf("青", "緑", "黄色", "オレンジ", "赤", "ピン�
         }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
                 if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (!state.ready) { Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) { Text(if (state.retentionFailure) "保存データを削除できませんでした。古いデータの利用を停止しています。" else "読み込み中⋯"); if (state.retentionFailure) Button(onClick = { repository.action { repository.activate() } }) { Text("再試行") } } }
+                if (!state.ready) { Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) { Text(if (state.retentionFailure) "保存データを削除できませんでした。古いデータの利用を停止しています。" else if (state.startupFailure) "保存データを読み込めませんでした。削除はしていません。" else "読み込み中⋯"); if (state.retentionFailure || state.startupFailure) Button(onClick = { repository.action { repository.activate() } }) { Text("再試行") } } }
                 else when (page) {
                     "materials" -> MaterialsScreen(state, repository, pick) { source = it }
                     "account" -> AccountScreen(state, repository, login)

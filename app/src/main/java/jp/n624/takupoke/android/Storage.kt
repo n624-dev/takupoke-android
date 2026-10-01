@@ -21,6 +21,7 @@ class Database(context: Context) : SQLiteOpenHelper(context, java.io.File(contex
     fun value(key: String): String? = readableDatabase.rawQuery("SELECT value FROM value_store WHERE key=?", arrayOf(key)).use { if (it.moveToFirst()) it.getString(0) else null }
     fun put(key: String, value: String) { writableDatabase.execSQL("INSERT OR REPLACE INTO value_store(key,value) VALUES(?,?)", arrayOf(key, value)) }
     fun records(): List<MaterialRecord> = readableDatabase.rawQuery("SELECT record FROM material ORDER BY kind", null).use { c -> buildList { while (c.moveToNext()) add(json.decodeFromString<MaterialRecord>(c.getString(0))) } }
+    fun events(): List<EventsPayload> = readableDatabase.rawQuery("SELECT key,value FROM value_store WHERE key LIKE 'events:%' ORDER BY key", null).use { c -> buildList { while (c.moveToNext()) { val year = c.getString(0).substringAfter(':').toInt(); require(year in 1900..9998); add(json.decodeFromString<EventsPayload>(c.getString(1)).validate(year)) } } }
     fun save(record: MaterialRecord) { writableDatabase.execSQL("INSERT OR REPLACE INTO material(kind,record) VALUES(?,?)", arrayOf(record.kind.name, json.encodeToString(MaterialRecord.serializer(), record))) }
     fun clearSchool(period: String) {
         val db = writableDatabase; db.beginTransaction()

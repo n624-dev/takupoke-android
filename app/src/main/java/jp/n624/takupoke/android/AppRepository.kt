@@ -22,7 +22,7 @@ import java.security.MessageDigest
 import java.time.LocalDate
 import java.util.UUID
 
-data class AppState(val ready: Boolean = false, val busy: Boolean = false, val settings: Settings = Settings(), val materials: List<MaterialRecord> = emptyList(), val events: List<EventsPayload> = emptyList(), val links: LinksPayload? = null, val mapping: Mapping? = null, val times: TimesPayload? = null, val updates: Set<String> = emptySet(), val message: String? = null, val retentionFailure: Boolean = false, val updateUrl: String? = null, val sourceCheckMessage: String? = null) {
+data class AppState(val ready: Boolean = false, val busy: Boolean = false, val settings: Settings = Settings(), val materials: List<MaterialRecord> = emptyList(), val events: List<EventsPayload> = emptyList(), val links: LinksPayload? = null, val mapping: Mapping? = null, val times: TimesPayload? = null, val updates: Set<String> = emptySet(), val message: String? = null, val retentionFailure: Boolean = false, val updateUrl: String? = null, val sourceCheckMessage: String? = null, val startupFailure: Boolean = false) {
     val analyses get() = materials.mapNotNull { it.analysis }
 }
 class AppRepository(val context: Context, private val transport: Transport = HttpTransport(), private val db: Database = Database(context), private val preferences: DataStore<Settings> = settingsStore(context)) {
@@ -32,14 +32,15 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
     private val root = File(context.noBackupFilesDir, "school/materials").also { it.mkdirs() }
     private var operation: Job? = null; private var signal: CancellationSignal? = null; private val observers = mutableListOf<ContentObserver>(); private var observerJob: Job? = null
     private var checkedSourceAtStartup = false
-    init { scope.launch { preferences.data.collect { value -> mutable.update { it.copy(settings = value) } } } }
+    private var foreground = false
+    init { scope.launch { preferences.data.catch { mutable.update { it.copy(message = "個人設定を読み取れません。保存データは削除していません。") } }.collect { value -> mutable.update { it.copy(settings = value) } } } }
     fun clearMessage() { mutable.update { it.copy(message = null) } }
     fun action(queued: Boolean = false, block: suspend () -> Unit) {
         val previous = operation
         if (previous?.isActive == true && !queued) return
         operation = scope.launch { if (queued) previous?.join(); mutable.update { it.copy(busy = true, message = null) }
-            try { block() } catch (_: CancellationException) { mutable.update { it.copy(message = "処理を中止しました。保存済みの結果は保持しています。") } }
-            catch (e: Exception) { mutable.update { it.copy(message = safeError(e)) } }
+            try { block() } catch (_: CancellationException) { mutable.update { it.copy(startupFailure = !it.ready, message = "処理を中止しました。保存済みの結果は保持しています。") } }
+            catch (e: Exception) { mutable.update { it.copy(startupFailure = !it.ready, message = safeError(e)) } }
             finally { signal?.cancel(); signal = null; mutable.update { it.copy(busy = false) } }
         }
     }
@@ -56,7 +57,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         if (locked()) return
         withContext(Dispatchers.IO) { mutex.withLock { retention(); reload() } }
         if (refresh) refresh()
-        if (refresh && !checkedSourceAtStartup) { checkedSourceAtStartup = true; withContext(Dispatchers.IO) { checkSource() } }
+        if (refresh && foreground && !checkedSourceAtStartup) { checkedSourceAtStartup = true; withContext(Dispatchers.IO) { checkSource() } }
         observe()
     }
     private fun retention() {
@@ -75,8 +76,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
     }
     private fun reload() {
         fun <T> decode(key: String, reader: (String) -> T): T? = db.value(key)?.let(reader)
-        val year = schoolYear()
-        mutable.update { it.copy(ready = true, materials = db.records(), events = (year - 1..year + 1).mapNotNull { y -> decode("events:$y") { text -> json.decodeFromString<EventsPayload>(text).validate(y) } }, links = decode("links") { json.decodeFromString<LinksPayload>(it).validate() }, mapping = decode("mapping") { json.decodeFromString<Mapping>(it) }, times = decode("times") { json.decodeFromString<TimesPayload>(it).validate() }) }
+        mutable.update { it.copy(ready = true, startupFailure = false, materials = db.records(), events = db.events(), links = decode("links") { json.decodeFromString<LinksPayload>(it).validate() }, mapping = decode("mapping") { json.decodeFromString<Mapping>(it) }, times = decode("times") { json.decodeFromString<TimesPayload>(it).validate() }) }
     }
     suspend fun select(kind: MaterialKind, uri: Uri, flags: Int) = withContext(Dispatchers.IO) {
         mutex.withLock {
@@ -126,15 +126,19 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         } catch (e: Exception) { db.save(record.copy(failure = safeError(e))); throw e }
             currentCoroutineContext().ensureActive()
             require(retentionPeriod() == db.value("period"))
-            db.save(record.copy(analysis = analysis, parsedAt = System.currentTimeMillis(), parsedDigest = record.digest, failure = null, year = year))
             val preferences = mutable.value.settings
             val changeCount = if (record.kind == MaterialKind.CHANGES) listOf(preferences.primaryClass, preferences.additionalClass).filter(String::isNotEmpty).distinct().sumOf { cls -> Schedule.changedSlots(record.analysis?.changes, analysis.changes, cls, today()) } else 0
             val examCount = if (record.kind in listOf(MaterialKind.EXAM, MaterialKind.RETURN) && record.parsedDigest != null && record.parsedDigest != record.digest) 1 else 0
-            if ((changeCount > 0 && preferences.changeNotifications) || (examCount > 0 && preferences.examNotifications)) {
+            val database = db.writableDatabase; database.beginTransaction()
+            try {
+                db.save(record.copy(analysis = analysis, parsedAt = System.currentTimeMillis(), parsedDigest = record.digest, failure = null, year = year))
+                if ((changeCount > 0 && preferences.changeNotifications) || (examCount > 0 && preferences.examNotifications)) {
                 val id = record.kind.name + ":" + record.digest
                 db.put("notification:$id", if (changeCount > 0) "時間割変更が${changeCount}件あります" else "${record.kind.title}が更新されました")
-                dispatchPendingNotifications()
-            }
+                }
+                database.setTransactionSuccessful()
+            } finally { database.endTransaction() }
+            dispatchPendingNotifications()
     }
     suspend fun reparse(kind: MaterialKind, year: Int) = withContext(Dispatchers.IO) { mutex.withLock {
         retention(); val record = db.records().single { it.kind == kind }; try { analyze(record, file(record), year) } finally { reload() }
@@ -228,10 +232,12 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
     }
     fun observe() {
         stopObserving()
+        if (!foreground) return
         mutable.value.materials.map { it.uri }.distinct().forEach { value ->
             val observer = object : ContentObserver(Handler(Looper.getMainLooper())) { override fun onChange(selfChange: Boolean) { if (!selfChange && operation?.isActive != true) { observerJob?.cancel(); observerJob = scope.launch { delay(1500); action { refresh() } } } } }
             runCatching { context.contentResolver.registerContentObserver(Uri.parse(value), false, observer); observers += observer }
         }
     }
+    fun foreground(active: Boolean) { foreground = active; if (!active) stopObserving() }
     fun stopObserving() { observerJob?.cancel(); observers.forEach { context.contentResolver.unregisterContentObserver(it) }; observers.clear() }
 }

@@ -15,6 +15,7 @@ import org.junit.Test
 import org.junit.Assert.*
 import org.junit.runner.RunWith
 import java.io.File
+import okhttp3.RequestBody
 
 @RunWith(AndroidJUnit4::class)
 class PlatformTest {
@@ -23,6 +24,33 @@ class PlatformTest {
     private fun isolated(): android.content.Context = object : ContextWrapper(context) {
         private val directory = File(context.cacheDir, "test-${java.util.UUID.randomUUID()}").also { it.mkdirs() }
         override fun getNoBackupFilesDir(): File = directory
+    }
+    @Test fun eventsConditionalResponsesPreserveLastValidPayloadAndOlderYears() = runBlocking {
+        val c = isolated(); val db = Database(c)
+        val event = EventsPayload("v1", 2020, "a".repeat(64), events = listOf(Event("2020-10-01", "2020-10-01", "合成公開行事", "行事")))
+        var response = HttpResult(200, json.encodeToString(EventsPayload.serializer(), event).toByteArray(), mapOf("etag" to "\"synthetic\""))
+        var sentEtag: String? = null
+        val fake = object : Transport { override fun request(url: String, headers: Map<String, String>, body: RequestBody?, maxBytes: Int, head: Boolean): HttpResult { require(url == Endpoints.API + "/events?schoolYear=2020"); sentEtag = headers["If-None-Match"]; return response } }
+        val repository = AppRepository(c, fake, db, MemorySettings()); repository.fetchEvents(2020)
+        assertEquals(2020, repository.state.value.events.single().schoolYear)
+        response = HttpResult(304, byteArrayOf(), mapOf("etag" to "W/\"synthetic\"")); repository.fetchEvents(2020); assertEquals("\"synthetic\"", sentEtag)
+        response = response.copy(headers = mapOf("etag" to "\"wrong\""))
+        try { repository.fetchEvents(2020); fail("Mismatched 304 accepted") } catch (_: IllegalArgumentException) { }
+        assertEquals(event, repository.state.value.events.single())
+        response = HttpResult(200, "invalid".toByteArray(), mapOf("etag" to "\"new\""))
+        try { repository.fetchEvents(2020); fail("Invalid payload accepted") } catch (_: IllegalArgumentException) { }
+        assertEquals(event, repository.state.value.events.single()); assertEquals("\"synthetic\"", db.value("events-etag:2020"))
+    }
+    @Test fun retentionDeletionFailureIsFailClosedAndRetryable() = runBlocking {
+        val c = isolated(); val db = Database(c); db.put("period", "2000-1"); db.put("mapping", "synthetic private data")
+        val root = File(c.noBackupFilesDir, "school/materials").also { it.mkdirs() }; File(root, "owned-synthetic.txt").writeText("synthetic")
+        assertTrue(root.setWritable(false, false))
+        try {
+            val repository = AppRepository(c, RejectNetwork, db, MemorySettings())
+            try { repository.activate(false); fail("Deletion failure accepted") } catch (_: IllegalArgumentException) { }
+            assertFalse(repository.state.value.ready); assertTrue(repository.state.value.retentionFailure); assertNull(repository.state.value.mapping); assertEquals("2000-1", db.value("period"))
+            root.setWritable(true, true); repository.activate(false); assertTrue(repository.state.value.ready); assertNull(db.value("mapping")); assertEquals(retentionPeriod(), db.value("period"))
+        } finally { root.setWritable(true, true) }
     }
     @Test fun retentionDropsPrivateDataButKeepsPublicEventsAndSettings() = runBlocking {
         val c = isolated(); val db = Database(c); val settings = MemorySettings(Settings(primaryClass = "1_CN", favorites = setOf("example")))

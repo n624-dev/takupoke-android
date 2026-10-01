@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
     }
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); handleCallback(intent) }
     private fun handleCallback(intent: Intent) { intent.data?.takeIf { it.scheme == "jp.n624.takupoke.android" }?.let { uri -> repository.action(queued = true) { repository.finishAuth(uri) }; intent.data = null } }
-    override fun onResume() { super.onResume(); repository.action { repository.activate() } }
-    override fun onPause() { repository.stopObserving(); super.onPause() }
+    override fun onResume() { super.onResume(); repository.foreground(true); repository.action { repository.activate() } }
+    override fun onPause() { repository.foreground(false); super.onPause() }
     override fun onStop() { (application as TakupokeApplication).schedule(); super.onStop() }
 }
