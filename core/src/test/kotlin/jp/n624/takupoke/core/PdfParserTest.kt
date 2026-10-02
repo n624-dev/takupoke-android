@@ -46,6 +46,18 @@ class PdfParserTest {
         assertEquals("08:00〜08:30", slots[0].time)
         assertNull(slots[6].time)
     }
+    @Test fun ordinaryRequiresTitleAndValidEraInTopEighth() {
+        val page = ordinary()
+        assertEquals("P04", assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(page.copy(glyphs = page.glyphs.filter { it.y != 10.0 } + Glyph("令和8年度後期", 0.0, 10.0, 30.0, 4.0, page.glyphs.size))), MaterialKind.TIMETABLE) }.code)
+        assertEquals("P03", assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(page.copy(glyphs = page.glyphs.filter { it.y != 10.0 } + Glyph("令和0年度後期時間割", 0.0, 10.0, 40.0, 4.0, page.glyphs.size))), MaterialKind.TIMETABLE) }.code)
+        assertEquals("P03", assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(page.copy(glyphs = page.glyphs.map { if (it.y == 10.0) it.copy(y = 150.0) else it })), MaterialKind.TIMETABLE) }.code)
+    }
+    @Test fun ordinaryFailureIncludesCellPositionWithoutSourceText() {
+        val page = ordinary(); val extra = Glyph("架空", 42.0, 126.0, 4.0, 2.0, page.glyphs.size)
+        val error = assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(page.copy(glyphs = page.glyphs + extra)), MaterialKind.TIMETABLE) }
+        assertEquals("P17", error.code); assertEquals(1, error.page); assertEquals(1, error.classRow); assertEquals(1, error.day); assertEquals(1, error.period)
+        assertFalse(error.message.orEmpty().contains("架空"))
+    }
     @Test fun repeatedHalfwidthMarksCollapse() {
         assertEquals("ｺﾞ", PdfSchoolParser.collapseMarks("ｺﾞﾞﾞ"))
         assertEquals("Aーー", PdfSchoolParser.collapseMarks("Aーー"))

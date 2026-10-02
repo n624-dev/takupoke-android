@@ -25,12 +25,13 @@ object PdfReader {
         val memory = MemoryUsageSetting.setupMixed(8L * 1024 * 1024, 64L * 1024 * 1024).setTempDir(scratch)
         PDDocument.load(file, memory).use { document ->
             require(!document.isEncrypted && document.numberOfPages in 1..12)
-            return document.pages.map { page -> Engine(page).read() }
+            return document.pages.mapIndexed { index, page -> try { Engine(page).read() } catch (e: ParseFailure) { throw e.located(page = index + 1) } }
         }
     }
     private class Engine(private val source: PDPage) : PDFGraphicsStreamEngine(source) {
         private val glyphs = mutableListOf<Glyph>(); private val lines = mutableListOf<Line>(); private val pending = mutableListOf<Pair<PointF, PointF>>()
         private var current = PointF(); private var start = PointF(); private var operations = 0
+        private var sourceLine = 0
         private val crop = source.cropBox
         private fun point(x: Float, y: Float): PointF {
             val a = x - crop.lowerLeftX; val b = y - crop.lowerLeftY
@@ -49,6 +50,9 @@ object PdfReader {
         }
         override fun processOperator(operator: com.tom_roush.pdfbox.contentstream.operator.Operator, operands: MutableList<com.tom_roush.pdfbox.cos.COSBase>) {
             interrupted(); require(++operations <= 500000)
+            // These operators explicitly start/move a text line or change its coordinate system.
+            // Font-size changes and TJ kerning continue the same source line.
+            if (operator.name in setOf("Q", "cm", "BT", "Tm", "Td", "TD", "T*", "Ts", "'", "\"")) sourceLine++
             super.processOperator(operator, operands)
         }
         override fun showGlyph(matrix: Matrix, font: PDFont, code: Int, displacement: Vector) {
@@ -64,7 +68,7 @@ object PdfReader {
             val positions = listOf(matrix.transformPoint(0f, descent / 1000), matrix.transformPoint(displacement.x, descent / 1000), matrix.transformPoint(0f, ascent / 1000), matrix.transformPoint(displacement.x, ascent / 1000)).map { point(it.x, it.y) }
             val x = positions.minOf { it.x }.toDouble(); val y = positions.minOf { it.y }.toDouble()
             val width = positions.maxOf { it.x } - x; val height = positions.maxOf { it.y } - y
-            glyphs += Glyph(text, x, y, width, height, glyphs.size)
+            glyphs += Glyph(text, x, y, width, height, glyphs.size, sourceLine)
         }
         override fun showForm(form: PDFormXObject) { fail("Form XObject") }
         override fun drawImage(image: PDImage) { fail("画像を含むPDF") }

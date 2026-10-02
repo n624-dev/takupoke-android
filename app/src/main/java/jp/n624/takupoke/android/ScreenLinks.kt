@@ -27,7 +27,7 @@ fun openLink(context: android.content.Context, url: String, inApp: Boolean) {
         else context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     } catch (_: android.content.ActivityNotFoundException) { android.widget.Toast.makeText(context, "対応するアプリが見つかりませんでした。", android.widget.Toast.LENGTH_SHORT).show() }
 }
-@Composable fun LinkButton(link: LinkItem, settings: Settings, modifier: Modifier = Modifier, edit: (() -> Unit)? = null) {
+@Composable fun LinkButton(link: LinkItem, settings: Settings, modifier: Modifier = Modifier, edit: (() -> Unit)? = null, subtitle: String? = null) {
     val context = LocalContext.current
     val color = settings.linkColors[link.id] ?: link.color
     val palette = listOf(0xFF0369A1, 0xFF1D4ED8, 0xFF047857, 0xFF15803D, 0xFF92400E, 0xFF854D0E, 0xFFC2410C, 0xFFBE123C, 0xFFB91C1C, 0xFF4338CA, 0xFF7E22CE, 0xFFBE185D, 0xFF0F766E, 0xFF475569, 0xFF4B5563)
@@ -37,34 +37,35 @@ fun openLink(context: android.content.Context, url: String, inApp: Boolean) {
     OutlinedCard(modifier = modifier.fillMaxWidth().combinedClickable(onClick = { openLink(context, link.href, settings.inAppBrowser) }, onLongClick = edit)) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text("↗", color = parsed ?: MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 12.dp))
-            Text(link.label, Modifier.weight(1f))
+            Column(Modifier.weight(1f)) { Text(link.label); subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
             if (link.id in settings.favorites) Text("★", color = Color(0xFFB08900))
         }
     }
 }
 @Composable fun LinksScreen(state: AppState, account: () -> Unit, change: ((Settings) -> Settings) -> Unit) {
-    val context = LocalContext.current
     var query by rememberSaveable { mutableStateOf("") }; var hidden by rememberSaveable { mutableStateOf(false) }; var editing by remember { mutableStateOf<LinkItem?>(null) }
     val all = state.links?.categories.orEmpty().sortedBy { it.sortOrder }
+    val searching = LinkSearch.normalize(query).isNotEmpty()
+    val categories = all.flatMap { category -> category.buttons.map { it.id to category.label } }.toMap()
     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
         OutlinedTextField(query, { query = it }, label = { Text("リンクを検索") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
         TextButton(onClick = { hidden = !hidden }) { Text(if (hidden) "一覧" else "非表示のリンク") }
-        val visible = all.flatMap { it.buttons }.filter { it.visible && if (hidden) it.id in state.settings.hidden else it.id !in state.settings.hidden }
+        val visible = all.flatMap { it.buttons.sortedBy { link -> link.sortOrder } }.filter { it.visible && if (hidden) it.id in state.settings.hidden else it.id !in state.settings.hidden }
         if (hidden) Text("非表示のリンク", style = MaterialTheme.typography.titleMedium)
         if (state.links == null && !hidden) {
             Text(if (state.busy) "一覧を取得中⋯" else "一覧はまだ取得されていません。")
             TextButton(onClick = account, enabled = !state.busy) { Text("リンク一覧を取得") }
         } else if (visible.isEmpty()) Text(if (hidden) "非表示のリンクはありません。" else "表示できるリンクがありません。")
-        else if (!hidden && query.isNotBlank()) {
+        else if (!hidden && searching) {
             Text("検索結果", style = MaterialTheme.typography.titleMedium)
             if (visible.none { LinkSearch.score(it.searchTerms, query) >= 0 }) Text("該当するリンクがありません。")
         }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (query.isNotBlank() && !hidden) {
-                val results = visible.filter { LinkSearch.score(it.searchTerms, query) >= 0 }.sortedWith(compareByDescending<LinkItem> { LinkSearch.score(it.searchTerms, query) }.thenBy { it.sortOrder }.thenBy { it.label })
-                items(results, key = { it.id }) { link -> EditableLink(link, state.settings, { editing = link }, change) }
+            if (searching && !hidden) {
+                val results = visible.filter { LinkSearch.score(it.searchTerms, query) >= 0 }.sortedByDescending { LinkSearch.score(it.searchTerms, query) }
+                items(results, key = { it.id }) { link -> EditableLink(link, state.settings, { editing = link }, change, categories[link.id]) }
             } else all.forEach { category ->
-                val values = category.buttons.filter { link -> link in visible && (query.isBlank() || LinkSearch.score(link.searchTerms, query) >= 0) }.sortedBy { it.sortOrder }
+                val values = category.buttons.filter { link -> link in visible && (!searching || LinkSearch.score(link.searchTerms, query) >= 0) }.sortedBy { it.sortOrder }
                 if (values.isNotEmpty()) {
                     if (!hidden) item { Text(category.label, style = MaterialTheme.typography.titleMedium) }
                     items(values, key = { it.id }) { link ->
@@ -76,19 +77,24 @@ fun openLink(context: android.content.Context, url: String, inApp: Boolean) {
 
         }
     }
-    editing?.let { link -> AlertDialog(onDismissRequest = { editing = null }, title = { Text(link.label) }, text = { Column(Modifier.verticalScroll(rememberScrollState())) {
-        if (Uri.parse(link.href).scheme?.equals("https", true) == true) TextButton(onClick = { openLink(context, link.href, !state.settings.inAppBrowser); editing = null }) { Text(if (state.settings.inAppBrowser) "デフォルトのブラウザで開く" else "アプリ内で開く") }
-        TextButton(onClick = { change { it.copy(favorites = if (link.id in it.favorites) it.favorites - link.id else it.favorites + link.id) } }) { Text(if (link.id in state.settings.favorites) "お気に入りを解除" else "お気に入りに追加") }
-        TextButton(onClick = { change { it.copy(hidden = it.hidden + link.id) }; editing = null }) { Text("非表示") }
+    editing?.let { LinkEditDialog(it, state.settings, { editing = null }, change) }
+}
+
+@Composable fun LinkEditDialog(link: LinkItem, settings: Settings, close: () -> Unit, change: ((Settings) -> Settings) -> Unit) {
+    val context = LocalContext.current
+    AlertDialog(onDismissRequest = { close() }, title = { Text(link.label) }, text = { Column(Modifier.verticalScroll(rememberScrollState())) {
+        if (Uri.parse(link.href).scheme?.equals("https", true) == true) TextButton(onClick = { openLink(context, link.href, !settings.inAppBrowser); close() }) { Text(if (settings.inAppBrowser) "デフォルトのブラウザで開く" else "アプリ内で開く") }
+        TextButton(onClick = { change { it.copy(favorites = if (link.id in it.favorites) it.favorites - link.id else it.favorites + link.id) } }) { Text(if (link.id in settings.favorites) "お気に入りを解除" else "お気に入りに追加") }
+        TextButton(onClick = { change { it.copy(hidden = it.hidden + link.id) }; close() }) { Text("非表示") }
         Text("色を変更")
         val labels = listOf("スカイ", "ブルー", "エメラルド", "グリーン", "アンバー", "イエロー", "オレンジ", "ローズ", "レッド", "インディゴ", "パープル", "ピンク", "ティール", "スレート", "グレー")
         linkColorNames.forEachIndexed { i, name -> TextButton(onClick = { change { it.copy(linkColors = it.linkColors + (link.id to name)) } }) { Text(labels[i]) } }
-        if (link.id in state.settings.linkColors) TextButton(onClick = { change { it.copy(linkColors = it.linkColors - link.id) } }) { Text("既定色に戻す") }
-    } }, confirmButton = { TextButton(onClick = { editing = null }) { Text("閉じる") } }) }
+        if (link.id in settings.linkColors) TextButton(onClick = { change { it.copy(linkColors = it.linkColors - link.id) } }) { Text("既定色に戻す") }
+    } }, confirmButton = { TextButton(onClick = { close() }) { Text("閉じる") } })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable private fun EditableLink(link: LinkItem, settings: Settings, edit: () -> Unit, change: ((Settings) -> Settings) -> Unit) {
+@Composable fun EditableLink(link: LinkItem, settings: Settings, edit: () -> Unit, change: ((Settings) -> Settings) -> Unit, subtitle: String? = null) {
     val swipe = rememberSwipeToDismissBoxState(confirmValueChange = { value ->
         when (value) {
             SwipeToDismissBoxValue.StartToEnd -> change { it.copy(favorites = if (link.id in it.favorites) it.favorites - link.id else it.favorites + link.id) }
@@ -98,6 +104,6 @@ fun openLink(context: android.content.Context, url: String, inApp: Boolean) {
         false
     })
     SwipeToDismissBox(state = swipe, backgroundContent = { Row(Modifier.fillMaxSize().padding(12.dp).clearAndSetSemantics {}, horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { Text(if (link.id in settings.favorites) "お気に入りを解除" else "お気に入りに追加"); Text("非表示") } }) {
-        LinkButton(link, settings, edit = edit)
+        LinkButton(link, settings, edit = edit, subtitle = subtitle)
     }
 }

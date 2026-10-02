@@ -4,25 +4,30 @@ import java.time.LocalDate
 import kotlin.math.abs
 
 object PdfSchoolParser {
-    fun parse(pages: List<Page>, kind: MaterialKind): Analysis {
+    fun parse(pages: List<Page>, kind: MaterialKind): Analysis = try { parseDocument(pages, kind) }
+        catch (e: ParseFailure) { throw if (e.page == null) e.located(page = 1) else e }
+        catch (e: InterruptedException) { throw e }
+        catch (_: Exception) { throw ParseFailure("P01", "文字・位置・解析上限", page = 1) }
+    private fun parseDocument(pages: List<Page>, kind: MaterialKind): Analysis {
         require(kind != MaterialKind.CHANGES)
         if (pages.size != when (kind) { MaterialKind.EXAM -> 6; else -> 1 }) fail("ページ数")
         pages.forEach { p -> require(p.width in 1.0..5000.0 && p.height in 1.0..5000.0 && p.glyphs.size in 1..100000 && p.lines.size <= 100000)
             require(p.glyphs.all { listOf(it.x, it.y, it.width, it.height).all(Double::isFinite) && it.text.toByteArray().size <= 64 }) }
-        val heading = Grid.rows(pages.first().glyphs.filter { it.cy < pages.first().height / 4 }).joinToString("") { row -> key(row.joinToString("") { it.text }) }
-        val year = Regex("令和([0-9]{1,2})年度").find(heading)?.groupValues?.get(1)?.toInt()?.plus(2018) ?: fail("年度")
+        val heading = Grid.rows(pages.first().glyphs.filter { it.cy < pages.first().height / (if (kind == MaterialKind.TIMETABLE) 8 else 4) }).joinToString("") { row -> key(row.joinToString("") { it.text }) }
+        val year = Regex("令和([0-9]{1,2})年度").find(heading)?.groupValues?.get(1)?.toInt()?.takeIf { it in 1..99 }?.plus(2018) ?: fail("年度")
         if (kind == MaterialKind.TIMETABLE) {
-            if (heading.contains("前期") == heading.contains("後期")) fail("学期")
+            if (!heading.contains("時間割") || heading.contains("前期") == heading.contains("後期")) fail("学期")
             val term = if (heading.contains("前期")) 1 else 2
-            val lessons = ordinary(pages.single())
+            val lessons = try { ordinary(pages.single()) } catch (e: ParseFailure) { throw e.located(page = 1) }
             return Analysis(kind, year, term, lessons, classes = lessons.map { it.className }.distinct().sorted())
         }
         if (!heading.contains("試験") || heading.contains("返却") != (kind == MaterialKind.RETURN)) fail("資料の種類")
         val lessons = mutableListOf<Lesson>(); val classes = mutableSetOf<String>(); var dates: List<String>? = null; var firstTimes: Times? = null
         pages.forEachIndexed { index, page ->
+            try {
             interrupted()
             val pageHeading = key(Grid.rows(page.glyphs.filter { it.cy < page.height / 4 }).joinToString("") { row -> row.joinToString("") { it.text } })
-            if (!pageHeading.contains("令和${year - 2018}年度") || !pageHeading.contains("試験") || pageHeading.contains("返却") != (kind == MaterialKind.RETURN)) fail("年度・種類")
+            if (Regex("令和([0-9]{1,2})年度").find(pageHeading)?.groupValues?.get(1)?.toIntOrNull()?.plus(2018) != year || !pageHeading.contains("試験") || pageHeading.contains("返却") != (kind == MaterialKind.RETURN)) fail("年度・種類")
             val times = times(page, if (kind == MaterialKind.EXAM) 6 else 8)
             if (firstTimes != null && firstTimes != times) fail("ページ間の授業時刻")
             firstTimes = times
@@ -32,6 +37,7 @@ object PdfSchoolParser {
             if (parsed.classes.any { it in classes }) fail("クラスの重複")
             dates = parsed.dates.sorted(); classes += parsed.classes; lessons += parsed.lessons
             require(lessons.size <= 20000)
+            } catch (e: ParseFailure) { throw e.located(page = index + 1) }
         }
         if (classes.size != 17 || lessons.isEmpty()) fail("クラス数・授業数")
         val clocks = dates.orEmpty().mapIndexed { index, date ->
@@ -40,24 +46,25 @@ object PdfSchoolParser {
         }
         return Analysis(kind, year, lessons = lessons, dates = dates.orEmpty(), classes = classes.sorted(), specialTimes = clocks)
     }
-    private fun header(page: Page, sequence: String, count: Int): List<Glyph> {
-        val rows = Grid.rows(page.glyphs.filter { it.cy < page.height / 4 }).filter { key(it.joinToString("") { g -> g.text }) == sequence.repeat(count) }
+    private fun header(page: Page, sequence: String, count: Int, normal: Boolean = false): List<Glyph> {
+        val rows = Grid.rows(page.glyphs.filter { it.cy < page.height / (if (normal) 5 else 4) }).filter { key(it.joinToString("") { g -> g.text }) == sequence.repeat(count) }
         if (rows.size != 1 || rows.single().size != sequence.length * count) fail("時限見出し")
         return rows.single()
     }
     private fun ordinary(page: Page): List<Lesson> {
-        val grid = Grid(page); val hs = header(page, "12345678", 5)
+        val grid = Grid(page); val hs = header(page, "12345678", 5, normal = true)
         val first = grid.box(hs[0].cx, hs[0].cy); val cls = grid.box(first.left - 2, first.bottom + 20)
         val bottom = page.lines.filter { it.vertical && abs(it.x1 - cls.right) < .3 }.maxOfOrNull { it.y2 } ?: fail("クラス罫線")
         val rows = Grid.rows(page.glyphs.filter { it.cx > cls.left && it.cx < cls.right && it.cy > first.bottom && it.cy < bottom })
         val lessons = mutableListOf<Lesson>(); val classes = mutableSetOf<String>()
-        rows.forEach { row ->
+        rows.forEachIndexed { rowIndex, row ->
             interrupted(); val label = key(row.joinToString("") { it.text }); if (!label.matches(Regex("[1-9]|[A-Z]{2,8}"))) fail("クラス")
             val y = row.map { it.cy }.average(); var box = grid.box(cls.cx, y)
             val grade = key(grid.text(grid.box(cls.left - 2, y)).joinToString("")); if (!grade.matches(Regex("[1-9]|AI"))) fail("学年")
             val name = canonicalClass("${grade}_$label"); if (!classes.add(name)) fail("クラス重複")
             box = box.copy(top = maxOf(box.top, grid.box(hs[0].cx, y).top))
-            hs.forEachIndexed { col, h -> grid.subdivisions(h.cx, box).forEach { cell ->
+            hs.forEachIndexed { col, h ->
+                try { grid.subdivisions(h.cx, box).forEach { cell ->
                 val text = grid.text(cell); if (text.isNotEmpty()) {
                     if (text.size > 3) fail("授業欄の行数")
                     val f = text + List(3 - text.size) { "" }; val parts = f.map { it.replace('･', '・').split('・') }
@@ -69,7 +76,7 @@ object PdfSchoolParser {
                         require(lessons.size <= 20000)
                     }
                 }
-            } }
+            } } catch (e: ParseFailure) { throw e.located(classRow = rowIndex + 1, day = col / 8 + 1, period = col % 8 + 1) } }
         }
         if (classes.isEmpty() || lessons.isEmpty()) fail("授業欄")
         return lessons
@@ -101,7 +108,7 @@ object PdfSchoolParser {
         val month = m.groupValues[1].toInt(); return LocalDate.of(year + if (month < 4) 1 else 0, month, m.groupValues[2].toInt()).toString()
     }
     private fun specialCell(page: Page, box: Box, date: String, name: String, period: Int, xs: List<Double>, times: Times): List<Lesson> {
-        val text = Grid(page).text(box); if (text.isEmpty()) return emptyList()
+        val text = Grid(page).text(box, combineFragments = false); if (text.isEmpty()) return emptyList()
         if (text.size > 8) fail("特別時間割の行数")
         val covered = xs.indices.filter { xs[it] > box.left + .5 && xs[it] < box.right - .5 }.map { it + 1 }
         if (period !in covered) fail("結合時限")

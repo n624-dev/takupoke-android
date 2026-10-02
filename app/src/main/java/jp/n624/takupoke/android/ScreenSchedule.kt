@@ -30,14 +30,15 @@ private fun AppState.projection(changes: Boolean) = ScheduleProjection(analyses,
     LaunchedEffect(lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { while (true) { now = Instant.now(); kotlinx.coroutines.delay(15_000) } } }
     return now
 }
-private fun accessibility(day: LocalDate, slot: Slot): String = listOf(day.toString(), slot.lessons.firstOrNull()?.className?.let(::displayClass).orEmpty(), "${slot.period}〜${slot.endPeriod}限", slot.type, slot.time ?: "時刻未確認").plus(slot.lessons.flatMap { l -> listOf("科目、${l.names.subjectFull.ifEmpty { l.names.subject }}", "教員、${l.names.teacherFull.ifEmpty { l.names.teacher }}", "教室、${l.names.roomFull.ifEmpty { l.names.room }}") }).joinToString("、").let(::displayKana)
-@Composable fun HomeScreen(state: AppState, account: () -> Unit, classes: () -> Unit, select: (Pair<LocalDate, Slot>) -> Unit, timetable: () -> Unit) {
+private fun accessibility(day: LocalDate, slot: Slot): String = listOf(day.toString(), slot.lessons.firstOrNull()?.className?.let(::displayClass).orEmpty(), "${slot.period}〜${slot.endPeriod}限", slot.type, slot.time ?: "時刻未確認").plus(slot.lessons.flatMap { l -> listOf("科目、${l.names.subjectFull.ifEmpty { l.names.subject }}", "教員、${l.names.teacherFull.ifEmpty { l.names.teacher }}", "教室、${l.names.roomFull.ifEmpty { l.names.room }}") }).joinToString("、").let(::displayContinuous)
+@Composable fun HomeScreen(state: AppState, account: () -> Unit, classes: () -> Unit, select: (Pair<LocalDate, Slot>) -> Unit, timetable: () -> Unit, change: ((Settings) -> Settings) -> Unit = {}) {
+    var editing by remember { mutableStateOf<LinkItem?>(null) }
     val now = schoolNow(); val date = now.atZone(schoolZone).toLocalDate(); val projection = state.projection(true)
     Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (state.updates.isNotEmpty()) TextButton(onClick = account) { Text(listOf("links-revision" to "一覧", "mapping-revision" to "名称データ", "timetable-times-revision" to "授業時刻").filter { it.first in state.updates }.joinToString("・") { it.second } + "に更新があります") }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("今日の予定", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium); TextButton(onClick = timetable) { Text("時間割を見る") } }
         Text("${date.monthValue}月${date.dayOfMonth}日（${"月火水木金土日"[date.dayOfWeek.value - 1]}）")
-        Schedule.events(date, state.events).map { it.title }.distinct().takeIf { it.isNotEmpty() }?.let { Text(displayKana(it.joinToString("・")), style = MaterialTheme.typography.titleMedium) }
+        Schedule.events(date, state.events).map { it.title }.takeIf { it.isNotEmpty() }?.let { Text(displayKana(it.joinToString("・")), style = MaterialTheme.typography.titleMedium) }
         if (state.settings.primaryClass.isEmpty()) TextButton(onClick = classes) { Text("クラスを選択") }
         else {
             if (state.analyses.none { it.kind == MaterialKind.CHANGES }) Text("時間割変更の解析結果がありません。")
@@ -54,10 +55,10 @@ private fun accessibility(day: LocalDate, slot: Slot): String = listOf(day.toStr
                             if (active) Box(Modifier.width(3.dp).height(48.dp).background(MaterialTheme.colorScheme.primary))
                             Text(slot.time?.replace("〜", "\n～\n") ?: "時刻未確認", Modifier.padding(end = 12.dp), textAlign = TextAlign.Center)
                             Column(Modifier.weight(1f)) {
-                                if (slot.changes.isNotEmpty()) Text(slot.type, color = MaterialTheme.colorScheme.tertiary)
+                                if (slot.changes.isNotEmpty()) Text(slot.type, color = Color(0xFFFF9500))
                                 if (active) Text("授業中", color = MaterialTheme.colorScheme.primary)
                                 slot.lessons.forEach { lesson ->
-                                    if (slot.type != "休講") Text(displayKana(lesson.names.subject.ifEmpty { "変更を確認" }), style = MaterialTheme.typography.titleMedium)
+                                    if (slot.type != "休講") Text(displayContinuous(lesson.names.subject.ifEmpty { "変更を確認" }), style = MaterialTheme.typography.titleMedium)
                                     Text(listOf(lesson.names.teacher, lesson.names.room).filter(String::isNotEmpty).joinToString("・").let(::displayMetadata))
                                 }
                             }
@@ -69,11 +70,12 @@ private fun accessibility(day: LocalDate, slot: Slot): String = listOf(day.toStr
         val visible = visibleLinks(state.links, state.settings)
         val favorites = visible.filter { it.id in state.settings.favorites }
         if (favorites.isNotEmpty()) Text("お気に入り", style = MaterialTheme.typography.titleMedium)
-        favorites.forEach { LinkButton(it, state.settings) }
+        favorites.forEach { link -> EditableLink(link, state.settings, { editing = link }, change) }
         val recommended = recommendedLinks(state.links, state.settings)
         if (recommended.isNotEmpty()) Text("おすすめ", style = MaterialTheme.typography.titleMedium)
-        recommended.forEach { LinkButton(it, state.settings) }
+        recommended.forEach { link -> EditableLink(link, state.settings, { editing = link }, change) }
     }
+    editing?.let { LinkEditDialog(it, state.settings, { editing = null }, change) }
 }
 @Composable fun TimetableScreen(state: AppState, classes: () -> Unit, change: ((Settings) -> Settings) -> Unit = {}, todayRequest: String? = null, select: (Pair<LocalDate, Slot>) -> Unit) {
     val now = schoolNow(); val currentDay = now.atZone(schoolZone).toLocalDate()
@@ -87,7 +89,7 @@ private fun accessibility(day: LocalDate, slot: Slot): String = listOf(day.toStr
     val bounds = projection.weekBounds(LocalDate.parse(anchorText), selectedClasses)
     val context = androidx.compose.ui.platform.LocalContext.current
     val days = projection.displayedDays(monday, selectedClasses)
-    val changeClasses = if (state.settings.useTimetableClasses) selectedClasses.toSet() else state.settings.changeClasses
+    val changeClasses = if (state.settings.useTimetableClasses) selectedClasses.toSet() else state.settings.changeClasses.ifEmpty { selectedClasses.toSet() }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("表示クラス", style = MaterialTheme.typography.titleMedium)
         ClassSelectionRow(state.settings, classes)
@@ -109,16 +111,16 @@ private fun accessibility(day: LocalDate, slot: Slot): String = listOf(day.toStr
         if (selectedClasses.isEmpty()) TextButton(onClick = classes) { Text("クラスを選択") }
         else WeekGrid(state, projection, days, selectedClasses, currentDay, select)
         Text("週の行事", style = MaterialTheme.typography.titleMedium)
-        (0..6).forEach { offset -> val day = monday.plusDays(offset.toLong()); val titles = Schedule.events(day, state.events).map { it.title }.distinct(); if (titles.isNotEmpty()) Text("${day.monthValue}/${day.dayOfMonth}　${displayKana(titles.joinToString("・"))}") }
+        (0..6).forEach { offset -> val day = monday.plusDays(offset.toLong()); val titles = Schedule.events(day, state.events).map { it.title }; if (titles.isNotEmpty()) Text("${day.monthValue}/${day.dayOfMonth}　${displayKana(titles.joinToString("・"))}") }
         Text("時間割変更", style = MaterialTheme.typography.titleMedium)
         Row(Modifier.horizontalScroll(rememberScrollState())) { listOf("今日以降", "この週", "全件").forEach { range -> FilterChip(state.settings.changeRange == range, { change { it.copy(changeRange = range) } }, label = { Text(range) }) } }
         TextButton(onClick = { pickingClasses = true }) { Text("変更一覧の対象クラス") }
         val records = projection.filteredChanges(changeClasses, state.settings.changeRange, currentDay, monday)
         if (state.analyses.none { it.kind == MaterialKind.CHANGES }) Text("時間割変更の解析結果がありません。") else if (records.isEmpty()) Text("時間割変更はありません。")
         records.forEach { record -> OutlinedCard(onClick = { select(LocalDate.parse(record.date) to projection.changeDetail(record)) }, modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
-            Text("${record.date}　${displayClass(record.className)}　${record.period}限　${record.type}")
-            Text("${displayKana(projection.changeBefore(record).subject)} → ${displayKana(record.after)}")
-            if (record.note.isNotEmpty()) Text(displayKana(record.note))
+            Text("${record.date}　${displayClass(record.className)}　${if (record.period.isEmpty()) "時限未記載" else displayChangePeriod(record)}　${record.type}")
+            Text("${displayContinuous(projection.changeBefore(record).subject)} → ${displayContinuous(record.after)}")
+            if (record.note.isNotEmpty()) Text(displayContinuous(record.note))
         } } }
         Spacer(Modifier.height(12.dp))
     }
@@ -147,9 +149,9 @@ private fun accessibility(day: LocalDate, slot: Slot): String = listOf(day.toStr
         val subjects = mutableMapOf<Slot, String>()
         layouts.values.flatten().flatten().forEach { (slot, _) ->
             val names = slot.lessons.first().names
-            val source = displayKana(names.subject).replace('・', '•')
+            val source = displayContinuous(names.subject).replace('・', '•')
             val effective = slot.changes.lastOrNull { it.type == "補講" } ?: slot.changes.lastOrNull()
-            val short = effective?.let { state.mapping?.shortSubject(it, state.analyses) }?.let(::displayKana)?.replace('・', '•')
+            val short = effective?.let { state.mapping?.shortSubject(it, state.analyses) }?.let(::displayContinuous)?.replace('・', '•')
             val candidates = listOfNotNull(source, halfwidthKana(source), short, short?.let(::halfwidthKana))
             val subject = if (effective == null) source else candidates.firstOrNull { candidate -> with(density) { measurer.measure(candidate, textStyle).size.width <= (cardWidth - 6.dp).roundToPx() } } ?: short?.let(::halfwidthKana) ?: source
             subjects[slot] = subject
@@ -158,7 +160,7 @@ private fun accessibility(day: LocalDate, slot: Slot): String = listOf(day.toStr
             val allocated = (slot.period..slot.endPeriod).fold(0.dp) { h, p -> h + rowHeights[p - 1] }
             if (needed > allocated) { val extra = (needed - allocated) / (slot.endPeriod - slot.period + 1); (slot.period..slot.endPeriod).forEach { rowHeights[it - 1] += extra } }
         }
-        val headerTexts = days.associateWith { day -> "${day.monthValue}/${day.dayOfMonth}（${"月火水木金土日"[day.dayOfWeek.value - 1]}）\n" + (projection.headerTitles(day, classes) + classes.flatMap { projection.missing(day, it) }.distinct()).joinToString("\n").let(::displayKana) }
+        val headerTexts = days.associateWith { day -> "${day.monthValue}/${day.dayOfMonth}（${"月火水木金土日"[day.dayOfWeek.value - 1]}）\n" + (projection.headerTitles(day, classes) + classes.flatMap { projection.missing(day, it) }.distinct()).joinToString("\n").let(::displayContinuous) }
         val widths = days.associateWith { day -> layouts.getValue(day).sumOf { blocks -> (blocks.maxOfOrNull { it.lane } ?: 0) + 1 } }
         val headerHeight = days.maxOfOrNull { day -> measuredHeight(headerTexts.getValue(day), cardWidth * widths.getValue(day), headerStyle) }?.plus(8.dp) ?: 40.dp
         val gridHeight = if (allFull) days.maxOf { day -> measuredHeight(displayKana(fullDays.getValue(day).orEmpty()), cardWidth * widths.getValue(day), headerStyle) + 10.dp } else rowHeights.fold(0.dp) { a, b -> a + b }
@@ -179,8 +181,8 @@ private fun accessibility(day: LocalDate, slot: Slot): String = listOf(day.toStr
                                 val y = rowHeights.take(slot.period - 1).fold(0.dp) { a, b -> a + b }
                                 val height = rowHeights.subList(slot.period - 1, slot.endPeriod).fold(0.dp) { a, b -> a + b } - 2.dp
                                 val names = slot.lessons.first().names
-                                Column(Modifier.offset(x = cardWidth * (classLane + lane), y = y).width(cardWidth - 2.dp).height(height).border(.5.dp, MaterialTheme.colorScheme.outlineVariant).background(if (slot.changes.isNotEmpty()) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainer).clickable { select(day to slot) }.clearAndSetSemantics { contentDescription = accessibility(day, slot); onClick("授業詳細を開きます") { select(day to slot); true } }.padding(3.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                    if (slot.changes.isNotEmpty()) Text(slot.type, style = textStyle)
+                                Column(Modifier.offset(x = cardWidth * (classLane + lane), y = y).width(cardWidth - 2.dp).height(height).border(.5.dp, MaterialTheme.colorScheme.outlineVariant).background(MaterialTheme.colorScheme.surfaceContainer).clickable { select(day to slot) }.clearAndSetSemantics { contentDescription = accessibility(day, slot); onClick("授業詳細を開きます") { select(day to slot); true } }.padding(3.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                    if (slot.changes.isNotEmpty()) Text(slot.type, style = textStyle, color = Color(0xFFFF9500))
                                     if (slot.type != "休講") Text(subjects[slot].orEmpty().ifEmpty { "変更を確認" }, style = textStyle, maxLines = if (slot.changes.isNotEmpty()) Int.MAX_VALUE else 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                                     if (names.teacher.isNotEmpty()) Text(displayMetadata(names.teacher), style = metadataStyle, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                                     if (names.room.isNotEmpty()) Text(displayMetadata(names.room).let { full -> if (with(density) { measurer.measure(full, metadataStyle).size.width > (cardWidth - 6.dp).roundToPx() }) halfwidthKana(full) else full }, style = metadataStyle, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
@@ -211,5 +213,5 @@ private fun accessibility(day: LocalDate, slot: Slot): String = listOf(day.toStr
     AlertDialog(onDismissRequest = close, title = { Text("変更一覧の対象クラス") }, text = { Column(Modifier.verticalScroll(rememberScrollState())) {
         Text("${draft.size} / 30クラス")
         candidates.groupBy { it.substringBefore('_') }.forEach { (group, values) -> Text(if (group == "AI") "専攻科" else "${group}年", fontWeight = FontWeight.Bold); values.forEach { cls -> Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(cls in draft, { selected -> if (!selected) draft -= cls else if (draft.size < 30) draft += cls }); Text(displayClass(cls)) } } }
-    } }, confirmButton = { TextButton(onClick = { change { it.copy(changeClasses = draft, useTimetableClasses = false) }; close() }) { Text("適用") } }, dismissButton = { Column { TextButton(onClick = { change { it.copy(useTimetableClasses = true) }; close() }) { Text("時間割の選択に戻す") }; TextButton(onClick = close) { Text("キャンセル") } } })
+    } }, confirmButton = { TextButton(onClick = { change { it.copy(changeClasses = draft, useTimetableClasses = draft.isEmpty()) }; close() }) { Text("適用") } }, dismissButton = { Column { TextButton(onClick = { change { it.copy(changeClasses = emptySet(), useTimetableClasses = true) }; close() }) { Text("時間割と同じクラスに戻す") }; TextButton(onClick = close) { Text("キャンセル") } } })
 }

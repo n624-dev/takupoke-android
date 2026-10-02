@@ -63,6 +63,36 @@ class IosParityScreenTest {
         compose.onNodeWithText("${monday.monthValue}/${monday.dayOfMonth}〜${sunday.monthValue}/${sunday.dayOfMonth}").assertIsDisplayed()
     }
 
+    @Test fun linkSearchShowsCategoryAndPunctuationQueryKeepsRegularList() {
+        fun link(id: String, category: String, order: Int) = LinkItem(id, category, "架空リンク$id", "https://example.invalid/$id", "blue", true, order, false, 0, emptyList(), "fixture")
+        val links = LinksPayload("v1", "fixture", listOf(LinkCategory("c1", "架空カテゴリ一", 0, listOf(link("A", "c1", 10))), LinkCategory("c2", "架空カテゴリ二", 1, listOf(link("B", "c2", 0)))))
+        compose.setContent { MaterialTheme { LinksScreen(AppState(links = links), {}) {} } }
+        compose.onNodeWithText("リンクを検索").performTextInput("!")
+        compose.onNodeWithText("検索結果").assertDoesNotExist()
+        compose.onNodeWithText("架空カテゴリ一").assertIsDisplayed()
+        compose.onNodeWithText("リンクを検索").performTextReplacement("fixture")
+        compose.onNodeWithText("検索結果").assertIsDisplayed()
+        compose.onNodeWithText("架空カテゴリ一").assertIsDisplayed()
+        val first = compose.onNodeWithText("架空リンクA").fetchSemanticsNode().boundsInRoot.top
+        val second = compose.onNodeWithText("架空リンクB").fetchSemanticsNode().boundsInRoot.top
+        assertTrue(first < second)
+    }
+    @Test fun homeFavoritesHaveSameEditMenuAsList() {
+        val link = LinkItem("fixture", "category", "架空ホームリンク", "https://example.invalid/fixture", "blue", true, 0, false, 0, emptyList(), "fixture")
+        val settings = mutableStateOf(Settings(favorites = setOf("fixture")))
+        val payload = LinksPayload("v1", "fixture", listOf(LinkCategory("category", "架空カテゴリ", 0, listOf(link))))
+        compose.setContent { MaterialTheme { HomeScreen(AppState(settings = settings.value, links = payload), {}, {}, {}, {}, { settings.value = it(settings.value) }) } }
+        compose.onNodeWithText("架空ホームリンク").performScrollTo().performTouchInput { longClick() }
+        compose.onNodeWithText("お気に入りを解除").assertIsDisplayed().performClick()
+        compose.runOnIdle { assertTrue(settings.value.favorites.isEmpty()) }
+        compose.onNodeWithText("お気に入りに追加").assertIsDisplayed()
+    }
+    @Test fun blankChangePeriodIsShownAsUnrecordedWithoutInventingLimit() {
+        val record = Change(today().toString(), "1_CN", "", "架空科目A", "架空科目B")
+        val projection = ScheduleProjection(listOf(Analysis(MaterialKind.CHANGES, schoolYear(), changes = listOf(record))), emptyList(), null, null, true, true)
+        compose.setContent { MaterialTheme { LessonDetailScreen(AppState(), today(), projection.changeDetail(record)) {} } }
+        compose.onNodeWithText("時限: 記載なし").assertIsDisplayed()
+    }
     @Test fun helpHasFiveSeparateTopics() {
         compose.setContent { MaterialTheme { HelpScreen() } }
         compose.onNodeWithText("困ったとき").performClick()

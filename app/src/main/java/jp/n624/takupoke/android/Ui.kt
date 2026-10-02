@@ -87,7 +87,7 @@ val darkMainColors = listOf(Color(0xFF90CAF9), Color(0xFFA5D6A7), Color(0xFFFFF5
                         else -> Column(Modifier.padding(16.dp)) { ClassSettings(state.settings) { transform -> settings(transform) } }
                     }
                     else -> when (tab) {
-                        0 -> HomeScreen(state, { page = "account" }, { page = "classes" }, { selectedLesson = it }, { todayRequest = java.util.UUID.randomUUID().toString(); tab = 2 })
+                        0 -> HomeScreen(state, { page = "account" }, { page = "classes" }, { selectedLesson = it }, { todayRequest = java.util.UUID.randomUUID().toString(); tab = 2 }, { transform -> settings(transform) })
                         1 -> LinksScreen(state, { page = "account" }) { transform -> settings(transform) }
                         2 -> TimetableScreen(state, { page = "classes" }, { transform -> settings(transform) }, todayRequest) { selectedLesson = it }
                         else -> SettingsScreen(state, { setupStep = 0; page = it }) { transform -> settings(transform) }
@@ -156,58 +156,5 @@ val darkMainColors = listOf(Color(0xFF90CAF9), Color(0xFFA5D6A7), Color(0xFFFFF5
         state.sourceCheckMessage?.let { Text(it) }
         state.events.filter { it.schoolYear == selectedYear }.flatMap { it.events }.forEach { Text("${it.startDate}${if (it.endDate != it.startDate) "〜${it.endDate}" else ""}\n${it.title}（${it.tag}）") }
     }
-}
-@Composable fun MaterialsScreen(state: AppState, repository: AppRepository, pick: (MaterialKind) -> Unit, setupMode: Boolean = false, events: () -> Unit = {}, open: (MaterialRecord) -> Unit) {
-    var detail by remember { mutableStateOf<MaterialKind?>(null) }; var year by rememberSaveable { mutableStateOf(schoolYear().toString()) }; var preview by remember { mutableStateOf<Analysis?>(null) }; var warning by remember { mutableStateOf(false) }
-    LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (setupMode) item { Text("ファイルを選ぶ", style = MaterialTheme.typography.titleMedium); Text("通常時間割のPDFと時間割変更のExcelファイルを選びます。選択後、自動で解析します。"); Text("試験時間割・試験返却時間割のPDFは、手元にある場合に選んでください。") }
-        if (!setupMode) item { TextButton(onClick = repository::suspendAutomaticRefresh, enabled = !state.automaticRefreshSuspended) { Text(if (state.automaticRefreshSuspended) "自動確認を中止中" else "自動確認を中止") } }
-        items(MaterialKind.entries) { kind -> val record = state.materials.firstOrNull { it.kind == kind }
-            Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(kind.title, style = MaterialTheme.typography.titleMedium); Text(record?.name ?: "未選択")
-                if (record != null) Text(when { record.failure != null -> if (record.analysis == null) "要確認" else "要確認（前回結果あり）"; record.analysis != null -> if (record.parsedDigest == record.digest) "解析済み" else "未解析（前回結果あり）"; else -> "未解析" })
-                Row { Button(onClick = { pick(kind) }, enabled = !state.busy) { Text(if (record == null) "ファイルを選ぶ" else "ファイルを選び直す") }; if (record != null) TextButton(onClick = { detail = kind; year = record.year.toString() }) { Text("詳細を見る") } }
-            } }
-        }
-        if (setupMode) item { TextButton(onClick = events) { Text("学校行事を取得") } }
-    }
-    detail?.let { kind -> state.materials.firstOrNull { it.kind == kind }?.let { record -> AlertDialog(onDismissRequest = { detail = null }, title = { Text(kind.title) }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        record.failure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Text(record.name); Text("サイズ: ${android.text.format.Formatter.formatFileSize(LocalContext.current, repository.file(record).length())}"); Text("最終取得: ${dateTime(record.fetchedAt)}\n最終確認: ${dateTime(record.checkedAt)}\n最終解析成功: ${record.parsedAt?.let(::dateTime) ?: "未解析"}")
-        record.sourceModified?.let { Text("元ファイルの更新: ${dateTime(it)}") }
-        if (kind == MaterialKind.CHANGES) OutlinedTextField(year, { year = it }, label = { Text("補完年度") }, singleLine = true)
-        Button(onClick = { repository.action { repository.reparse(kind, year.toIntOrNull() ?: schoolYear()) } }, enabled = !state.busy && (year.isBlank() || year.toIntOrNull() in 1900..9998)) { Text("解析する") }
-        OutlinedButton(onClick = { repository.action { repository.refreshMaterial(kind) } }, enabled = !state.busy) { Text("同じファイルを再取得") }
-        if (kind != MaterialKind.CHANGES) OutlinedButton(onClick = { open(record) }) { Text("保存済みのPDFを見る") }
-        if (record.failure?.contains("曜日") == true) OutlinedButton(onClick = { warning = true }) { Text("警告を確認して内容を見る") }
-        record.analysis?.let { analysis ->
-            Text("学校年度: ${analysis.schoolYear}年度\n件数: ${analysis.lessons.size + analysis.changes.size}件")
-            if (kind == MaterialKind.TIMETABLE) Text("学期: ${when (analysis.term) { 1 -> "前期"; 2 -> "後期"; else -> "未確認" }}")
-            if (record.parsedDigest != record.digest || analysis.parserVersion != PARSER_VERSION) Text("前回の解析結果です。現在のファイルを解析してください。", color = MaterialTheme.colorScheme.error)
-            val selected = if (kind == MaterialKind.CHANGES) state.settings.changesFilter else state.settings.timetableFilter
-            var menu by remember { mutableStateOf(false) }
-            Row(verticalAlignment = Alignment.CenterVertically) { Text("クラス", Modifier.weight(1f)); TextButton(onClick = { menu = true }) { Text(selected.ifEmpty { "すべて" }.let(::displayClass)) }; DropdownMenu(menu, { menu = false }) { (listOf("") + analysis.classes + listOf(selected)).distinct().forEach { cls -> DropdownMenuItem(text = { Text(cls.ifEmpty { "すべて" }.let(::displayClass)) }, onClick = { repository.preferenceAction { if (kind == MaterialKind.CHANGES) it.copy(changesFilter = cls) else it.copy(timetableFilter = cls) }; menu = false }) } } }
-            if (selected.isNotEmpty() && selected !in analysis.classes) Text("選択したクラスは現在の解析結果にありません。選択は保持しています。")
-            if (kind == MaterialKind.TIMETABLE) {
-                var weekdayMenu by remember { mutableStateOf(false) }
-                val weekdays = listOf("すべて", "月", "火", "水", "木", "金")
-                TextButton(onClick = { weekdayMenu = true }) { Text("曜日: ${weekdays[state.settings.timetableWeekdayFilter.coerceIn(0, 5)]}") }
-                DropdownMenu(weekdayMenu, { weekdayMenu = false }) { weekdays.forEachIndexed { i, label -> DropdownMenuItem(text = { Text(label) }, onClick = { repository.preferenceAction { it.copy(timetableWeekdayFilter = i) }; weekdayMenu = false }) } }
-            }
-            analysis.changes.filter { selected.isEmpty() || canonicalClass(it.className) == selected }.forEach { row ->
-                Text("${row.date} ${displayClass(row.className)} ${row.period}限　${row.type}")
-                Text("変更前: ${row.before}\n変更後: ${row.after}\n教員: ${row.teacher}\n教室: ${row.room}\n備考: ${row.note}\n元の記載: ${row.raw}")
-            }
-            analysis.lessons.filter { (selected.isEmpty() || it.className == selected) && (kind != MaterialKind.TIMETABLE || state.settings.timetableWeekdayFilter == 0 || it.weekday == state.settings.timetableWeekdayFilter) }.forEach { lesson ->
-                val names = state.mapping?.apply(lesson.names, lesson.className) ?: lesson.names
-                Text("${displayClass(lesson.className)} ${lesson.date ?: "${lesson.weekday}曜日"} ${lesson.period}限")
-                Text("科目: ${names.subjectFull.ifEmpty { names.subject }}\n教員: ${names.teacherFull.ifEmpty { names.teacher }}\n教室: ${names.roomFull.ifEmpty { names.room }}")
-                lesson.time?.let { Text("時刻: $it") }; if (lesson.sourceText.isNotEmpty()) Text("元のセルの記載\n${lesson.sourceText}")
-            }
-        }
-
-    } }, confirmButton = { TextButton(onClick = { detail = null }) { Text("閉じる") } }) } }
-    if (warning) AlertDialog(onDismissRequest = { warning = false }, title = { Text("曜日を確認できないファイルです") }, text = { Text("日付と曜日が合わないか、曜日の計算結果が保存されていません。日付欄を基準に内容を表示しますが、正しい内容かは元ファイルで確認してください。前回の正常データは置き換えません。") }, confirmButton = { TextButton(onClick = { warning = false; detail?.let { kind -> repository.action { preview = repository.preview(kind, year.toIntOrNull() ?: schoolYear()) } } }) { Text("確認して表示") } }, dismissButton = { TextButton(onClick = { warning = false }) { Text("キャンセル") } })
-    preview?.let { analysis -> AlertDialog(onDismissRequest = { preview = null }, title = { Text("プレビュー（閲覧のみ）") }, text = { Column(Modifier.verticalScroll(rememberScrollState())) { analysis.changes.forEach { Text("${it.date} ${it.className} ${it.period}\n${it.before} → ${it.after}") } } }, confirmButton = { TextButton(onClick = { preview = null }) { Text("閉じる") } }) }
 }
 fun dateTime(millis: Long): String = java.time.Instant.ofEpochMilli(millis).atZone(schoolZone).format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm"))

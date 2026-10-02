@@ -6,6 +6,8 @@ import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import com.tom_roush.pdfbox.pdmodel.font.PDType0Font
 import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
 import jp.n624.takupoke.core.ParseFailure
+import jp.n624.takupoke.core.Grid
+import jp.n624.takupoke.core.Box
 import org.junit.Test
 import org.junit.Assert.*
 import java.io.File
@@ -25,6 +27,45 @@ class PdfTest {
             assertEquals("Synthetic ABC", page.glyphs.joinToString("") { it.text }); assertEquals(4, page.lines.size)
             assertTrue(page.glyphs.all { it.width > 0 && it.height > 0 && it.y in 0.0..200.0 })
         } finally { f.delete() }
+    }
+    @Test fun actualTextOperatorsKeepMixedFontSizeOnOneSourceLine() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val file = File.createTempFile("synthetic-", ".pdf", context.cacheDir)
+        try {
+            PDDocument().use { document ->
+                val page = PDPage(PDRectangle(200f, 200f)); document.addPage(page)
+                val fontFile = File("/system/fonts/Roboto-Regular.ttf").takeIf { it.isFile } ?: File("/system/fonts/NotoSans-Regular.ttf")
+                val font = PDType0Font.load(document, fontFile)
+                PDPageContentStream(document, page).use { stream ->
+                    stream.beginText(); stream.setFont(font, 12f); stream.newLineAtOffset(20f, 150f); stream.showText("Synthetic")
+                    stream.setFont(font, 8f); stream.showText("Small")
+                    stream.setFont(font, 12f); stream.newLineAtOffset(0f, -25f); stream.showText("Teacher")
+                    stream.newLineAtOffset(0f, -25f); stream.showText("Room"); stream.endText()
+                }
+                document.save(file)
+            }
+            val page = PdfReader.readPages(file).single()
+            assertTrue(page.glyphs.all { it.sourceLine != null })
+            assertEquals(listOf("SyntheticSmall", "Teacher", "Room"), Grid(page).text(Box(0.0, 0.0, 200.0, 200.0)))
+            assertEquals(3, page.glyphs.map { it.sourceLine }.distinct().size)
+        } finally { file.delete() }
+    }
+    @Test fun actualOverprintedFragmentsAreRejectedWithoutGuessingText() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val file = File.createTempFile("synthetic-", ".pdf", context.cacheDir)
+        try {
+            PDDocument().use { document ->
+                val page = PDPage(PDRectangle(200f, 200f)); document.addPage(page)
+                val fontFile = File("/system/fonts/Roboto-Regular.ttf").takeIf { it.isFile } ?: File("/system/fonts/NotoSans-Regular.ttf")
+                val font = PDType0Font.load(document, fontFile)
+                PDPageContentStream(document, page).use { stream ->
+                    repeat(2) { stream.beginText(); stream.setFont(font, 12f); stream.newLineAtOffset(20f, 150f); stream.showText("Synthetic"); stream.endText() }
+                }
+                document.save(file)
+            }
+            try { Grid(PdfReader.readPages(file).single()).text(Box(0.0, 0.0, 200.0, 200.0)); fail("Overprinted fragments accepted") }
+            catch (error: ParseFailure) { assertEquals("P20", error.code) }
+        } finally { file.delete() }
     }
     @Test fun missingUnicodeMapFailsClosed() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext; val f = File.createTempFile("synthetic-", ".pdf", context.cacheDir)

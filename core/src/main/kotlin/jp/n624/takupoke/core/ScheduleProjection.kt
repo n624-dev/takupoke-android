@@ -6,7 +6,8 @@ import java.text.Normalizer
 
 /** Display projections share the iOS rules; saved source strings stay intact. */
 fun displayKana(value: String): String = Regex("[\uFF61-\uFF9F]+").replace(value) { Normalizer.normalize(it.value, Normalizer.Form.NFKC) }
-fun displayMetadata(value: String): String = displayKana(value.replace(Regex("[()（）]"), "").replace(Regex("\\s{2,}"), " ").trim())
+fun displayContinuous(value: String): String = displayKana(value).replace("\r", "").replace("\n", "")
+fun displayMetadata(value: String): String = displayContinuous(value.replace(Regex("[()（）]"), "").replace(Regex("\\s{2,}"), " ").trim())
 fun displayClass(value: String): String = displayKana(canonicalClass(value)).replace('_', '-')
 
 private val halfwidthKanaTable = (0xFF61..0xFF9F).map { it.toChar().toString() }.flatMap { a ->
@@ -108,8 +109,16 @@ class ScheduleProjection(val analyses: List<Analysis>, val events: List<EventsPa
     }
 
     fun filteredChanges(classes: Set<String>, range: String, day: LocalDate, week: LocalDate): List<Change> = analyses.flatMap { it.changes }.filter {
-        canonicalClass(it.className) in classes && (range == "全件" || if (range == "この週") LocalDate.parse(it.date) >= week && LocalDate.parse(it.date) < week.plusWeeks(1) else LocalDate.parse(it.date) >= day)
-    }.sortedWith(compareBy<Change> { it.date }.thenBy { it.period })
+        canonicalClass(it.className) in classes && shouldDisplay(it) && (range == "全件" || if (range == "この週") LocalDate.parse(it.date) >= week && LocalDate.parse(it.date) < week.plusWeeks(1) else LocalDate.parse(it.date) >= day)
+    }.sortedWith(compareBy<Change> { it.date }.thenBy { it.period }.thenBy { canonicalClass(it.className) })
+
+    private fun shouldDisplay(change: Change): Boolean {
+        if (international) return true
+        val cls = canonicalClass(change.className)
+        val year = schoolYear(LocalDate.parse(change.date))
+        return listOf(change.before, change.after).none { subject -> normalized(subject).startsWith("留") ||
+            mapping?.international(mapping.separate(subject, cls, year).subject, cls) == true }
+    }
 
     fun changeBefore(change: Change): Names {
         val cls = canonicalClass(change.className); val day = LocalDate.parse(change.date)
@@ -130,8 +139,8 @@ class ScheduleProjection(val analyses: List<Analysis>, val events: List<EventsPa
         val names = if (conflict) Names(change.after, change.teacher, change.room) else inline.copy(teacher = change.teacher.ifEmpty { inline.teacher }, room = change.room.ifEmpty { inline.room })
         val ranges = mutableListOf<List<Slot>>()
         values.forEach { slot -> if (ranges.lastOrNull()?.last()?.period == slot.period - 1) ranges[ranges.lastIndex] = ranges.last() + slot else ranges += listOf(slot) }
-        val clocks = ranges.map { group -> if (group.any { it.time == null }) null else group.first().time!!.substringBefore('〜') + "〜" + group.last().time!!.substringAfter('〜') }
+        val clocks = ranges.map { group -> if (group.first().time == null || group.last().time == null) null else group.first().time!!.substringBefore('〜') + "〜" + group.last().time!!.substringAfter('〜') }
         return Slot(change.periods().firstOrNull() ?: 0, listOf(Lesson(cls, day.dayOfWeek.value, change.periods().firstOrNull() ?: 0, mapping?.apply(names, cls, schoolYear(day)) ?: names, change.raw, change.date)), listOf(change) + analyses.flatMap { it.changes }.filter { it != change && it.date == change.date && canonicalClass(it.className) == cls && it.gridPeriods().any { p -> p in change.gridPeriods() } }, change.type,
-            clocks.takeIf { it.isNotEmpty() && it.all { t -> t != null } }?.joinToString("・"), values.filter { it.period in change.gridPeriods() }.flatMap { it.originals }, change.periods().lastOrNull() ?: 0, selectedChange = change)
+            clocks.takeIf { it.isNotEmpty() && it.all { t -> t != null } }?.joinToString("・"), values.filter { it.period in change.gridPeriods() }.flatMap { it.originals }, change.periods().lastOrNull() ?: 0, selectedChange = change, timeRanges = clocks.map { it ?: "未確認" })
     }
 }

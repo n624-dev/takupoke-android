@@ -29,8 +29,8 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mutex = Mutex(); private val mutable = MutableStateFlow(AppState()); val state: StateFlow<AppState> = mutable.asStateFlow()
     val auth = Oidc(transport)
-    private val root = File(context.noBackupFilesDir, "school/materials").also { it.mkdirs() }
-    private var operation: Job? = null; private var signal: CancellationSignal? = null; private val observers = mutableListOf<ContentObserver>(); private var observerJob: Job? = null
+    private val root = File(context.noBackupFilesDir, "school/materials").also { it.mkdirs(); Archives.configureTemporaryDirectory(it) }
+    private var operation: Job? = null; private val operations = mutableSetOf<Job>(); private var signal: CancellationSignal? = null; private val observers = mutableListOf<ContentObserver>(); private var observerJob: Job? = null
     private var checkedSourceAtStartup = false
     private var checkedMappingAtStartup = false
     private var foreground = false
@@ -39,24 +39,40 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
     init { scope.launch { preferences.data.catch { mutable.update { it.copy(message = "個人設定を読み取れません。保存データは削除していません。") } }.collect { value -> mutable.update { it.copy(settings = value) } } } }
     fun clearMessage() { mutable.update { it.copy(message = null) } }
     fun action(queued: Boolean = false, block: suspend () -> Unit) {
+        if (operations.any { it.isActive } && !queued) return
         val previous = operation
-        if (previous?.isActive == true && !queued) return
-        operation = scope.launch { if (queued) previous?.join(); mutable.update { it.copy(busy = true, message = null) }
-            try { block() } catch (_: CancellationException) { mutable.update { it.copy(startupFailure = !it.ready, message = "処理を中止しました。保存済みの結果は保持しています。") } }
+        val job = scope.launch(start = CoroutineStart.LAZY) {
+            val current = currentCoroutineContext().job
+            var running = false
+            try {
+                if (queued) previous?.join()
+                ensureActive()
+                running = true
+                mutable.update { it.copy(busy = true, message = null) }
+                block()
+            } catch (_: CancellationException) { mutable.update { it.copy(startupFailure = !it.ready, message = "処理を中止しました。保存済みの結果は保持しています。") } }
             catch (e: Exception) { mutable.update { it.copy(startupFailure = !it.ready, message = safeError(e)) } }
-            finally { signal?.cancel(); signal = null; mutable.update { it.copy(busy = false) }; observe() }
+            finally {
+                if (running) { signal?.cancel(); signal = null }
+                operations.remove(current)
+                mutable.update { it.copy(busy = operations.any { pending -> pending.isActive }) }
+                if (operations.none { it.isActive }) observe()
+            }
         }
+        operation = job; operations += job; job.start()
     }
-    fun cancel() { auth.cancel(); requestedRevisions = null; transport.cancel(); signal?.cancel(); operation?.cancel(); stopObserving() }
+    fun cancel() { auth.cancel(); requestedRevisions = null; transport.cancel(); signal?.cancel(); operations.toList().forEach { it.cancel() }; stopObserving() }
     fun suspendAutomaticRefresh() { automaticRefreshSuspended = true; mutable.update { it.copy(automaticRefreshSuspended = true) }; cancel() }
     private fun safeError(e: Exception): String = when (e) {
-        is ParseFailure -> "資料の形式を確認できませんでした（${e.code}・${e.stage}）。前回の正常結果は保持しています。"
+        is ParseFailure -> e.message.orEmpty()
+        is XlsxFailure -> e.message.orEmpty()
         is WeekdayWarning -> e.message.orEmpty()
         is SecurityException -> "ファイルへのアクセスが必要です。ファイルを選び直してください。"
         else -> "取得または処理を完了できませんでした。保存済みの結果は保持しています。"
     }
     suspend fun settings(transform: (Settings) -> Settings) {
         val saved = preferences.updateData(transform)
+        mutable.update { it.copy(settings = saved) }
         withContext(Dispatchers.IO) { mutex.withLock {
             listOf(MaterialKind.CHANGES, MaterialKind.EXAM, MaterialKind.RETURN).filter { if (it == MaterialKind.CHANGES) !saved.changeNotifications else !saved.examNotifications }.forEach { kind ->
                 db.writableDatabase.execSQL("DELETE FROM value_store WHERE key LIKE ?", arrayOf("notification:${kind.name}:%"))
@@ -69,7 +85,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
     private fun locked() = context.getSystemService(KeyguardManager::class.java).isDeviceLocked
     suspend fun activate(refresh: Boolean = true) {
         if (locked()) return
-        withContext(Dispatchers.IO) { mutex.withLock { retention(); reload() } }
+        withContext(Dispatchers.IO) { mutex.withLock { retention(); Archives.cleanupTemporaryArchives(); reload() } }
         if (refresh) refresh()
         if (refresh && foreground && !checkedSourceAtStartup) { checkedSourceAtStartup = true; withContext(Dispatchers.IO) { mutex.withLock { runInterruptible { checkSource() } } } }
         observe()
@@ -131,10 +147,10 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
             } } }
             require(total > 0); currentCoroutineContext().ensureActive(); require(generation == retentionPeriod())
             val hash = digest.digest().joinToString("") { "%02x".format(it) }; val now = System.currentTimeMillis()
-            if (old?.digest == hash && old.uri == uri.toString() && old.analysis != null && old.parsedDigest == hash && old.analysis.parserVersion == PARSER_VERSION) { db.save(old.copy(checkedAt = now, failure = null)); return }
+            if (old?.digest == hash && old.uri == uri.toString() && old.analysis != null && old.parsedDigest == hash && old.analysis.parserVersion == PARSER_VERSION && (kind != MaterialKind.CHANGES || old.year == effectiveSchoolYear())) { db.save(old.copy(checkedAt = now, failure = null)); return }
             val destination = File(root, "${kind.name}-$hash.${kind.extension}")
             if (!destination.exists()) require(staging.renameTo(destination))
-            val selected = MaterialRecord(kind, uri.toString(), name, hash, now, now, modified, old?.parsedAt, old?.parsedDigest, old?.analysis, year = old?.year ?: schoolYear())
+            val selected = MaterialRecord(kind, uri.toString(), name, hash, now, now, modified, old?.parsedAt, old?.parsedDigest, old?.analysis, year = effectiveSchoolYear())
             db.save(selected)
             analyze(selected, destination)
             root.listFiles()?.filter { it.name.startsWith(kind.name + "-") && it != destination }?.forEach { require(it.delete()) }
@@ -166,10 +182,11 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
             } finally { database.endTransaction() }
             dispatchPendingNotifications()
     }
-    suspend fun reparse(kind: MaterialKind, year: Int) = withContext(Dispatchers.IO) { mutex.withLock {
+    private fun effectiveSchoolYear(): Int = mutable.value.settings.defaultSchoolYear.trim().toIntOrNull()?.takeIf { it in 1900..9998 } ?: schoolYear()
+    suspend fun reparse(kind: MaterialKind, year: Int = effectiveSchoolYear()) = withContext(Dispatchers.IO) { mutex.withLock {
         automaticRefreshSuspended = false; mutable.update { it.copy(automaticRefreshSuspended = false) }; retention(); val record = db.records().single { it.kind == kind }; try { analyze(record, file(record), year) } finally { reload() }
     } }
-    suspend fun preview(kind: MaterialKind, year: Int): Analysis = withContext(Dispatchers.IO) { mutex.withLock { retention(); val record = db.records().single { it.kind == kind }; require(record.failure?.contains("曜日") == true); XlsxParser.parse(file(record).readBytes(), year, true) } }
+    suspend fun preview(kind: MaterialKind, year: Int = effectiveSchoolYear()): Analysis = withContext(Dispatchers.IO) { mutex.withLock { retention(); val record = db.records().single { it.kind == kind }; require(record.failure?.contains("曜日") == true); XlsxParser.parse(file(record).readBytes(), year, true) } }
     fun file(record: MaterialRecord) = File(root, "${record.kind.name}-${record.digest}.${record.kind.extension}")
     suspend fun refreshMaterial(kind: MaterialKind) = withContext(Dispatchers.IO) { mutex.withLock {
         retention(); automaticRefreshSuspended = false; mutable.update { it.copy(automaticRefreshSuspended = false) }
@@ -180,6 +197,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         if (locked()) return@withContext
         mutex.withLock {
             retention()
+            Archives.cleanupTemporaryArchives()
             root.listFiles()?.filter { it.name.startsWith("staging-") }?.forEach { it.delete() }
             if (manual) { automaticRefreshSuspended = false; mutable.update { it.copy(automaticRefreshSuspended = false) } }
             (if (!automaticRefreshSuspended) db.records() else emptyList()).forEach { record -> currentCoroutineContext().ensureActive()
@@ -218,7 +236,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
             interrupted()
             try {
                 val new = requireNotNull(revision(path)); revisions[type] = new
-                if (db.value("revision:$path") != null && new != db.value("revision:$path")) available += path else available -= path
+                if ((type == "times" || db.value("revision:$path") != null) && new != db.value("revision:$path")) available += path else available -= path
                 errors.remove(path)
             } catch (e: InterruptedException) { throw e } catch (_: Exception) { errors[path] = "${typeTitle(type)}の更新を確認できませんでした。保存済みの結果は保持しています。" }
         }
@@ -294,10 +312,10 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         stopObserving()
         if (!foreground || automaticRefreshSuspended) return
         mutable.value.materials.map { it.uri }.distinct().forEach { value ->
-            val observer = object : ContentObserver(Handler(Looper.getMainLooper())) { override fun onChange(selfChange: Boolean) { if (!selfChange && operation?.isActive != true) { observerJob?.cancel(); observerJob = scope.launch { delay(1500); action { refresh() } } } } }
+            val observer = object : ContentObserver(Handler(Looper.getMainLooper())) { override fun onChange(selfChange: Boolean) { if (!selfChange && operations.none { it.isActive }) { observerJob?.cancel(); observerJob = scope.launch { delay(1500); action { refresh() } } } } }
             runCatching { context.contentResolver.registerContentObserver(Uri.parse(value), false, observer); observers += observer }
         }
     }
-    fun foreground(active: Boolean) { foreground = active; if (!active) stopObserving() }
+    fun foreground(active: Boolean) { if (active && !foreground) { automaticRefreshSuspended = false; mutable.update { it.copy(automaticRefreshSuspended = false) } }; foreground = active; if (!active) stopObserving() }
     fun stopObserving() { observerJob?.cancel(); observers.forEach { context.contentResolver.unregisterContentObserver(it) }; observers.clear() }
 }

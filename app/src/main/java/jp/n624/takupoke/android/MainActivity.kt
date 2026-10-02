@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
             val picker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                 val kind = pendingKind?.let(MaterialKind::valueOf); pendingKind = null
                 val uri = result.data?.data
-                if (result.resultCode == RESULT_OK && kind != null && uri != null) repository.action { repository.select(kind, uri, result.data!!.flags) }
+                if (result.resultCode == RESULT_OK && kind != null && uri != null) repository.action(queued = true) { repository.select(kind, uri, result.data!!.flags) }
             }
             val permission = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
                 pendingNotificationMode?.let { repository.notificationChoice(it, granted && Notifications(this).allowed()) }; pendingNotificationMode = null

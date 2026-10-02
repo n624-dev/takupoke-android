@@ -22,20 +22,24 @@ fun canonicalClass(name: String): String = Regex("^([1-9])_AI$").matchEntire(nam
 }
 @Serializable data class Names(val subject: String, val teacher: String = "", val room: String = "", val subjectFull: String = "", val teacherFull: String = "", val roomFull: String = "")
 @Serializable data class Lesson(val className: String, val weekday: Int, val period: Int, val names: Names, val sourceText: String = "", val date: String? = null, val spanStart: Int = period, val spanEnd: Int = period, val time: String? = null, val kind: MaterialKind? = null)
-const val PARSER_VERSION = 3
-@Serializable data class Analysis(val kind: MaterialKind, val schoolYear: Int, val term: Int = 0, val lessons: List<Lesson> = emptyList(), val changes: List<Change> = emptyList(), val dates: List<String> = emptyList(), val classes: List<String> = emptyList(), val parserVersion: Int = PARSER_VERSION, val specialTimes: List<DayTimes> = emptyList())
+const val PARSER_VERSION = 4
+@Serializable data class Analysis(val kind: MaterialKind, val schoolYear: Int, val term: Int = 0, val lessons: List<Lesson> = emptyList(), val changes: List<Change> = emptyList(), val dates: List<String> = emptyList(), val classes: List<String> = emptyList(), val parserVersion: Int = PARSER_VERSION, val specialTimes: List<DayTimes> = emptyList(), val warningRows: List<Int> = emptyList())
 @Serializable data class Change(val date: String, val className: String, val period: String, val before: String, val after: String, val teacher: String = "", val room: String = "", val note: String = "", val raw: String = "") {
     val type: String get() = when (normalized(note)) { "休講" -> "休講"; "補講" -> "補講"; else -> "変更" }
     // Detail accepts disjoint periods; the week grid requires an ordered contiguous range.
     fun periods(): List<Int> {
         val value = key(period).removeSuffix("時限").removeSuffix("限目").removeSuffix("限")
-        if (value.matches(Regex("[1-8](?:,[1-8])*"))) {
-            val values = value.split(',').map(String::toInt)
-            return values.takeIf { it.distinct().size == it.size }.orEmpty()
+        fun integer(v: String): Int? = v.takeIf { it.matches(Regex("[+-]?[0-9]+")) }?.toIntOrNull()?.takeIf { it in 1..8 }
+        if (',' in value) {
+            val parts = value.split(','); val values = parts.mapNotNull(::integer)
+            return values.takeIf { it.size == parts.size && it.distinct().size == it.size }.orEmpty()
         }
-        val range = Regex("([1-8])[~〜～]([1-8])").matchEntire(value) ?: return emptyList()
-        val a = range.groupValues[1].toInt(); val b = range.groupValues[2].toInt()
-        return if (a < b) (a..b).toList() else emptyList()
+        if (value.any { it in "~〜～" }) {
+            val bounds = value.split(Regex("[~〜～]")); if (bounds.size != 2) return emptyList()
+            val a = integer(bounds[0]) ?: return emptyList(); val b = integer(bounds[1]) ?: return emptyList()
+            return if (a < b) (a..b).toList() else emptyList()
+        }
+        return integer(value)?.let { listOf(it) }.orEmpty()
     }
     fun gridPeriods(): List<Int> = periods().takeIf { values -> values.zipWithNext().all { (a, b) -> b == a + 1 } }.orEmpty()
 }

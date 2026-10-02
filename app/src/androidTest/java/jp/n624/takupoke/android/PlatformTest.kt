@@ -26,6 +26,56 @@ class PlatformTest {
         private val directory = File(context.cacheDir, "test-${java.util.UUID.randomUUID()}").also { it.mkdirs() }
         override fun getNoBackupFilesDir(): File = directory
     }
+    @Test fun queuedImportsWaitForForegroundRefreshAndKeepSelectionOrder() = runBlocking {
+        val repository = AppRepository(isolated(), RejectNetwork, preferences = MemorySettings())
+        val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val finished = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val selected = mutableListOf<String>()
+        instrumentation.runOnMainSync {
+            repository.action { entered.complete(Unit); release.await() }
+            repository.action(queued = true) { selected += "fixture-one.xlsx" }
+            repository.action(queued = true) { selected += "fixture-two.xlsx"; finished.complete(Unit) }
+        }
+        kotlinx.coroutines.withTimeout(5000) { entered.await() }
+        assertTrue(selected.isEmpty())
+        release.complete(Unit)
+        kotlinx.coroutines.withTimeout(5000) { finished.await() }
+        assertEquals(listOf("fixture-one.xlsx", "fixture-two.xlsx"), selected)
+        instrumentation.waitForIdleSync()
+        assertFalse(repository.state.value.busy)
+    }
+    @Test fun cancelStopsRunningAndQueuedImportsWithoutStickingBusyState() = runBlocking {
+        val repository = AppRepository(isolated(), RejectNetwork, preferences = MemorySettings())
+        val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        var queuedImportRan = false
+        instrumentation.runOnMainSync {
+            repository.action { entered.complete(Unit); kotlinx.coroutines.awaitCancellation() }
+            repository.action(queued = true) { queuedImportRan = true }
+        }
+        kotlinx.coroutines.withTimeout(5000) { entered.await() }
+        instrumentation.runOnMainSync { repository.cancel() }
+        kotlinx.coroutines.withTimeout(5000) { while (repository.state.value.busy) kotlinx.coroutines.delay(10) }
+        assertFalse(queuedImportRan)
+        val resumed = kotlinx.coroutines.CompletableDeferred<Unit>()
+        instrumentation.runOnMainSync { repository.action { resumed.complete(Unit) } }
+        kotlinx.coroutines.withTimeout(5000) { resumed.await() }
+    }
+    @Test fun missingTimesHaveUpdateNoticeWhileMissingLinksAndMappingDoNot() = runBlocking {
+        val revision = "a".repeat(43)
+        val fake = object : Transport {
+            override fun request(url: String, headers: Map<String, String>, body: RequestBody?, maxBytes: Int, head: Boolean): HttpResult {
+                require(url.endsWith("-revision")); return HttpResult(200, byteArrayOf(), mapOf("etag" to "\"$revision\""))
+            }
+        }
+        val repository = AppRepository(isolated(), fake, preferences = MemorySettings())
+        repository.activate(false); assertTrue(repository.prepareAuth())
+        assertEquals(setOf("timetable-times-revision"), repository.state.value.updates)
+        repository.foreground(true); repository.suspendAutomaticRefresh()
+        assertTrue(repository.state.value.automaticRefreshSuspended)
+        repository.foreground(false); repository.foreground(true)
+        assertFalse(repository.state.value.automaticRefreshSuspended)
+    }
     @Test fun unchangedRevisionsAvoidAuthenticationAndFailedChecksKeepSavedData() = runBlocking {
         val c = isolated(); val db = Database(c)
         val revision = "a".repeat(43)
@@ -130,6 +180,32 @@ class PlatformTest {
     }
     private fun replaceDocument(bytes: ByteArray, grant: Boolean = false) {
         context.contentResolver.call(SyntheticControl.AUTHORITY, "replaceSynthetic", null, Bundle().apply { putByteArray("bytes", bytes); putBoolean("grant", grant) })
+    }
+    @Test fun defaultYearPersistsAndReparsesIdenticalFileOnRefreshAndReselect() = runBlocking {
+        val c = isolated(); val db = Database(c)
+        val preferences = MemorySettings(Settings(defaultSchoolYear = "2020"))
+        val repository = AppRepository(c, RejectNetwork, db, preferences)
+        repository.activate(false)
+        repository.settings { it.copy(defaultSchoolYear = "2020") }
+        val uri = DocumentsContract.buildDocumentUri(SyntheticDocuments.AUTHORITY, "changes")
+        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+        replaceDocument(syntheticXlsx("架空科目B", "10/1"), grant = true)
+        try {
+            repository.select(MaterialKind.CHANGES, uri, flags)
+            val digest = db.records().single().digest
+            assertEquals("2020-10-01", db.records().single().analysis!!.changes.single().date)
+            repository.settings { it.copy(defaultSchoolYear = "2021") }
+            repository.refreshMaterial(MaterialKind.CHANGES)
+            assertEquals(digest, db.records().single().digest)
+            assertEquals("2021-10-01", db.records().single().analysis!!.changes.single().date)
+            repository.settings { it.copy(defaultSchoolYear = "2022") }
+            repository.select(MaterialKind.CHANGES, uri, flags)
+            assertEquals("2022-10-01", db.records().single().analysis!!.changes.single().date)
+            repository.settings { it.copy(defaultSchoolYear = "") }
+            repository.reparse(MaterialKind.CHANGES)
+            assertEquals("${schoolYear()}-10-01", db.records().single().analysis!!.changes.single().date)
+            assertEquals("", preferences.data.value.defaultSchoolYear)
+        } finally { repository.stopObserving(); c.contentResolver.releasePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
     }
     @Test fun runtimeXmlDefensesAndPrivateBackupLocation() {
         assertEquals(1, XlsxParser.parse(syntheticXlsx("理科"), 2026).changes.size)
