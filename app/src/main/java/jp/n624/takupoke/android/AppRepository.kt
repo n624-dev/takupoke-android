@@ -61,7 +61,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         }
         operation = job; operations += job; job.start()
     }
-    fun cancel() { auth.cancel(); requestedRevisions = null; transport.cancel(); signal?.cancel(); operations.toList().asReversed().forEach { it.cancel() }; stopObserving() }
+    fun cancel() { operations.toList().asReversed().forEach { it.cancel() }; auth.cancel(); requestedRevisions = null; transport.cancel(); signal?.cancel(); stopObserving() }
     fun suspendAutomaticRefresh() { automaticRefreshSuspended = true; mutable.update { it.copy(automaticRefreshSuspended = true) }; cancel() }
     private fun safeError(e: Exception): String = when (e) {
         is ParseFailure -> e.message.orEmpty()
