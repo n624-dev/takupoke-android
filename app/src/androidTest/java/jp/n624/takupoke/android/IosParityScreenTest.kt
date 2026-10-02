@@ -45,7 +45,9 @@ class IosParityScreenTest {
         val state = AppState(settings = settings.value, materials = listOf(MaterialRecord(MaterialKind.CHANGES, "content://example.invalid", "fixture.xlsx", "digest", 1, 1, analysis = Analysis(MaterialKind.CHANGES, schoolYear(), changes = listOf(record)))))
         var selected: Slot? = null
         compose.setContent { MaterialTheme { TimetableScreen(state.copy(settings = settings.value), {}, { settings.value = it(settings.value) }) { selected = it.second } } }
-        compose.onNodeWithText("全件").performScrollTo().performClick()
+        // The chips have a horizontal scroll parent. Scroll the outer page first.
+        compose.onNodeWithText("変更一覧の対象クラス").performScrollTo()
+        compose.onNodeWithText("全件").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals("全件", settings.value.changeRange) }
         compose.onNodeWithText("架空科目A → 架空科目B").performScrollTo().performClick()
         compose.runOnIdle { assertEquals("1,3", selected!!.changes.single().period) }
