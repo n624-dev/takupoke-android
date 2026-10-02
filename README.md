@@ -16,6 +16,12 @@ Android 10（API 29）以降。OneDrive等の提供元によって、クラウ�
 
 取得・確認・解析の日時は日本時間で表示します。留学生向け授業を隠した場合も変更前の授業へ戻さず、変更一覧にも同じ表示条件を使います。ホームのリンク編集、検索結果のカテゴリ・同点順序、解析結果の確認画面と補完年度の保存もiOSの動作へ合わせています。ファイル選択は処理中でも待ち行列へ入れて取り込みます。元の記載のコピーとPDF閲覧方法は今回の修正対象に含めていません。
 
+## インストール・更新
+
+[Android 0.1.1の配布ページ](https://github.com/n624-dev/takupoke-android/releases/tag/v0.1.1)から署名済みAPKを取得し、端末で開いて案内に従ってください。Android 10以降に対応します。前版0.1.0と同じ署名で、versionCodeは1から2へ更新しています。配布ページにはSHA-256確認用ファイルもあります。
+
+配布元はコミット`ba80526`です。[配布前検証](https://github.com/n624-dev/takupoke-android/actions/runs/37019813932)は全3ジョブが成功し、core45件・API 29／36各35件、lintとdebug／releaseビルドを確認しました。[署名・配布](https://github.com/n624-dev/takupoke-android/actions/runs/37020802155)も成功しています。公開APKのバージョン・署名の前版との一致・SHA-256を確認しました。学校アカウント・実資料・OneDrive・通知・バックグラウンド更新の実機確認は継続中です。
+
 ## 開発・テスト
 
 Kotlin / Jetpack Compose。JDK 21、Android SDK 36、Gradle Wrapperを使用します。Android Studioでこのディレクトリを開くか、SDKを設定して実行してください。
