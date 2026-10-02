@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
             TakupokeUi(repository, pick = { kind ->
                 pendingKind = kind.name
                 picker.launch(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType(if (kind == MaterialKind.CHANGES) "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" else "application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION))
-            }, login = { CustomTabsIntent.Builder().build().launchUrl(this, repository.auth.begin()) }, notifyPermission = { mode ->
+            }, login = { repository.action { if (repository.prepareAuth()) CustomTabsIntent.Builder().build().launchUrl(this, repository.auth.begin()) } }, notifyPermission = { mode ->
                 if (pendingNotificationMode == null) {
                     if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) { pendingNotificationMode = mode; permission.launch(Manifest.permission.POST_NOTIFICATIONS) }
                     else repository.notificationChoice(mode, Notifications(this).allowed())

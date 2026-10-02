@@ -6,8 +6,9 @@ import kotlinx.serialization.json.*
 @Serializable data class MappingRule(val alias: String, val fullName: String, val classes: List<String>? = null, val internationalStudent: Boolean? = null)
 @Serializable data class TeacherContext(val alias: String, val fullName: String, val subject: String, val className: String, val schoolYear: Int)
 @Serializable data class Mapping(val subjects: List<MappingRule>, val teachers: List<MappingRule>, val rooms: List<MappingRule>, val teacherContexts: List<TeacherContext> = emptyList()) {
+    private fun comparable(value: String) = java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFKC).trim()
     fun match(source: String, rules: List<MappingRule>, cls: String? = null): String? {
-        val eligible = rules.filter { it.classes == null || cls in it.classes }.filter { normalized(it.alias) == normalized(source) }
+        val eligible = rules.filter { it.classes == null || cls in it.classes }.filter { comparable(it.alias) == comparable(source) }
         val specific = eligible.filter { it.classes != null }.ifEmpty { eligible }
         val exact = specific.filter { it.alias == source }.ifEmpty { specific }
         return exact.map { it.fullName }.distinct().singleOrNull()
@@ -23,8 +24,8 @@ import kotlinx.serialization.json.*
         return if (changed) result else null
     }
     fun apply(names: Names, cls: String, year: Int? = null): Names {
-        val canonical = (subjects.filter { (it.classes == null || cls in it.classes) && normalized(names.subject) in listOf(normalized(it.alias), normalized(it.fullName)) }.let { rows -> rows.filter { it.classes != null }.ifEmpty { rows } }).map { normalized(it.fullName) }.distinct().singleOrNull()
-        return names.copy(subjectFull = match(names.subject, subjects, cls).orEmpty(), teacherFull = metadata(names.teacher, teachers) { alias -> teacherContexts.filter { it.alias == alias && it.className == cls && it.schoolYear == year && normalized(it.subject) == canonical }.map { it.fullName }.distinct().singleOrNull() }.orEmpty(), roomFull = metadata(names.room, rooms).orEmpty())
+        val canonical = (subjects.filter { (it.classes == null || cls in it.classes) && comparable(names.subject) in listOf(comparable(it.alias), comparable(it.fullName)) }.let { rows -> rows.filter { it.classes != null }.ifEmpty { rows } }).map { comparable(it.fullName) }.distinct().singleOrNull()
+        return names.copy(subjectFull = match(names.subject, subjects, cls) ?: names.subjectFull, teacherFull = metadata(names.teacher, teachers) { alias -> teacherContexts.filter { it.alias == alias && it.className == cls && it.schoolYear == year && comparable(it.subject) == canonical }.map { it.fullName }.distinct().singleOrNull() } ?: names.teacherFull, roomFull = metadata(names.room, rooms) ?: names.roomFull)
     }
     fun separate(source: String, cls: String, year: Int): Names {
         var subject = source.trim(); var teacher = ""; var room = ""
@@ -44,7 +45,20 @@ import kotlinx.serialization.json.*
         }
         return Names(subject, teacher, room)
     }
-    fun international(subject: String, cls: String): Boolean = normalized(subject).startsWith("留") || subjects.any { it.internationalStudent == true && (it.classes == null || cls in it.classes) && subject in listOf(it.alias, it.alias.removePrefix("留 ")) }
+    fun international(subject: String, cls: String): Boolean {
+        fun preferred(rows: List<MappingRule>) = rows.firstOrNull { cls in it.classes.orEmpty() } ?: rows.firstOrNull { it.classes == null }
+        preferred(subjects.filter { it.alias == subject })?.let { return it.internationalStudent == true }
+        return preferred(subjects.filter { it.internationalStudent == true && it.alias.startsWith("留 ") && it.alias.removePrefix("留 ") == subject })?.internationalStudent == true
+    }
+    fun shortSubject(change: Change, analyses: List<Analysis>): String? {
+        val cls = canonicalClass(change.className)
+        val subject = separate(change.after, cls, schoolYear(java.time.LocalDate.parse(change.date))).subject
+        fun canonical(source: String) = subjects.filter { (it.classes == null || cls in it.classes) && comparable(source) in listOf(comparable(it.alias), comparable(it.fullName)) }
+            .let { rows -> rows.filter { it.classes != null }.ifEmpty { rows } }.map { comparable(it.fullName) }.distinct().singleOrNull()
+        val full = canonical(subject) ?: return null
+        return analyses.filter { it.kind == MaterialKind.TIMETABLE }.flatMap { it.lessons }.filter { it.className == cls && canonical(it.names.subject) == full }.map { it.names.subject.trim() }.distinct().singleOrNull()
+    }
+
     private fun fields(source: String): List<Pair<String, String>> {
         val result = mutableListOf<Pair<String, String>>(); var depth = 0; var start = 0
         source.forEachIndexed { i, c -> when (c) { '(', '（' -> depth++; ')', '）' -> depth = maxOf(0, depth - 1); ',', '，', '、' -> if (depth == 0) { result += source.substring(start, i) to c.toString(); start = i + 1 } } }

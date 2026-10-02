@@ -48,7 +48,7 @@ class CoreTest {
     @Test fun xlsxReadsSyntheticOOXMLAndExpandsClasses() {
         val a = XlsxParser.parse(xlsx(listOf(listOf("1-2", "CN,ES", "10/1", "1-2", "数学", "理科", "先生", "教室", "補講"))), 2026)
         assertEquals(4, a.changes.size); assertEquals(setOf("1_CN", "1_ES", "2_CN", "2_ES"), a.classes.toSet())
-        assertEquals("2026-10-01", a.changes.first().date); assertEquals(listOf(1, 2), a.changes.first().periods())
+        assertEquals("2026-10-01", a.changes.first().date); assertEquals(emptyList(), a.changes.first().periods())
     }
     @Test fun xlsxWeekdayPreviewDoesNotSilentlyCommit() {
         val bytes = xlsx(listOf(listOf("1", "CN", "10/1", "1", "数学", "理科", "先生", "教室", "", "金")), formula = true)
@@ -114,9 +114,9 @@ class CoreTest {
         val c = Change("2026-10-01", "1_CN", "1-2", "数", "理")
         val day = LocalDate.parse("2026-10-01")
         assertEquals(0, Schedule.changedSlots(null, listOf(c), "1_CN", day))
-        assertEquals(2, Schedule.changedSlots(emptyList(), listOf(c), "1_CN", day))
-        assertEquals(2, Schedule.changedSlots(listOf(c), emptyList(), "1_CN", day))
-        assertEquals(2, Schedule.changedSlots(listOf(c), listOf(c.copy(after = "英")), "1_CN", day))
+        assertEquals(1, Schedule.changedSlots(emptyList(), listOf(c), "1_CN", day))
+        assertEquals(1, Schedule.changedSlots(listOf(c), emptyList(), "1_CN", day))
+        assertEquals(1, Schedule.changedSlots(listOf(c), listOf(c.copy(after = "英")), "1_CN", day))
         assertEquals(0, Schedule.changedSlots(listOf(c), listOf(c.copy(raw = "layout changed")), "1_CN", day))
         assertEquals(0, Schedule.changedSlots(emptyList(), listOf(c), "2_CN", day))
         assertEquals(0, Schedule.changedSlots(emptyList(), listOf(c), "1_CN", day.plusDays(1)))

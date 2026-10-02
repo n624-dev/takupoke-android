@@ -91,9 +91,9 @@ object XlsxParser {
     private fun classes(value: String) = key(value).split(Regex("[,、]"))
     fun date(value: String, year: Int): LocalDate {
         val v = normalized(value)
-        v.toDoubleOrNull()?.let { require(it.isFinite() && it > 0 && it < 3000000); return LocalDate.of(1899, 12, 30).plusDays(floor(it).toLong()) }
+        v.toDoubleOrNull()?.let { require(it.isFinite() && it > 0 && it < 3000000); return LocalDate.of(1899, 12, 30).plusDays(floor(it).toLong()).also { d -> require(d.year in 1900..9999) } }
         val full = Regex("([0-9]{4})[年/.-]([0-9]{1,2})[月/.-]([0-9]{1,2})日?").matchEntire(v)
-        if (full != null) return LocalDate.of(full.groupValues[1].toInt(), full.groupValues[2].toInt(), full.groupValues[3].toInt())
+        if (full != null) return LocalDate.of(full.groupValues[1].toInt().also { require(it in 1900..9999) }, full.groupValues[2].toInt(), full.groupValues[3].toInt())
         val short = Regex("([0-9]{1,2})[月/.-]([0-9]{1,2})日?").matchEntire(v) ?: error("日付を確認できません")
         val month = short.groupValues[1].toInt(); return LocalDate.of(year + if (month < 4) 1 else 0, month, short.groupValues[2].toInt())
     }

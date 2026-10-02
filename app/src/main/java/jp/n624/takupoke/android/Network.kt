@@ -7,9 +7,11 @@ import okhttp3.RequestBody
 import java.util.concurrent.TimeUnit
 
 data class HttpResult(val status: Int, val bytes: ByteArray, val headers: Map<String, String>) { fun header(name: String) = headers[name.lowercase()] }
-interface Transport { fun request(url: String, headers: Map<String, String> = emptyMap(), body: RequestBody? = null, maxBytes: Int = 3_000_000, head: Boolean = false): HttpResult }
+interface Transport { fun cancel() {}
+    fun request(url: String, headers: Map<String, String> = emptyMap(), body: RequestBody? = null, maxBytes: Int = 3_000_000, head: Boolean = false): HttpResult }
 class HttpTransport : Transport {
     private val client = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).callTimeout(45, TimeUnit.SECONDS).followRedirects(false).build()
+    override fun cancel() { client.dispatcher.cancelAll() }
     override fun request(url: String, headers: Map<String, String>, body: RequestBody?, maxBytes: Int, head: Boolean): HttpResult {
         require(url.startsWith("https://"))
         val request = Request.Builder().url(url); headers.forEach { (k, v) -> request.header(k, v) }

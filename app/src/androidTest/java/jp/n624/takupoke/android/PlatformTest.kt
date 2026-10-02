@@ -26,6 +26,31 @@ class PlatformTest {
         private val directory = File(context.cacheDir, "test-${java.util.UUID.randomUUID()}").also { it.mkdirs() }
         override fun getNoBackupFilesDir(): File = directory
     }
+    @Test fun unchangedRevisionsAvoidAuthenticationAndFailedChecksKeepSavedData() = runBlocking {
+        val c = isolated(); val db = Database(c)
+        val revision = "a".repeat(43)
+        var failChecks = false
+        var calls = 0
+        val fake = object : Transport {
+            override fun request(url: String, headers: Map<String, String>, body: RequestBody?, maxBytes: Int, head: Boolean): HttpResult {
+                require(url in listOf("links-revision", "mapping-revision", "timetable-times-revision").map { Endpoints.API + "/" + it })
+                calls++; assertNull(body); assertNull(headers["Authorization"])
+                if (failChecks) error("Synthetic offline failure")
+                assertEquals("\"$revision\"", headers["If-None-Match"])
+                return HttpResult(304, byteArrayOf(), emptyMap())
+            }
+        }
+        val repository = AppRepository(c, fake, db, MemorySettings()); repository.activate(false)
+        val links = LinksPayload("v1", "sha256-" + "a".repeat(64), listOf(LinkCategory("fixture", "架空カテゴリ", 0, emptyList())))
+        db.put("links", json.encodeToString(LinksPayload.serializer(), links))
+        db.put("mapping", json.encodeToString(Mapping.serializer(), Mapping(emptyList(), emptyList(), emptyList())))
+        db.put("times", json.encodeToString(TimesPayload.serializer(), TimesPayload(1, emptyList())))
+        listOf("links-revision", "mapping-revision", "timetable-times-revision").forEach { db.put("revision:$it", revision) }
+        assertFalse(repository.prepareAuth()); assertEquals(3, calls); assertEquals(links, repository.state.value.links)
+        failChecks = true
+        assertFalse(repository.prepareAuth()); assertEquals(3, repository.state.value.accountErrors.size)
+        assertEquals(links, repository.state.value.links); assertNotNull(repository.state.value.mapping)
+    }
     @Test fun notificationBaselineAndPrivateCountOnlyDelivery() = runBlocking {
         if (android.os.Build.VERSION.SDK_INT >= 33) instrumentation.uiAutomation.grantRuntimePermission(context.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
         val manager = context.getSystemService(android.app.NotificationManager::class.java)

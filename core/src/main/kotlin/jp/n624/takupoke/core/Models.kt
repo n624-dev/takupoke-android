@@ -21,29 +21,35 @@ fun canonicalClass(name: String): String = Regex("^([1-9])_AI$").matchEntire(nam
     TIMETABLE("通常時間割", "pdf"), CHANGES("時間割変更", "xlsx"), EXAM("試験時間割", "pdf"), RETURN("試験返却時間割", "pdf")
 }
 @Serializable data class Names(val subject: String, val teacher: String = "", val room: String = "", val subjectFull: String = "", val teacherFull: String = "", val roomFull: String = "")
-@Serializable data class Lesson(val className: String, val weekday: Int, val period: Int, val names: Names, val sourceText: String = "", val date: String? = null, val spanStart: Int = period, val spanEnd: Int = period, val time: String? = null)
-const val PARSER_VERSION = 2
+@Serializable data class Lesson(val className: String, val weekday: Int, val period: Int, val names: Names, val sourceText: String = "", val date: String? = null, val spanStart: Int = period, val spanEnd: Int = period, val time: String? = null, val kind: MaterialKind? = null)
+const val PARSER_VERSION = 3
 @Serializable data class Analysis(val kind: MaterialKind, val schoolYear: Int, val term: Int = 0, val lessons: List<Lesson> = emptyList(), val changes: List<Change> = emptyList(), val dates: List<String> = emptyList(), val classes: List<String> = emptyList(), val parserVersion: Int = PARSER_VERSION, val specialTimes: List<DayTimes> = emptyList())
 @Serializable data class Change(val date: String, val className: String, val period: String, val before: String, val after: String, val teacher: String = "", val room: String = "", val note: String = "", val raw: String = "") {
+    val type: String get() = when (normalized(note)) { "休講" -> "休講"; "補講" -> "補講"; else -> "変更" }
+    // Detail accepts disjoint periods; the week grid requires an ordered contiguous range.
     fun periods(): List<Int> {
         val value = key(period).removeSuffix("時限").removeSuffix("限目").removeSuffix("限")
-        if (value.matches(Regex("[1-8]"))) return listOf(value.toInt())
-        if (value.matches(Regex("[1-8](?:[,、・][1-8])+"))) return value.split(Regex("[,、・]")).map(String::toInt).distinct()
-        val range = Regex("([1-8])[-~〜～]([1-8])").matchEntire(value) ?: return emptyList()
+        if (value.matches(Regex("[1-8](?:,[1-8])*"))) {
+            val values = value.split(',').map(String::toInt)
+            return values.takeIf { it.distinct().size == it.size }.orEmpty()
+        }
+        val range = Regex("([1-8])[~〜～]([1-8])").matchEntire(value) ?: return emptyList()
         val a = range.groupValues[1].toInt(); val b = range.groupValues[2].toInt()
-        return if (a <= b) (a..b).toList() else emptyList()
+        return if (a < b) (a..b).toList() else emptyList()
     }
+    fun gridPeriods(): List<Int> = periods().takeIf { values -> values.zipWithNext().all { (a, b) -> b == a + 1 } }.orEmpty()
 }
 @Serializable data class Event(val startDate: String, val endDate: String, val title: String, val tag: String)
 @Serializable data class EventsPayload(val version: String, val schoolYear: Int, val sourcePdfSha256: String, val sourcePdfETag: String? = null, val events: List<Event>) {
     fun validate(year: Int): EventsPayload {
-        require(version == "v1" && schoolYear == year && sourcePdfSha256.matches(Regex("[a-f0-9]{64}")))
+        require(year in 1900..9998 && version == "v1" && schoolYear == year && sourcePdfSha256.matches(Regex("[a-f0-9]{64}")))
+        sourcePdfETag?.let { require(it.length in 3..256 && it.startsWith('"') && it.endsWith('"') && it.substring(1, it.lastIndex).none { c -> c in listOf('"', '\r', '\n') }) }
         require(events.isNotEmpty() && events.size <= 2000)
         val tags = setOf("授業なし", "曜日振替", "補講日", "行事（授業なし）", "行事（授業あり）", "行事", "行事（時間割変更）", "テスト", "テスト返却", "行事メモ")
         events.forEach { e -> val start = LocalDate.parse(e.startDate); val end = LocalDate.parse(e.endDate)
             require(start >= LocalDate.of(year, 4, 1) && end <= LocalDate.of(year + 1, 3, 31) && end >= start)
             require(e.tag in tags && e.title.isNotBlank() && e.title.length <= 200)
-            if (e.tag == "曜日振替") require(e.title.matches(Regex("[月火水木金]曜日授業")))
+            if (e.tag == "曜日振替") require(e.title.trim().matches(Regex("[月火水木金]曜日授業")))
         }
         return this
     }
@@ -55,10 +61,10 @@ const val PARSER_VERSION = 2
         require(version == "v1" && linksVersion.matches(Regex("sha256-[a-f0-9]{64}")))
         require(categories.isNotEmpty() && categories.size <= 100 && categories.map { it.id }.distinct().size == categories.size)
         val items = categories.flatMap { it.buttons }; require(items.size <= 800 && items.map { it.id }.distinct().size == items.size)
-        categories.forEach { c -> require(c.id.matches(Regex("[A-Za-z0-9_-]{1,100}")) && c.label.length in 1..80)
+        categories.forEach { c -> require(c.id.matches(Regex("[A-Za-z0-9_-]{1,100}")) && c.label.length in 1..80 && c.label == c.label.trim())
             c.buttons.forEach { b ->
-                require(b.id.matches(Regex("[A-Za-z0-9_-]{1,100}")) && b.categoryId == c.id && b.label.length in 1..80)
-                require(validLink(b.href) && b.color in linkColorNames && b.searchAliases.size <= 20 && b.searchAliases.all { it.length in 1..80 } && b.searchTerms.length in 1..5000)
+                require(b.id.matches(Regex("[A-Za-z0-9_-]{1,100}")) && b.categoryId == c.id && b.label.length in 1..80 && b.label == b.label.trim())
+                require(validLink(b.href) && b.color in linkColorNames && b.searchAliases.size <= 20 && b.searchAliases.all { it.length in 1..80 && it == it.trim() } && b.searchTerms.length in 1..5000)
             }
         }
         return this
@@ -68,7 +74,7 @@ val linkColorNames = listOf("sky", "blue", "emerald", "green", "amber", "yellow"
 fun validLink(value: String): Boolean = runCatching {
     require(value.length <= 2048 && value.none { it.isWhitespace() || it.isISOControl() || it == '\\' })
     val uri = java.net.URI(value)
-    uri.scheme == "jrshikoku" || (uri.scheme == "https" && !uri.host.isNullOrBlank() && uri.userInfo == null)
+    uri.scheme?.lowercase(java.util.Locale.ROOT) == "jrshikoku" || (uri.scheme?.lowercase(java.util.Locale.ROOT) == "https" && !uri.host.isNullOrBlank() && uri.userInfo == null)
 }.getOrDefault(false)
 @Serializable data class PeriodTime(val period: Int, val start: String, val end: String)
 @Serializable data class DayTimes(val date: String, val periods: List<PeriodTime>)
@@ -81,4 +87,9 @@ fun validLink(value: String): Boolean = runCatching {
         }
         return this
     }
+}
+
+fun validResponseETag(value: String): Boolean {
+    val tag = value.removePrefix("W/")
+    return tag.toByteArray().size in 3..256 && tag.startsWith('"') && tag.endsWith('"') && tag.substring(1, tag.lastIndex).all { it.code in 32..126 && it != '"' }
 }

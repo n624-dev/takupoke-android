@@ -16,13 +16,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import jp.n624.takupoke.core.*
 
 fun openLink(context: android.content.Context, url: String, inApp: Boolean) {
     if (!validLink(url)) return
     try {
-        if (inApp && Uri.parse(url).scheme == "https") CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
+        if (inApp && Uri.parse(url).scheme?.equals("https", true) == true) CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
         else context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     } catch (_: android.content.ActivityNotFoundException) { android.widget.Toast.makeText(context, "対応するアプリが見つかりませんでした。", android.widget.Toast.LENGTH_SHORT).show() }
 }
@@ -59,21 +60,24 @@ fun openLink(context: android.content.Context, url: String, inApp: Boolean) {
             if (visible.none { LinkSearch.score(it.searchTerms, query) >= 0 }) Text("該当するリンクがありません。")
         }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            all.forEach { category ->
-                val values = category.buttons.filter { link -> link in visible && (query.isBlank() || LinkSearch.score(link.searchTerms, query) >= 0) }.sortedWith(compareByDescending<LinkItem> { if (query.isBlank()) 0 else LinkSearch.score(it.searchTerms, query) }.thenBy { it.sortOrder })
+            if (query.isNotBlank() && !hidden) {
+                val results = visible.filter { LinkSearch.score(it.searchTerms, query) >= 0 }.sortedWith(compareByDescending<LinkItem> { LinkSearch.score(it.searchTerms, query) }.thenBy { it.sortOrder }.thenBy { it.label })
+                items(results, key = { it.id }) { link -> EditableLink(link, state.settings, { editing = link }, change) }
+            } else all.forEach { category ->
+                val values = category.buttons.filter { link -> link in visible && (query.isBlank() || LinkSearch.score(link.searchTerms, query) >= 0) }.sortedBy { it.sortOrder }
                 if (values.isNotEmpty()) {
                     if (!hidden) item { Text(category.label, style = MaterialTheme.typography.titleMedium) }
                     items(values, key = { it.id }) { link ->
                         if (hidden) Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { Text(link.label, Modifier.weight(1f)); TextButton(onClick = { change { it.copy(hidden = it.hidden - link.id) } }) { Text("再表示") } }
-                        else LinkButton(link, state.settings, edit = { editing = link })
+                        else EditableLink(link, state.settings, { editing = link }, change)
                     }
                 }
             }
+
         }
     }
     editing?.let { link -> AlertDialog(onDismissRequest = { editing = null }, title = { Text(link.label) }, text = { Column(Modifier.verticalScroll(rememberScrollState())) {
-        TextButton(onClick = { openLink(context, link.href, true) }, enabled = Uri.parse(link.href).scheme == "https") { Text("アプリ内で開く") }
-        TextButton(onClick = { openLink(context, link.href, false) }) { Text("デフォルトのブラウザで開く") }
+        if (Uri.parse(link.href).scheme?.equals("https", true) == true) TextButton(onClick = { openLink(context, link.href, !state.settings.inAppBrowser); editing = null }) { Text(if (state.settings.inAppBrowser) "デフォルトのブラウザで開く" else "アプリ内で開く") }
         TextButton(onClick = { change { it.copy(favorites = if (link.id in it.favorites) it.favorites - link.id else it.favorites + link.id) } }) { Text(if (link.id in state.settings.favorites) "お気に入りを解除" else "お気に入りに追加") }
         TextButton(onClick = { change { it.copy(hidden = it.hidden + link.id) }; editing = null }) { Text("非表示") }
         Text("色を変更")
@@ -81,4 +85,19 @@ fun openLink(context: android.content.Context, url: String, inApp: Boolean) {
         linkColorNames.forEachIndexed { i, name -> TextButton(onClick = { change { it.copy(linkColors = it.linkColors + (link.id to name)) } }) { Text(labels[i]) } }
         if (link.id in state.settings.linkColors) TextButton(onClick = { change { it.copy(linkColors = it.linkColors - link.id) } }) { Text("既定色に戻す") }
     } }, confirmButton = { TextButton(onClick = { editing = null }) { Text("閉じる") } }) }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable private fun EditableLink(link: LinkItem, settings: Settings, edit: () -> Unit, change: ((Settings) -> Settings) -> Unit) {
+    val swipe = rememberSwipeToDismissBoxState(confirmValueChange = { value ->
+        when (value) {
+            SwipeToDismissBoxValue.StartToEnd -> change { it.copy(favorites = if (link.id in it.favorites) it.favorites - link.id else it.favorites + link.id) }
+            SwipeToDismissBoxValue.EndToStart -> change { it.copy(hidden = it.hidden + link.id) }
+            else -> Unit
+        }
+        false
+    })
+    SwipeToDismissBox(state = swipe, backgroundContent = { Row(Modifier.fillMaxSize().padding(12.dp).clearAndSetSemantics {}, horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { Text(if (link.id in settings.favorites) "お気に入りを解除" else "お気に入りに追加"); Text("非表示") } }) {
+        LinkButton(link, settings, edit = edit)
+    }
 }

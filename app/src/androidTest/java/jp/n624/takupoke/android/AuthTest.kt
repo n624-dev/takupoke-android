@@ -1,18 +1,61 @@
 package jp.n624.takupoke.android
 
 import android.net.Uri
-import jp.n624.takupoke.core.json
+import jp.n624.takupoke.core.*
 import kotlinx.serialization.json.*
 import okhttp3.FormBody
 import okhttp3.RequestBody
 import org.junit.Test
 import org.junit.Assert.*
+import org.junit.Assert.fail
 import java.security.*
 import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
 import java.util.Base64
 
 class AuthTest {
+    @Test fun revisionRaceKeepsOldLinksAndOnlyRequestedDataIsDownloaded() = kotlinx.coroutines.runBlocking {
+        val base = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        val directory = java.io.File(base.cacheDir, "auth-parity-${java.util.UUID.randomUUID()}").also { it.mkdirs() }
+        val context = object : android.content.ContextWrapper(base) { override fun getNoBackupFilesDir() = directory }
+        val db = Database(context); val tokens = Tokens(); val revision = "a".repeat(43)
+        val old = LinksPayload("v1", "sha256-" + "b".repeat(64), listOf(LinkCategory("fixture", "架空カテゴリ", 0, emptyList())))
+        val next = old.copy(linksVersion = "sha256-" + "c".repeat(64))
+        var damaged = true; var downloads = 0
+        val transport = object : Transport {
+            override fun request(url: String, headers: Map<String, String>, body: RequestBody?, maxBytes: Int, head: Boolean): HttpResult = when (url) {
+                Endpoints.API + "/links-revision" -> HttpResult(200, byteArrayOf(), mapOf("etag" to "\"$revision\""))
+                Endpoints.API + "/mapping-revision", Endpoints.API + "/timetable-times-revision" -> HttpResult(304, byteArrayOf(), emptyMap())
+                Endpoints.API + "/links" -> {
+                    downloads++; assertEquals("Bearer synthetic-access", headers["Authorization"])
+                    HttpResult(200, json.encodeToString(LinksPayload.serializer(), next).toByteArray(), mapOf("content-type" to "application/json", "etag" to "\"fixture\"", "x-links-revision" to if (damaged) "c".repeat(43) else revision))
+                }
+                Endpoints.ISSUER + "/oauth/token", Endpoints.ISSUER + "/oauth/jwks" -> tokens.request(url, headers, body, maxBytes, head)
+                else -> error("Unexpected request rejected")
+            }
+        }
+        val repository = AppRepository(context, transport, db, MemorySettings())
+        try {
+            repository.activate(false)
+            db.put("links", json.encodeToString(LinksPayload.serializer(), old))
+            db.put("mapping", json.encodeToString(Mapping.serializer(), Mapping(emptyList(), emptyList(), emptyList())))
+            db.put("times", json.encodeToString(TimesPayload.serializer(), TimesPayload(1, emptyList())))
+            listOf("links-revision", "mapping-revision", "timetable-times-revision").forEach { db.put("revision:$it", "b".repeat(43)) }
+            suspend fun authenticate() {
+                assertTrue(repository.prepareAuth())
+                val request = repository.auth.begin()
+                tokens.nonce = request.getQueryParameter("nonce")!!; tokens.challenge = request.getQueryParameter("code_challenge")!!
+                repository.finishAuth(Uri.parse(Endpoints.CALLBACK).buildUpon().appendQueryParameter("state", request.getQueryParameter("state")).appendQueryParameter("code", "synthetic-code").build())
+            }
+            authenticate(); assertEquals(old, repository.state.value.links)
+            assertTrue("links-revision" in repository.state.value.accountErrors)
+            assertEquals("b".repeat(43), db.value("revision:links-revision"))
+            damaged = false; authenticate(); assertEquals(next, repository.state.value.links)
+            assertFalse("links-revision" in repository.state.value.accountErrors)
+            assertEquals(revision, db.value("revision:links-revision")); assertEquals(2, downloads)
+            assertNotNull(repository.state.value.mapping); assertNotNull(repository.state.value.times)
+        } finally { repository.stopObserving(); db.close(); directory.deleteRecursively() }
+    }
     @Test fun androidCanResolveTheRegisteredHostlessCallback() {
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(Endpoints.CALLBACK + "?state=synthetic&code=synthetic")).addCategory(android.content.Intent.CATEGORY_BROWSABLE)

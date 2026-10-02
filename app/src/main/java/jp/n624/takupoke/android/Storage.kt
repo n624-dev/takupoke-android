@@ -25,7 +25,7 @@ class Database(context: Context) : SQLiteOpenHelper(context, java.io.File(contex
     fun save(record: MaterialRecord) { writableDatabase.execSQL("INSERT OR REPLACE INTO material(kind,record) VALUES(?,?)", arrayOf(record.kind.name, json.encodeToString(MaterialRecord.serializer(), record))) }
     fun clearSchool(period: String) {
         val db = writableDatabase; db.beginTransaction()
-        try { db.execSQL("DELETE FROM material"); db.execSQL("DELETE FROM value_store WHERE key NOT LIKE 'events:%' AND key NOT LIKE 'events-etag:%'"); put("period", period); db.setTransactionSuccessful() } finally { db.endTransaction() }
+        try { db.execSQL("DELETE FROM material"); db.execSQL("DELETE FROM value_store WHERE key NOT LIKE 'events:%' AND key NOT LIKE 'events-etag:%' AND key NOT LIKE 'events-fetched:%' AND key NOT LIKE 'events-checked:%'"); put("period", period); db.setTransactionSuccessful() } finally { db.endTransaction() }
     }
 }
 object SettingsSerializer : Serializer<Settings> {

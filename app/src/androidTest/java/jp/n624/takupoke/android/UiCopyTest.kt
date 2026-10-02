@@ -66,7 +66,7 @@ class UiCopyTest {
     }
 
     @Test fun timetableUsesWeekAndModeWording() {
-        compose.setContent { MaterialTheme { TimetableScreen(AppState(), {}, {}) } }
+        compose.setContent { MaterialTheme { TimetableScreen(AppState(), {}, select = {}) } }
         compose.onNodeWithText("表示クラス").assertIsDisplayed()
         compose.onNodeWithText("週の時間割").assertIsDisplayed()
         compose.onNodeWithText("前週").assertIsDisplayed()
