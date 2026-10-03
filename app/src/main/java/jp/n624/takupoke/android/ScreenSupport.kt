@@ -12,7 +12,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -65,23 +68,76 @@ import java.io.File
     }
 }
 @Composable fun PdfScreen(file: File, updated: Boolean = false, close: () -> Unit) {
-    var page by remember { mutableIntStateOf(0) }; var count by remember { mutableIntStateOf(0) }; var bitmap by remember { mutableStateOf<Bitmap?>(null) }; var failed by remember { mutableStateOf(false) }
+    // The caller keys this viewer by the PDF digest, so an updated source starts at page one.
+    var page by remember(file) { mutableIntStateOf(0) }
+    var count by remember(file) { mutableIntStateOf(0) }
+    var bitmap by remember(file, page) { mutableStateOf<Bitmap?>(null) }
+    var failed by remember(file, page) { mutableStateOf(false) }
+    var zoom by remember(file, page) { mutableFloatStateOf(1f) }
+    val horizontal = rememberScrollState()
+    val vertical = rememberScrollState()
+    LaunchedEffect(file, page, zoom == 1f) {
+        if (zoom == 1f) { horizontal.scrollTo(0); vertical.scrollTo(0) }
+    }
     LaunchedEffect(file, page) {
-        bitmap = null; failed = false
-        try { bitmap = withContext(Dispatchers.IO) {
-            ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor -> PdfRenderer(descriptor).use { renderer ->
-                count = renderer.pageCount
-                renderer.openPage(page).use { p -> val width = 1600; val height = (width.toLong() * p.height / p.width).toInt().coerceIn(1, 3000); Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { it.eraseColor(android.graphics.Color.WHITE); p.render(it, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY) } }
-            } }
-        } } catch (e: CancellationException) { throw e }
+        try {
+            val rendered = withContext(Dispatchers.IO) {
+                ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
+                    PdfRenderer(descriptor).use { renderer ->
+                        renderer.pageCount to renderer.openPage(page).use { p ->
+                            // Bound allocation and preserve aspect ratio even for unusually tall pages.
+                            val scale = minOf(1600.0 / p.width, 3000.0 / p.height)
+                            val width = (p.width * scale).toInt().coerceIn(1, 1600)
+                            val height = (p.height * scale).toInt().coerceIn(1, 3000)
+                            val image = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                            try {
+                                image.eraseColor(android.graphics.Color.WHITE)
+                                p.render(image, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                                image
+                            } catch (failure: Throwable) { image.recycle(); throw failure }
+                        }
+                    }
+                }
+            }
+            count = rendered.first; bitmap = rendered.second
+        } catch (e: CancellationException) { throw e }
         catch (_: Exception) { failed = true }
     }
-    Dialog(close, properties = DialogProperties(usePlatformDefaultWidth = false)) { Surface(Modifier.fillMaxSize()) { Column {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = { if (page > 0) page-- }, enabled = page > 0) { Text("前") }; Text("${page + 1}/$count", Modifier.padding(12.dp)); TextButton(onClick = { if (page + 1 < count) page++ }, enabled = page + 1 < count) { Text("次") }; TextButton(onClick = close) { Text("閉じる") }
-        }
-        if (updated) Text("PDFが更新されたため、新しい資料を表示しています。内容を再確認してください。", Modifier.padding(12.dp))
-        if (failed) Text("保存済みPDFを表示できませんでした。")
-        if (bitmap != null) Image(bitmap!!.asImageBitmap(), "保存済みPDF ${page + 1}ページ", Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) else if (!failed) CircularProgressIndicator()
-    } } }
+    Dialog(close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(Modifier.fillMaxSize()) { Column {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                TextButton(onClick = { if (page > 0) page-- }, enabled = page > 0) { Text("前") }
+                Text("${page + 1}/$count", Modifier.padding(12.dp))
+                TextButton(onClick = { if (page + 1 < count) page++ }, enabled = page + 1 < count) { Text("次") }
+                TextButton(onClick = close) { Text("閉じる") }
+            }
+            if (updated) Text("PDFが更新されたため、新しい資料を表示しています。内容を再確認してください。", Modifier.padding(12.dp))
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("${(zoom * 100).toInt()}%")
+                TextButton(onClick = { zoom = (zoom - 1f).coerceAtLeast(1f) }, enabled = bitmap != null && zoom > 1f,
+                    modifier = Modifier.semantics { contentDescription = "PDFを縮小" }) { Text("−") }
+                TextButton(onClick = { zoom = (zoom + 1f).coerceAtMost(4f) }, enabled = bitmap != null && zoom < 4f,
+                    modifier = Modifier.semantics { contentDescription = "PDFを拡大" }) { Text("＋") }
+                TextButton(onClick = { zoom = 1f }, enabled = bitmap != null) { Text("全体を表示") }
+            }
+            if (failed) Text("保存済みPDFを表示できませんでした。")
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant)) {
+                val image = bitmap
+                val viewportWidth = maxWidth
+                val viewportHeight = maxHeight
+                if (image != null) {
+                    val ratio = image.width.toFloat() / image.height
+                    val fitWidth = minOf(viewportWidth, viewportHeight * ratio)
+                    val imageWidth = fitWidth * zoom
+                    val imageHeight = imageWidth / ratio
+                    Box(Modifier.fillMaxSize().verticalScroll(vertical).horizontalScroll(horizontal)
+                        .semantics { contentDescription = "PDFの表示領域" }) {
+                        Box(Modifier.requiredSize(maxOf(viewportWidth, imageWidth), maxOf(viewportHeight, imageHeight)), contentAlignment = Alignment.Center) {
+                            Image(image.asImageBitmap(), "保存済みPDF ${page + 1}ページ", Modifier.requiredSize(imageWidth, imageHeight))
+                        }
+                    }
+                } else if (!failed) CircularProgressIndicator(Modifier.align(Alignment.Center))
+            }
+        } }
+    }
 }

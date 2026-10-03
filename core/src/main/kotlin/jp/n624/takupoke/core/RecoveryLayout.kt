@@ -13,11 +13,12 @@ object RecoveryLayout {
         val x = boxes.minOf { it.x }; val y = boxes.minOf { it.y }
         return RecoveryBox(x, y, boxes.maxOf { it.x + it.width } - x, boxes.maxOf { it.y + it.height } - y)
     }
-    fun prepare(pages: List<RecoveryLayoutPage>, hash: String, kind: MaterialKind): RecoveryDocument {
+    fun prepare(pages: List<RecoveryLayoutPage>, hash: String, kind: MaterialKind, structureProposals: Map<String,List<RecoveryLesson>> = emptyMap()): RecoveryDocument {
         fun requireSource(ok: Boolean, reason: String) { if (!ok) throw RecoveryPreparationFailure(reason) }
         val documentKind = RecoveryPolicy.kind(kind) ?: throw RecoveryPreparationFailure("対象外")
         requireSource(pages.size in 1..12 && pages.all { it.acquisitionComplete }, "文字取得未完了")
         val sources = mutableListOf<RecoverySource>(); val cells = mutableListOf<RecoveryCell>()
+        val requests=mutableListOf<RecoveryStructureRequest>();val usedProposals=mutableSetOf<String>()
         val yearIds = mutableListOf<String>(); val termIds = mutableListOf<String>(); val titleIds = mutableListOf<String>()
         val classes = linkedMapOf<String, MutableList<String>>(); val days = linkedMapOf<String, MutableList<String>>(); val periods = linkedMapOf<String, MutableList<String>>()
         val times = linkedMapOf<String, String>(); val clockEvidence = linkedMapOf<String, List<String>>(); val clockBindings = linkedMapOf<String, RecoveryClockBinding>(); val spans = linkedMapOf<String, String>(); val notes = mutableListOf<String>();val noteGroups=mutableListOf<List<String>>()
@@ -117,9 +118,23 @@ object RecoveryLayout {
                     val scopeBox = RecoveryBox(right, label.box.y, (labelColumns.firstOrNull { it > label.box.x+1 } ?: (region.box.x+region.box.width)) - right, nextY - label.box.y)
                     if (scopeBox.valid) roles += RecoveryRoleScope(labelColumns.indexOf(label.box.x), aliases.getValue(key(label.text).removeSuffix(":").removeSuffix("：")), input.page, scopeBox, listOf(label.id), RecoveryHeaderRegion(input.page, label.box, RecoveryHeaderAxis.LEFT), "inlineLabel", !input.raster && owned.none { it.id != label.id && scopeBox.contains(it.box) })
                 }
-                val proposal = labelColumns.size in 1..4 && roles.size == 3*labelColumns.size && roles.map { it.lessonIndex to it.role }.distinct().size == roles.size
-                requireSource(empty || proposal || parallel || rows.size == 3 && owned.none { '・' in it.text || '･' in it.text || RecoveryRoles.explicitLabel(it.text) }, "授業項目の独立証拠")
-                cells += RecoveryCell(id,input.page,region.box,RecoveryInputState.COMPLETE,boundPeriods.map { RecoverySlot(cls.first.first,day.first.first,it.first.first.toInt()) },owned.map { it.id },emptyList(),empty,parallelCount=if(proposal)labelColumns.size else if(parallel)2 else 1, classHeaderIds=cls.first.second.ids,dayHeaderIds=day.first.second.ids,periodHeaderIds=boundPeriods.flatMap { it.first.second.ids },lessonBindings=if (!empty && !proposal) bindingRows.map { RecoveryLessonBinding(it[0],it[1],it[2]) } else emptyList(),classRegion=cls.second,dayRegion=day.second,periodRegions=boundPeriods.associate { it.first.first to it.second },bindingMode=if(proposal) "roleProposal" else "fixed",roleScopes=if(proposal)roles else emptyList(),separatorIds=if(parallel)separatorIds else emptyList())
+                var proposal = labelColumns.size in 1..4 && roles.size == 3*labelColumns.size && roles.map { it.lessonIndex to it.role }.distinct().size == roles.size
+                val fixed = rows.size == 3 && owned.none { '・' in it.text || '･' in it.text || RecoveryRoles.explicitLabel(it.text) }
+                if(!empty && !proposal && !parallel && !fixed) {
+                    val slots=boundPeriods.map { RecoverySlot(cls.first.first,day.first.first,it.first.first.toInt()) }
+                    val request=try { RecoveryStructure.request(id,input.page,region.box,slots,owned) }catch(_:IllegalArgumentException) { throw RecoveryPreparationFailure("表構造の候補上限") }
+                    val answer=structureProposals[id]?.also { usedProposals+=id } ?: RecoveryStructure.cheap(request)
+                    if(answer==null)requests+=request
+                    else {
+                        val verified=RecoveryStructure.verify(request,answer)
+                        roles.clear()
+                        verified.forEach { role ->
+                            roles+=RecoveryRoleScope(0,role.role,input.page,role.scope,role.labels.flatMap { it.sources }.map { it.id },RecoveryHeaderRegion(input.page,role.labelBox,RecoveryHeaderAxis.LEFT),"inlineLabel",!input.raster && role.body.isEmpty())
+                        }
+                        proposal=true
+                    }
+                }
+                cells += RecoveryCell(id,input.page,region.box,RecoveryInputState.COMPLETE,boundPeriods.map { RecoverySlot(cls.first.first,day.first.first,it.first.first.toInt()) },owned.map { it.id },emptyList(),empty,parallelCount=if(proposal)roles.size/3 else if(parallel)2 else 1, classHeaderIds=cls.first.second.ids,dayHeaderIds=day.first.second.ids,periodHeaderIds=boundPeriods.flatMap { it.first.second.ids },lessonBindings=if (!empty && !proposal && (parallel || fixed)) bindingRows.map { RecoveryLessonBinding(it[0],it[1],it[2]) } else emptyList(),classRegion=cls.second,dayRegion=day.second,periodRegions=boundPeriods.associate { it.first.first to it.second },bindingMode=if(proposal) "roleProposal" else "fixed",roleScopes=if(proposal)roles else emptyList(),separatorIds=if(parallel)separatorIds else emptyList())
                 classes.getOrPut(cls.first.first) { mutableListOf() } += cls.first.second.ids; days.getOrPut(day.first.first) { mutableListOf() } += day.first.second.ids; boundPeriods.forEach { period -> periods.getOrPut(period.first.first) { mutableListOf() } += period.first.second.ids }
             }
             atoms.filter { key(it.text) in listOf("時間割","通常時間割","試験時間割","試験返却時間割","クラス","曜日","日付","時限","授業時間","学年") && it.box.y + it.box.height <= (cells.filter { c -> c.page == input.page }.minOfOrNull { c -> c.box.y } ?: 0.0) }.forEach { titleIds += it.id }
@@ -137,7 +152,15 @@ object RecoveryLayout {
             }
         }
         val doc = RecoveryDocument(hash,documentKind,yearValue,if(kind==MaterialKind.TIMETABLE)term else null,classesList,daysList,classesList.flatMap { cls -> daysList.flatMap { day -> (1..maxPeriod).map { RecoverySlot(cls,day,it) } } },cells,sources,true,yearIds,if(kind==MaterialKind.TIMETABLE)termIds else emptyList(),days.mapValues { it.value.distinct() },classes.mapValues { it.value.distinct() },periods.mapValues { it.value.distinct() },times,clockEvidence.values.flatten().distinct(),notes,clockEvidence,spans,clockBindings,titleIds,noteGroups)
-        val errors = RecoveryValidator.inputErrors(doc); requireSource(errors.isEmpty(), errors.joinToString(","))
+        requireSource(usedProposals==structureProposals.keys,"未使用の表構造候補")
+        val errors = RecoveryValidator.preparationErrors(doc,requests.map { it.id }.toSet())
+        if(requests.isNotEmpty()) {
+            // Process every page and independently validate all identity,
+            // headers, coverage and source inventory before any AI is loaded.
+            requireSource(errors.isEmpty(),errors.joinToString(","))
+            throw RecoveryStructurePreparation(doc,requests,pages)
+        }
+        requireSource(errors.isEmpty(), errors.joinToString(","))
         return doc
     }
 }

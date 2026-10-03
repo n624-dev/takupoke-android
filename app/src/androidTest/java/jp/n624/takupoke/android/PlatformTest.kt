@@ -215,7 +215,7 @@ class PlatformTest {
         try {
             seed.install();seed.repository.startRecovery(MaterialKind.TIMETABLE)
             val current=requireNotNull(seed.repository.state.value.recoveryPreviews[MaterialKind.TIMETABLE])
-            val old=current.copy(result=current.result.copy(metadata=current.result.metadata.copy(validatorVersion=2)))
+            val old=current.copy(result=current.result.copy(metadata=current.result.metadata.copy(validatorVersion=RecoveryValidator.VERSION-1)))
             val approval=RecoveryAcceptance(old.document.pdfHash,old.resultHash,RecoveryValidator.fingerprint(old.document),old.result.metadata,0)
             val formal=seed.database.records().single().let { it.copy(recoveryJob=it.recoveryJob!!.copy(resultHash=old.resultHash)) }
             seed.database.save(formal);seed.database.put("recovery-preview:TIMETABLE",json.encodeToString(RecoveryPreview.serializer(),old))

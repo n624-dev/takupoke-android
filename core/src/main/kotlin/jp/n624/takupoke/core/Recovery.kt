@@ -24,7 +24,7 @@ import java.time.LocalDate
 @Serializable data class RecoveryLessonBinding(val subject: List<String>, val teacher: List<String>, val room: List<String>)
 @Serializable data class RecoveryRoleScope(val lessonIndex: Int, val role: String, val page: Int, val box: RecoveryBox, val labelSourceIds: List<String>, val labelRegion: RecoveryHeaderRegion, val proof: String, val emptyVerified: Boolean = false)
 @Serializable data class RecoveryCell(val id: String, val page: Int, val box: RecoveryBox, val inputState: RecoveryInputState, val slots: List<RecoverySlot>, val sourceIds: List<String>, val blankFields: List<String>, val confirmedEmpty: Boolean = false, val parallelCount: Int = 1, val classHeaderIds: List<String> = emptyList(), val dayHeaderIds: List<String> = emptyList(), val periodHeaderIds: List<String> = emptyList(), val lessonBindings: List<RecoveryLessonBinding> = emptyList(), val classRegion: RecoveryHeaderRegion? = null, val dayRegion: RecoveryHeaderRegion? = null, val periodRegions: Map<String, RecoveryHeaderRegion> = emptyMap(), val bindingMode: String = "fixed", val roleScopes: List<RecoveryRoleScope> = emptyList(), val separatorIds: List<String> = emptyList())
-@Serializable data class RecoveryDocument(val pdfHash: String, val kind: RecoveryDocumentKind, val schoolYear: Int, val term: String?, val classes: List<String>, val days: List<String>, val requiredSlots: List<RecoverySlot>, val cells: List<RecoveryCell>, val sources: List<RecoverySource>, val complete: Boolean, val yearEvidence: List<String>, val termEvidence: List<String>, val dayEvidence: Map<String, List<String>>, val classEvidence: Map<String, List<String>>, val periodEvidence: Map<String, List<String>>, val times: Map<String, String>, val timeEvidence: List<String>, val normalTimeNoteEvidence: List<String>, val clockEvidence: Map<String, List<String>> = emptyMap(), val spanTimes: Map<String, String> = emptyMap(), val clockBindings: Map<String, RecoveryClockBinding> = emptyMap(), val titleEvidence: List<String> = emptyList(), val normalTimeNoteGroups: List<List<String>> = emptyList())
+@Serializable data class RecoveryDocument(val pdfHash: String, val kind: RecoveryDocumentKind, val schoolYear: Int, val term: String?, val classes: List<String>, val days: List<String>, val requiredSlots: List<RecoverySlot>, val cells: List<RecoveryCell>, val sources: List<RecoverySource>, val complete: Boolean, val yearEvidence: List<String>, val termEvidence: List<String>, val dayEvidence: Map<String, List<String>>, val classEvidence: Map<String, List<String>>, val periodEvidence: Map<String, List<String>>, val times: Map<String, String>, val timeEvidence: List<String>, val normalTimeNoteEvidence: List<String>, val clockEvidence: Map<String, List<String>> = emptyMap(), val spanTimes: Map<String, String> = emptyMap(), val clockBindings: Map<String, RecoveryClockBinding> = emptyMap(), val titleEvidence: List<String> = emptyList(), val normalTimeNoteGroups: List<List<String>> = emptyList(), val structureMetadata: RecoveryMetadata? = null)
 @Serializable data class RecoveryLesson(val subject: RecoveryField, val teacher: RecoveryField, val room: RecoveryField, val dateEvidence: List<String>, val periodEvidence: List<String>)
 @Serializable data class RecoveredCell(val cellId: String, val state: RecoveryValueState, val lessons: List<RecoveryLesson>)
 @Serializable data class RecoveryMetadata(val provider: String, val modelId: String, val modelVersion: String, val runtimeVersion: String, val promptVersion: String, val recoverySchemaVersion: Int, val validatorVersion: Int, val osVersion: String, val recoveryVersion: String = "2")
@@ -50,7 +50,7 @@ object RecoveryRoles {
 
 object RecoveryValidator {
     const val SCHEMA_VERSION = 2
-    const val VERSION = 3
+    const val VERSION = 4
     inline fun <reified T> fingerprint(value: T): String = sha256(json.encodeToString(value).toByteArray(Charsets.UTF_8))
     private fun text(value: String) = normalized(value).replace(Regex("\\s+"), "")
     val specialClasses = listOf("1_1", "1_2", "1_3") + (2..5).flatMap { year -> listOf("CN", "ES", "IT").map { "${year}_$it" } } + listOf("AI_1", "AI_2")
@@ -61,7 +61,8 @@ object RecoveryValidator {
         if (parts.size != 3) return emptyList()
         return listOf(day, "${parts[0]}/${parts[1]}/${parts[2]}", "${parts[1]}/${parts[2]}", "${parts[1]}月${parts[2]}日")
     }
-    fun validate(doc: RecoveryDocument, result: RecoveryResult): RecoveryValidation {
+    fun validate(doc: RecoveryDocument, result: RecoveryResult): RecoveryValidation = validate(doc,result,emptySet())
+    private fun validate(doc: RecoveryDocument, result: RecoveryResult, deferredBindings:Set<String>): RecoveryValidation {
         if (doc.schoolYear !in 1900..9998 || doc.classes.size !in 1..64 || doc.days.size !in 1..31 || doc.cells.size !in 1..20000 || doc.sources.size > 100000 || result.cells.size > 20000) return RecoveryValidation(listOf("inputLimit"))
         val errors = linkedSetOf<String>()
         fun check(ok: Boolean, code: String) { if (!ok) errors += code }
@@ -69,6 +70,7 @@ object RecoveryValidator {
         check(doc.complete && doc.cells.size in 1..20000 && doc.sources.size <= 100000, "incompleteDocument")
         check(result.kind == doc.kind && result.schoolYear == doc.schoolYear && result.term == doc.term, "documentIdentity")
         check(doc.schoolYear in 1900..9998 && (doc.kind != RecoveryDocumentKind.TIMETABLE || doc.term in listOf("前期", "後期")), "yearTerm")
+        check(doc.structureMetadata == null || doc.structureMetadata == result.metadata, "structureMetadata")
         check(result.metadata.recoverySchemaVersion == SCHEMA_VERSION && result.metadata.validatorVersion == VERSION && listOf(result.metadata.provider, result.metadata.modelId, result.metadata.modelVersion, result.metadata.runtimeVersion, result.metadata.promptVersion, result.metadata.osVersion, result.metadata.recoveryVersion).all { it.isNotBlank() }, "versions")
         check(doc.classes.isNotEmpty() && doc.classes.distinct().size == doc.classes.size && doc.classes.all { it in knownClasses } && doc.days.isNotEmpty() && doc.days.distinct().size == doc.days.size, "scope")
         if (doc.kind != RecoveryDocumentKind.TIMETABLE) check(doc.classes.toSet() == specialClasses.toSet() && doc.days.size == 5, "specialScope")
@@ -195,8 +197,8 @@ object RecoveryValidator {
             val bindingIds = cell.lessonBindings.flatMap { it.subject + it.teacher + it.room }
             val proposal = cell.bindingMode == "roleProposal"
             check(cell.bindingMode in listOf("fixed", "roleProposal"), "bindingMode")
-            check(proposal || cell.sourceIds.none { RecoveryRoles.explicitLabel(sources[it]?.text.orEmpty()) }, "unboundRoleLabel")
-            check(if (cell.confirmedEmpty) cell.lessonBindings.isEmpty() && cell.roleScopes.isEmpty() else if (proposal) cell.lessonBindings.isEmpty() else cell.roleScopes.isEmpty() && cell.lessonBindings.size == cell.parallelCount && bindingIds.distinct().size == bindingIds.size && bindingIds.toSet() == (cell.sourceIds - cell.separatorIds.toSet()).toSet(), "lessonBinding")
+            if(cell.id !in deferredBindings)check(proposal || cell.sourceIds.none { RecoveryRoles.explicitLabel(sources[it]?.text.orEmpty()) }, "unboundRoleLabel")
+            if(cell.id !in deferredBindings)check(if (cell.confirmedEmpty) cell.lessonBindings.isEmpty() && cell.roleScopes.isEmpty() else if (proposal) cell.lessonBindings.isEmpty() else cell.roleScopes.isEmpty() && cell.lessonBindings.size == cell.parallelCount && bindingIds.distinct().size == bindingIds.size && bindingIds.toSet() == (cell.sourceIds - cell.separatorIds.toSet()).toSet(), "lessonBinding")
             check(cell.separatorIds.distinct().size == cell.separatorIds.size && (cell.separatorIds.isEmpty() || !proposal && cell.parallelCount==2 && cell.separatorIds.size==3 && cell.separatorIds.all { it in cell.sourceIds && sources[it]?.text in listOf("・","･") }), "parallelSeparator")
             if(cell.separatorIds.isNotEmpty()) {
                 val left=cell.lessonBindings.getOrNull(0);val right=cell.lessonBindings.getOrNull(1)
@@ -243,7 +245,11 @@ object RecoveryValidator {
         }
         return RecoveryValidation(errors.toList())
     }
-    fun inputErrors(doc: RecoveryDocument): List<String> = validate(doc, RecoveryResult(doc.pdfHash, doc.kind, doc.schoolYear, doc.term, doc.cells.map { RecoveredCell(it.id, RecoveryValueState.MISSING, emptyList()) }, RecoveryMetadata("rule", "rules", "1", "1", "1", SCHEMA_VERSION, VERSION, "preflight"))).errors.filter { it != "cellState" }
+    fun inputErrors(doc: RecoveryDocument): List<String> = preparationErrors(doc,emptySet())
+    internal fun preparationErrors(doc: RecoveryDocument,pending:Set<String>):List<String> {
+        require(pending.all { id->doc.cells.count { it.id==id }==1 })
+        return validate(doc, RecoveryResult(doc.pdfHash, doc.kind, doc.schoolYear, doc.term, doc.cells.map { RecoveredCell(it.id, RecoveryValueState.MISSING, emptyList()) }, doc.structureMetadata ?: RecoveryMetadata("rule", "rules", "1", "1", "1", SCHEMA_VERSION, VERSION, "preflight")),pending).errors.filter { it != "cellState" }
+    }
     fun canReuse(acceptance: RecoveryAcceptance, doc: RecoveryDocument, result: RecoveryResult) = acceptance.pdfHash == doc.pdfHash && acceptance.resultHash == fingerprint(result) && acceptance.scopeHash == fingerprint(doc) && acceptance.metadata == result.metadata && validate(doc, result).canAdopt
 }
 
@@ -265,7 +271,7 @@ object RecoveryPolicy {
 }
 
 @Serializable data class RecoveryPromptSource(val id: String, val text: String, val box: RecoveryBox? = null, val sourceLine: Int? = null, val sourceOrder: Int? = null)
-@Serializable data class RecoveryPromptCell(val cellId: String, val slots: List<RecoverySlot>, val sources: List<RecoveryPromptSource>, val blankFields: List<String>, val parallelCount: Int, val lessonBindings: List<RecoveryLessonBinding>, val roleScopes: List<RecoveryRoleScope> = emptyList())
+@Serializable data class RecoveryPromptCell(val cellId: String, val slots: List<RecoverySlot>, val sources: List<RecoveryPromptSource>, val blankFields: List<String>, val parallelCount: Int, val lessonBindings: List<RecoveryLessonBinding>, val roleScopes: List<RecoveryRoleScope> = emptyList(), val mode: RecoveryPromptMode = RecoveryPromptMode.fieldExtraction, val structureCuts: List<RecoveryStructureCut> = emptyList())
 interface LocalRecoveryProvider {
     val id: String
     val localOnly: Boolean
@@ -320,7 +326,7 @@ object RecoveryEngine {
         val missing = doc.cells.indices.filter { recovered[it] == null }
         fun result(metadata: RecoveryMetadata) = RecoveryResult(doc.pdfHash, doc.kind, doc.schoolYear, doc.term, recovered.map { requireNotNull(it) }, metadata)
         suspend fun validated(value: RecoveryResult): RecoveryRun { alive(); val validation = RecoveryValidator.validate(doc, value); alive(); return RecoveryRun(if (validation.canAdopt) RecoveryJobState.AWAITING_CONFIRMATION else RecoveryJobState.FAILED, value.takeIf { validation.canAdopt }, validation.errors) }
-        if (missing.isEmpty()) return validated(result(RecoveryMetadata("rule", "rules", "2", "2", "2", RecoveryValidator.SCHEMA_VERSION, RecoveryValidator.VERSION, "$os:$osMajor")))
+        if (missing.isEmpty()) return validated(result(doc.structureMetadata ?: RecoveryMetadata("rule", "rules", "2", "2", "2", RecoveryValidator.SCHEMA_VERSION, RecoveryValidator.VERSION, "$os:$osMajor")))
         var runtimeFailed = false
         for (id in RecoveryPolicy.providers(os, osMajor)) {
             alive(); val matching = providers.filter { it.id == id && it.localOnly }

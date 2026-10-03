@@ -27,6 +27,7 @@ android {
     // offline runner and do not compile or discover this separate suite.
     if (providers.gradleProperty("takupoke.runtimeEvaluation").orNull == "true") {
         testBuildType = "release"
+        sourceSets.getByName("main").java.srcDir("src/runtimeEvaluation/java")
         sourceSets.getByName("androidTest").java.srcDir("src/runtimeEvaluationAndroidTest/java")
         sourceSets.getByName("androidTest").assets.srcDir("src/runtimeEvaluationAndroidTest/assets")
         buildTypes.getByName("release").signingConfig = signingConfigs.getByName("debug")

@@ -16,7 +16,15 @@ Validator通過後も正式Analysisを保存しない。原文と復旧プレビ
 
 固定lessonBindingsは維持する。roleProposalは独立の原文label/columnHeader、役割scope、lessonIndex、矩形、原文atom IDを持つ。外部の役割列見出しは本文inventoryへ混ぜず、header region・axis・page・完全な役割名を検証する。本文全atomの完全partition、並記scope、空欄証明を要求する。モデルの自由なvalueを使わずEvidenceの原文から再構築する。
 
-独立scopeで割当が一意なセルもRulesを最優先にしてモデルをロードしない。Proofから決められる部分を故意にモデルへ回さない。役割の根拠がない欠落・折返しを、モデル知識や確認ボタンだけで確定扱いにしない。Strictでもラベル付き行は位置だけで役割を決めず復旧へ止める。無ラベル2行や余剰行は停止し、科目だけの1行はページ内の完全な三行セルで上段位置を校正できる場合だけ受理する。教員/教室だけ残った行を科目へ詰めない。
+独立scopeで割当が一意なセルもRulesを最優先にしてモデルをロードしない。Proofから決められる部分を故意にモデルへ回さない。役割の根拠がない欠落を、モデル知識や確認ボタンだけで確定扱いにしない。Strictでもラベル付き行は位置だけで役割を決めず復旧へ止める。無ラベル2行や余剰行は停止し、科目だけの1行はページ内の完全な三行セルで上段位置を校正できる場合だけ受理する。教員/教室だけ残った行を科目へ詰めない。
+
+## 折り返し見出しの有限構造提案
+
+同じ行と原文の隣接行だけで解けるラベルはRulesを優先する。左列の「担当教」/「員:」の間に右列の本文行が挟まる場合など、既知Builderで未解決のセルだけをstructureProposalへ渡す。全ページの年度・学期・クラス・日付・時限・時刻・原文inventoryを先に検証し、保存半期が違えばProviderを作らない。binding検査の一時保留は指定pendingセルだけで、他セルの不正scopeはAI前に拒否する。
+
+モデルが選べるものは元文字group IDと、元セル辺/文字のない測定gapからコードが作ったcut IDだけ。自由な文字・座標・boxは使わない。別コードが完全な原文ラベル、左位置、非重複band、ラベル全消費、本文全atomの一度だけのpartition、役割のラベルbbox内への本文位置を証明する。原本ページを候補で再buildし、Rulesと通常Validatorを通してから未採用プレビューへ進む。実Providerのmetadataを結果に残す。偽ID・役割交換・孤立本文・モデルの自由値は拒否する。
+
+原本のPDF viewerは100〜400%の拡大/縮小・全体表示と縦横移動を提供する。ページ変更や原本digest更新では先頭/全体へ戻る。画面上の17クラス表を利用者が拡大して確認できるようにする。これはAI/OCRの正確性を証明する機能とは分ける。
 
 ## モデル
 
@@ -40,8 +48,8 @@ Kotlin 2.4のmetadataを扱うため、[Androidの公式互換表](https://devel
 
 ## Android native candidate評価（manualのみ）
 
-既存[android.yml](.github/workflows/android.yml)の手動入力`evaluatePinnedCandidate=true`で、同じfeature commitの[runtime-evaluation.yml](.github/workflows/runtime-evaluation.yml)を呼び出せる。通常pushの実行対象、OfflineRunnerのsuiteとネット拒否は変更せず、`-Ptakupoke.runtimeEvaluation=true`の時だけ独立の`src/runtimeEvaluationAndroidTest`を組み込む。この評価用optimized releaseはdebug鍵で署名し、配布物として公開しない。hostが固定Qwen3-0.6B INT4の344671744 bytesだけをHTTPS取得し、size/SHAを検証して端末へコピーする。アプリ側でもsize/SHAを確認する。学校URL、実在資料、学校入力の送信は使わない。
+既存[android.yml](.github/workflows/android.yml)の手動入力`evaluatePinnedCandidate=true`で、同じfeature commitの[runtime-evaluation.yml](.github/workflows/runtime-evaluation.yml)を呼び出せる。通常pushの実行対象、OfflineRunnerのsuiteとネット拒否は変更せず、`-Ptakupoke.runtimeEvaluation=true`の時だけ独立の`src/runtimeEvaluationAndroidTest`と評価用target側`src/runtimeEvaluation`を組み込む。最小JUnit入口から固定bridgeを呼び、SDK・schema・Validator・oracleは同じ最適化APK内で実行するため、別APK間で最適化された共有ライブラリ名へ依存しない。この評価用optimized releaseはdebug鍵で署名し、配布物として公開しない。hostが固定Qwen3-0.6B INT4の344671744 bytesだけをHTTPS取得し、size/SHAを検証して端末へコピーする。アプリ側でもsize/SHAを確認する。学校URL、実在資料、学校入力の送信は使わない。
 
-実LiteRT-LM 0.17.1 / CPU / context4096でinitialize、smoke、Structured Outputのdecode、既存Validator、native cancel、Provider cancel、終了後closeを検証する。16ケースは役割順序、ラベルalias、教員/教室の明示空欄、並記2、同じ文字列の別ID、1/I・0/Oの原文、指示を装った本文、欠落とpartial pageを含む。欠落/partialは前処理やValidatorで安全に失敗するかを記録する。原文atomと独立scopeからRulesで一意に解けるセルについて、**モデル単体の評価**としてProviderを直接呼び、製品のRules優先経路を変更しない。原文再構築後の完全一致、raw完全一致、Validator採否、誤採用、危険な役割混入出力の拒否を別々に記録する。
+実LiteRT-LM 0.17.1 / CPU / context4096でinitialize、smoke、Structured Outputのdecode、既存Validator、native cancel、Provider cancel、終了後closeを検証する。16ケースは役割順序、ラベルalias、教員/教室の明示空欄、並記2、同じ文字列の別ID、1/I・0/Oの原文、指示を装った本文、欠落とpartial pageを含む。欠落/partialは前処理やValidatorで安全に失敗するかを記録する。原文atomと独立scopeからRulesで一意に解けるセルについて、**モデル単体の評価**としてProviderを直接呼び、製品のRules優先経路を変更しない。原文再構築後の完全一致、raw完全一致、Validator採否、誤採用、危険な役割混入出力の拒否を別々に記録する。加えて、cheap Rulesで未解決の本文挟み込み型ラベル1件を実structureProposal→原文certificate→元ページ再build→Rules/Validatorで評価し、16件のfield評価とは別のmetricsで記録する。
 
 PSS、private footprint、native PSS、native heap、Java heap、初期化/各推論/取消の時間をActionsログへJSON行で出力する。R8後のJNI class名保持も確認する。評価時だけ別APKのOfflineApplicationから呼ぶvirtual repository hook・constructor・Transport interfaceを保持し、起動時に通信拒否transportの注入を実証する。起動前クラッシュでは架空評価専用のAndroidRuntime/crash診断を出力する。モデル、APK、入力、ログをActions artifact/cacheへ永続保存しない。比較候補の`validated=false`はこの評価でも維持する。16架空ケースやx86_64 emulator CPUの成功は、学校資料の誤採用率、ARM端末メモリ、GPU/NPU性能や配信合格の証明にはしない。manual評価はコードを追加した段階と実行済みの結果を区別する。

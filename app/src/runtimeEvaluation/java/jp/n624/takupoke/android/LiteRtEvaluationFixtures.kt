@@ -19,6 +19,21 @@ object LiteRtEvaluationFixtures {
         Case("missing_teacher_unverified",values=mapOf("teacher" to null),unknownEmpty=true),
         Case("partial_page",incomplete=true)
     )
+    fun foldedStructurePage(interleaved:Boolean=true):Page {
+        val glyphs=mutableListOf<Glyph>();val lines=mutableListOf<Line>()
+        fun text(value:String,x:Double,y:Double,w:Double=12.0) { glyphs+=Glyph(value,x,y,w,3.0,glyphs.size) }
+        text("2026年度",0.0,5.0,60.0);text("前期",70.0,5.0);text("3_CN",5.0,103.0,25.0)
+        listOf("月","火","水","木","金").forEachIndexed { i,d->text(d,105.0+i*100,65.0) }
+        (1..8).forEach { p->text(p.toString(),50.0,102.0+(p-1)*60) }
+        text("科目:",102.0,108.0,8.0);text("架空科目A",130.0,108.0,20.0)
+        text("担当教",102.0,120.0,8.0);text("員:",102.0,if(interleaved)132.0 else 126.0,5.0)
+        text("架空担当B",130.0,if(interleaved)126.0 else 120.0,20.0)
+        text("教室:",102.0,150.0,8.0);text("架空室C",130.0,150.0,20.0)
+        listOf(0.0,40.0,100.0,200.0,300.0,400.0,500.0,600.0).forEach { x->lines+=Line(x,60.0,x,580.0) }
+        listOf(60.0,80.0,100.0,580.0).forEach { y->lines+=Line(0.0,y,600.0,y) }
+        (1..7).forEach { p->lines+=Line(40.0,100.0+p*60,600.0,100.0+p*60) }
+        return Page(610.0,600.0,glyphs,lines)
+    }
     fun fixture(case:Case):RecoveryDocument {
         val glyphs=mutableListOf<Glyph>();val lines=mutableListOf<Line>()
         fun text(value:String,x:Double,y:Double,w:Double=12.0) { glyphs+=Glyph(value,x,y,w,3.0,glyphs.size) }

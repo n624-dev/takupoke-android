@@ -48,6 +48,14 @@ class PdfParserTest {
         val error=assertFailsWith<ParseFailure> { PdfSchoolParser.parse(pages,MaterialKind.EXAM) }
         assertEquals("クラス数・授業数",error.stage)
     }
+    @Test fun strictSpecialClocksRejectOverlapAndReversedPeriods() {
+        fun clock(page:Page,value:String):Page = page.copy(glyphs=page.glyphs.filterNot { it.y==740.0 } + value.mapIndexed { i,c -> Glyph(c.toString(),i*2.5,740.0,2.0,4.0,page.glyphs.size+i) })
+        for(value in listOf("2時限目08:15〜09:00","2時限目07:00〜07:30")) {
+            val pages=(1..6).map { clock(exam(it),value) }
+            assertEquals("授業時刻の順序・重複",assertFailsWith<ParseFailure> { PdfSchoolParser.parse(pages,MaterialKind.EXAM) }.stage)
+            assertEquals("授業時刻の順序・重複",assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(clock(returned(),value)),MaterialKind.RETURN) }.stage)
+        }
+    }
     @Test fun examBlankCellsStayBlank() {
         val a = PdfSchoolParser.parse((1..6).map(::exam), MaterialKind.EXAM)
         assertEquals(1, a.lessons.count { it.className == "1_1" })
@@ -75,6 +83,12 @@ class PdfParserTest {
     }
     @Test fun loneTeacherOrRoomCannotBeRelabeledSubject() {
         val p=ordinary();for(rows in listOf(setOf(106.0,113.0),setOf(106.0,120.0)))assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(p.copy(glyphs=p.glyphs.filterNot { it.y in rows })),MaterialKind.TIMETABLE) }
+    }
+    @Test fun outsideBodyNotesCannotCalibrateTeacherOnlyCellAsSubject() {
+        val original=ordinary();val glyphs=original.glyphs.filterNot { it.y in setOf(106.0,120.0,137.0) }.toMutableList()
+        for((row,value) in listOf("NoteA","NoteB","NoteC").withIndex())value.forEachIndexed { i,c->glyphs+=Glyph(c.toString(),351.0+i*.8,213.0+row*6,0.6,4.0,glyphs.size) }
+        val lines=original.lines+listOf(Line(350.0,200.0,360.0,200.0),Line(350.0,230.0,360.0,230.0),Line(350.0,200.0,350.0,230.0),Line(360.0,200.0,360.0,230.0))
+        assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(original.copy(glyphs=glyphs,lines=lines)),MaterialKind.TIMETABLE) }
     }
     @Test fun strictNeverAssignsInlineRoleLabelsByTheirLineOrder() {
         val p=ordinary();val extra=mutableListOf<Glyph>();var order=p.glyphs.size

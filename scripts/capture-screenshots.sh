@@ -5,6 +5,13 @@ case "$SCREENSHOT_THEME" in
   dark) adb shell cmd uimode night yes;;
   *) exit 1;;
 esac
+# Android 10 can defer a system night-mode change until the next screen-off.
+# Apply the real OS configuration before the test activity starts.
+adb shell input keyevent KEYCODE_SLEEP
+sleep 0.5
+adb shell input keyevent KEYCODE_WAKEUP
+adb shell wm dismiss-keyguard
+adb shell dumpsys uimode
 adb shell wm size 720x1280
 adb shell wm density 320
 adb logcat -G 16M

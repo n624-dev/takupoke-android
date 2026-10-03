@@ -3,6 +3,7 @@ package jp.n624.takupoke.android
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.test.platform.app.InstrumentationRegistry
 import jp.n624.takupoke.core.*
 import kotlinx.coroutines.runBlocking
@@ -49,7 +50,28 @@ class RecoveryScreenTest {
                 if(color.red<.25f && color.green<.25f && color.blue<.25f)sourceInk++
             }
             assertTrue("The actual synthetic source text is drawn",sourceInk>20)
-            compose.onNodeWithText("1/1").assertIsDisplayed();offlineScreenshot(compose,"recovery-original");compose.onNodeWithText("閉じる").performClick()
+            compose.onNodeWithText("1/1").assertIsDisplayed()
+            repeat(3) { compose.onNodeWithContentDescription("PDFを拡大").performClick() }
+            compose.onNodeWithText("400%").assertIsDisplayed()
+            val viewport = compose.onNodeWithContentDescription("PDFの表示領域")
+            val axes = viewport.fetchSemanticsNode().config
+            assertTrue("The enlarged original can move horizontally", axes[SemanticsProperties.HorizontalScrollAxisRange].maxValue() > 0f)
+            assertTrue("The enlarged original can move vertically", axes[SemanticsProperties.VerticalScrollAxisRange].maxValue() > 0f)
+            viewport.performTouchInput { swipeLeft(); swipeUp() }
+            compose.waitUntil(10000) {
+                val moved = viewport.fetchSemanticsNode().config
+                moved[SemanticsProperties.HorizontalScrollAxisRange].value() > 0f && moved[SemanticsProperties.VerticalScrollAxisRange].value() > 0f
+            }
+            compose.onNodeWithText("全体を表示").performClick()
+            compose.onNodeWithText("100%").assertIsDisplayed()
+            compose.waitUntil(10000) {
+                val reset = viewport.fetchSemanticsNode().config
+                reset[SemanticsProperties.HorizontalScrollAxisRange].value() == 0f && reset[SemanticsProperties.VerticalScrollAxisRange].value() == 0f
+            }
+            assertEquals(seed.oldAnalysis, seed.database.records().single().analysis)
+            // Synchronize the actual raster after changing scale, before screenshot capture.
+            compose.onNodeWithContentDescription("保存済みPDF 1ページ").captureToImage()
+            offlineScreenshot(compose,"recovery-original");compose.onNodeWithText("閉じる").performClick()
             compose.onNodeWithText("この復旧結果を使用").performScrollTo().performClick()
             assertEquals(seed.oldAnalysis,seed.database.records().single().analysis)
             compose.onNodeWithText("確認した結果を採用").performClick()

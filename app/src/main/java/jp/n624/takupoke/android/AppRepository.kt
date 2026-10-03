@@ -64,7 +64,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         }
         operation = job; operations += job; job.start()
     }
-    fun cancel() { operations.toList().asReversed().forEach { it.cancel() }; auth.cancel(); requestedRevisions = null; transport.cancel(); signal?.cancel(); stopObserving() }
+    fun cancel() { recoveryOperation?.cancel(); operations.toList().asReversed().forEach { it.cancel() }; auth.cancel(); requestedRevisions = null; transport.cancel(); signal?.cancel(); stopObserving() }
     fun suspendAutomaticRefresh() { automaticRefreshSuspended = true; mutable.update { it.copy(automaticRefreshSuspended = true) }; cancel() }
     private fun safeError(e: Exception): String = when (e) {
         is ParseFailure -> e.message.orEmpty()
@@ -218,6 +218,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
             require(current?.digest == record.digest && current.uri == record.uri)
         }
         fun stage(stage: RecoveryJobState) { checkCurrent(); db.save(record.copy(recoveryJob = record.recoveryJob!!.copy(state = stage))); reload() }
+        var recoveryProvider:LocalRecoveryProvider?=null
         try {
             stage(RecoveryJobState.PREPARING)
             val capture = recoveryCaptures[kind]?.takeIf { it.first == record.digest }?.second ?: RecoveryReadCapture().also { fresh ->
@@ -230,12 +231,26 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
             }
             checkCurrent(); val original = file(record)
             require(runInterruptible { sha256(original.readBytes()) } == record.digest)
-            val document=recoveryServices.prepare(original,record.digest,kind,capture)
+            val document=try { recoveryServices.prepare(original,record.digest,kind,capture) }
+            catch(input:RecoveryStructurePreparation) {
+                checkCurrent();require(RecoveryAdoption.matchesPeriod(input.document,epoch))
+                stage(RecoveryJobState.RUNNING)
+                recoveryProvider=recoveryServices.provider { foreground && epoch==retentionPeriod() }
+                val resolved=RecoveryStructure.resolve(input.requests,listOfNotNull(recoveryProvider),"android",android.os.Build.VERSION.SDK_INT,::checkCurrent)
+                checkCurrent()
+                val proposals=resolved.proposals
+                if(proposals==null) {
+                    db.save(record.copy(recoveryJob=record.recoveryJob!!.copy(state=resolved.state)))
+                    mutable.update { it.copy(message=if(resolved.state==RecoveryJobState.AWAITING_MODEL)"端末内AIモデルの準備が必要です。学校の資料は外部へ送信されません。" else "表構造を原文から確認できませんでした。前回の正常結果を保持しています。") }
+                    return@withLock
+                }
+                runInterruptible { RecoveryLayout.prepare(input.pages,record.digest,kind,proposals) }.copy(structureMetadata=requireNotNull(resolved.metadata))
+            }
             checkCurrent()
             require(RecoveryAdoption.matchesPeriod(document,epoch))
             stage(RecoveryJobState.RUNNING)
-            val provider = recoveryServices.provider { foreground && epoch == retentionPeriod() }
-            val run = try { RecoveryEngine.run(document,"android",android.os.Build.VERSION.SDK_INT,true,listOfNotNull(provider),{ null },::checkCurrent) } finally { (provider as? AutoCloseable)?.close() }
+            if(recoveryProvider==null)recoveryProvider=recoveryServices.provider { foreground && epoch == retentionPeriod() }
+            val run = RecoveryEngine.run(document,"android",android.os.Build.VERSION.SDK_INT,true,listOfNotNull(recoveryProvider),{ null },::checkCurrent)
             checkCurrent()
             val result = run.result
             if(run.state == RecoveryJobState.AWAITING_CONFIRMATION && result != null) {
@@ -258,7 +273,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         } catch(e:Exception) {
             if(epoch==retentionPeriod() && db.value("period")==epoch)db.records().firstOrNull { it.kind==kind && it.digest==record.digest && it.uri==record.uri }?.let { db.save(it.copy(recoveryJob=it.recoveryJob?.copy(state=RecoveryJobState.FAILED))) }
             throw e
-        } finally { if(recoveryOperation==operation)recoveryOperation=null;reload() }
+        } finally { try { (recoveryProvider as? AutoCloseable)?.close() } finally { if(recoveryOperation==operation)recoveryOperation=null;reload() } }
     } }
     suspend fun adoptRecovery(kind: MaterialKind, resultHash: String) = withContext(Dispatchers.IO) { mutex.withLock {
         require(foreground && !locked()); retention()

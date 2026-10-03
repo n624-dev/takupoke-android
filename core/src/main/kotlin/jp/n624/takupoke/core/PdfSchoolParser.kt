@@ -52,17 +52,21 @@ object PdfSchoolParser {
         return rows.single()
     }
     private fun ordinary(page: Page): List<Lesson> {
-        val grid = Grid(page); val calibration=SubjectBandCalibration(page); val hs = header(page, "12345678", 5, normal = true)
+        val grid = Grid(page); val hs = header(page, "12345678", 5, normal = true)
         val first = grid.box(hs[0].cx, hs[0].cy); val cls = grid.box(first.left - 2, first.bottom + 20)
         val bottom = page.lines.filter { it.vertical && abs(it.x1 - cls.right) < .3 }.maxOfOrNull { it.y2 } ?: fail("クラス罫線")
         val rows = Grid.rows(page.glyphs.filter { it.cx > cls.left && it.cx < cls.right && it.cy > first.bottom && it.cy < bottom })
         val lessons = mutableListOf<Lesson>(); val classes = mutableSetOf<String>()
-        rows.forEachIndexed { rowIndex, row ->
+        val bodyRows = rows.map { row ->
             interrupted(); val label = key(row.joinToString("") { it.text }); if (!label.matches(Regex("[1-9]|[A-Z]{2,8}"))) fail("クラス")
             val y = row.map { it.cy }.average(); var box = grid.box(cls.cx, y)
             val grade = key(grid.text(grid.box(cls.left - 2, y)).joinToString("")); if (!grade.matches(Regex("[1-9]|AI"))) fail("学年")
             val name = canonicalClass("${grade}_$label"); if (!classes.add(name)) fail("クラス重複")
             box = box.copy(top = maxOf(box.top, grid.box(hs[0].cx, y).top))
+            name to box
+        }
+        val calibration=SubjectBandCalibration(page,bodyRows.flatMap { (_,row)->hs.flatMap { grid.subdivisions(it.cx,row) } }.distinct())
+        bodyRows.forEachIndexed { rowIndex, (name,box) ->
             hs.forEachIndexed { col, h ->
                 try { grid.subdivisions(h.cx, box).forEach { cell ->
                 val text = grid.text(cell); if (text.isNotEmpty()) {
@@ -99,6 +103,8 @@ object PdfSchoolParser {
             }
         }
         if (single.size != count) fail("授業時刻の件数")
+        val ordered = (1..count).map { single.getValue(it) }
+        if (ordered.zipWithNext().any { (previous, next) -> previous.substringAfter('〜') > next.substringBefore('〜') }) fail("授業時刻の順序・重複")
         return Times(single, consecutive)
     }
     private fun clockRange(a: String, b: String): String {
@@ -121,16 +127,16 @@ object PdfSchoolParser {
     }
     /** Calibrate the first role band from complete three-line cells on this page.
      * A sole surviving teacher/room line must never be relabeled as the subject. */
-    private class SubjectBandCalibration(val page:Page) {
+    private class SubjectBandCalibration(val page:Page,private val cells:List<Box>) {
         private val grid=Grid(page)
-        private val cells by lazy { page.glyphs.mapNotNull { runCatching { grid.box(it.cx,it.cy) }.getOrNull() }.distinct() }
         private val cache=mutableMapOf<Double,List<Double>>()
         private fun glyphs(b:Box)=page.glyphs.filter { it.cx>b.left+.3 && it.cx<b.right-.3 && it.cy>b.top+.3 && it.cy<b.bottom-.3 && key(it.text).isNotEmpty() }
         fun matches(box:Box):Boolean {
             val own=glyphs(box);if(own.isEmpty())return false
             val height=box.bottom-box.top
             val bands=cache.getOrPut(height) { cells.filter { kotlin.math.abs((it.bottom-it.top)-height)<.5 }.mapNotNull { b ->
-                if(runCatching { grid.text(b) }.getOrNull()?.size!=3)return@mapNotNull null
+                val text=runCatching { grid.text(b) }.getOrNull() ?: return@mapNotNull null
+                if(text.size!=3 || text.any { RecoveryRoles.explicitLabel(it) })return@mapNotNull null
                 val rows=Grid.rows(glyphs(b));if(rows.size!=3)return@mapNotNull null
                 rows.first().map { it.cy-b.top }.average()
             } }
@@ -146,7 +152,7 @@ object PdfSchoolParser {
         val names = labels.map { if (pageNumber == 6) "AI_${it.first.take(1)}" else it.first.replace('-', '_') }
         val days = Grid.runs(page.glyphs.filter { it.cy > y + 5 && it.cy < page.height * .7 && it.cx < hs[0].cx }).mapNotNull { r -> date(r.first, year, false)?.let { r.second to it } }.sortedBy { it.first.cy }
         if (days.size != 5 || days.map { it.second }.distinct().size != 5) fail("試験日")
-        val grid = Grid(page); val calibration=SubjectBandCalibration(page); val lessons = mutableListOf<Lesson>()
+        val grid = Grid(page); val calibration=SubjectBandCalibration(page,days.flatMap { (r,_)->val row=grid.box(r.cx,r.cy);hs.flatMap { grid.subdivisions(it.cx,row) } }.distinct()); val lessons = mutableListOf<Lesson>()
         days.forEach { (r, day) -> val row = grid.box(r.cx, r.cy)
             names.forEachIndexed { col, name -> val xs = (0..5).map { hs[col * 6 + it].cx }
                 xs.forEachIndexed { i, x -> grid.subdivisions(x, row).forEach { box -> lessons += specialCell(page, box, day, name, i + 1, xs, times, calibration) } }
@@ -161,12 +167,13 @@ object PdfSchoolParser {
         val note = key(Grid.rows(page.glyphs).joinToString("") { it.joinToString("") { g -> g.text } }).replace('〜', '~')
         val first = LocalDate.parse(days[0].second); val start = LocalDate.parse(days[1].second); val end = LocalDate.parse(days[4].second)
         if (start.monthValue != end.monthValue || !note.contains("${first.monthValue}月${first.dayOfMonth}日の時間割は以下のとおり") || !note.contains("${start.monthValue}月${start.dayOfMonth}日~${end.dayOfMonth}日は通常の授業日どおりの授業時間")) fail("返却時刻の注記")
-        val grid = Grid(page); val calibration=SubjectBandCalibration(page)
+        val grid = Grid(page)
         val classRight = minOf(hs[0].cx - step * .15, grid.box(hs[0].cx, y).left - .3)
         val runs = Grid.runs(page.glyphs.filter { it.cx < classRight && it.cy > y + 5 && it.cy < page.height * .7 })
         val grades = runs.filter { it.second.cx < hs[0].cx - step * .8 && it.first.matches(Regex("[1-5]|AI")) }
         val labels = runs.filter { it.second.cx >= hs[0].cx - step * .8 && it.first.matches(Regex("[1-3]|CN|ES|IT")) }
         if (grades.size != 6 || labels.size != 17) fail("返却クラス")
+        val calibration=SubjectBandCalibration(page,labels.flatMap { (_,r)->val row=grid.box(r.cx,r.cy);hs.flatMap { grid.subdivisions(it.cx,row) } }.distinct())
         val lessons = mutableListOf<Lesson>(); val names = mutableListOf<String>()
         labels.forEach { (label, r) -> val grade = grades.minBy { abs(it.second.cy - r.cy) }; if (abs(grade.second.cy - r.cy) >= step * 2.5) fail("返却学年")
             val name = "${grade.first}_$label"; if (name in names) fail("返却クラス重複"); names += name

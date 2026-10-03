@@ -10,7 +10,7 @@ case "${1:-}" in
     ./gradlew :app:assembleRelease :app:assembleReleaseAndroidTest --no-daemon --no-build-cache -Dorg.gradle.jvmargs=-Xmx3g -Ptakupoke.runtimeEvaluation=true
     ./gradlew --stop
     python3 - "$candidate" "$evaluation_dir" <<'PY'
-import json,pathlib,re,sys,zipfile
+import json,os,pathlib,re,subprocess,sys,zipfile
 c=json.loads(pathlib.Path(sys.argv[1]).read_text())
 assert c['modelId']=='qwen3-0.6b-int4' and not c['validated']
 assert c['version']=='a3c5d805ae362dff7f580bc25f2dfb9a5a7eaa76'
@@ -30,7 +30,36 @@ assert len(refs)>=6 and all(names.get(name)==name for name in refs), 'Native JNI
 assert 'com.google.ai.edge.litertlm.LiteRtLmJniException' in refs
 assert 'jp.n624.takupoke.android.TakupokeApplication -> jp.n624.takupoke.android.TakupokeApplication:' in mapping
 assert 'jp.n624.takupoke.android.Transport -> jp.n624.takupoke.android.Transport:' in mapping
+assert 'androidx.tracing.Trace -> androidx.tracing.Trace:' in mapping
+assert 'jp.n624.takupoke.android.LiteRtRuntimeEvaluationHarness -> jp.n624.takupoke.android.LiteRtRuntimeEvaluationHarness:' in mapping
 assert re.search(r'AppRepository createRepository\(\).* -> createRepository$',mapping,re.M), 'Offline repository virtual hook must survive R8'
+# Check the actual optimized cross-APK entry/runner classes rather than
+# assuming a successful compile proves shared library ABI compatibility.
+sdk=pathlib.Path(os.environ.get('ANDROID_HOME') or os.environ['ANDROID_SDK_ROOT'])
+dexdump=sdk/'build-tools/36.0.0/dexdump'
+dumps={}
+for label,filename in [('target','app/build/outputs/apk/release/app-release.apk'),('test','app/build/outputs/apk/androidTest/release/app-release-androidTest.apk')]:
+    parts=[]
+    with zipfile.ZipFile(filename) as apk:
+        for name in apk.namelist():
+            if re.fullmatch(r'classes\d*\.dex',name):
+                dex=root/(label+'-'+name);dex.write_bytes(apk.read(name))
+                parts.append(subprocess.check_output([str(dexdump),'-d',str(dex)]).decode(errors='replace'))
+                dex.unlink()
+    dumps[label]='\n'.join(parts)
+classes=set(re.findall(r"Class descriptor\s+: '(L[^']+;)'",dumps['target']+dumps['test']))
+entriesToCheck={'Ljp/n624/takupoke/android/OfflineRunner;','Ljp/n624/takupoke/android/OfflineApplication;','Ljp/n624/takupoke/android/RejectNetwork;','Ljp/n624/takupoke/android/LiteRtRuntimeEvaluationTest;','Landroidx/test/runner/AndroidJUnitRunner;'}
+checked=0;bridge=False
+for descriptor,body in re.findall(r"Class descriptor\s+: '(L[^']+;)'([\s\S]*?)(?=Class descriptor\s+:|\Z)",dumps['test']):
+    if descriptor in entriesToCheck or descriptor.startswith('Landroidx/test/platform/tracing/'):
+        refs=set(re.findall(r'L(?:[a-zA-Z0-9_$]+/)*[a-zA-Z0-9_$]+;',body))
+        missing={ref for ref in refs-classes if not ref.startswith(('Landroid/','Ljava/','Ljavax/','Ldalvik/','Lsun/','Lj$/'))}
+        assert not missing, 'Evaluation entry shared dependency absent: '+descriptor+' '+str(sorted(missing))
+        checked+=1
+    if descriptor=='Ljp/n624/takupoke/android/LiteRtRuntimeEvaluationTest;':
+        bridge='LiteRtRuntimeEvaluationHarness;.evaluate:(Landroid/content/Context;Landroid/content/Context;Ljava/lang/String;)V' in body
+assert checked>=5 and bridge
+print(json.dumps({'event':'optimized_entry_abi','classesChecked':checked,'missingClassReferences':0,'fixedBridgeInvoked':True}))
 compiler=re.search(r'^# compiler_version: (.+)$',mapping,re.M)
 assert compiler
 print(json.dumps({'event':'r8_keep','r8Version':compiler.group(1),'nativeReferencedClassesPreserved':len(refs),'optimized':True,'offlineVirtualHookRetained':True,'distributionArtifact':False}))
@@ -79,7 +108,7 @@ import json,pathlib,sys
 for line in pathlib.Path(sys.argv[1]).read_text(errors='replace').splitlines():
     try: row=json.loads(line)
     except json.JSONDecodeError: continue
-    if isinstance(row,dict) and row.get('event') in {'configuration','initialize','smoke','native_cancel','case','provider_cancel','release','summary','cleanup'}:
+    if isinstance(row,dict) and row.get('event') in {'configuration','initialize','smoke','native_cancel','case','structure_case','provider_cancel','release','summary','cleanup'}:
         print('TAKUPOKE_RUNTIME_REPORT '+json.dumps(row,ensure_ascii=False))
 PY
       python3 - "$evaluation_dir/startup-diagnostics.log" <<'PY'
@@ -102,6 +131,8 @@ for line in pathlib.Path(sys.argv[2]).read_text(errors='replace').splitlines():
     except json.JSONDecodeError: pass
 summary=next(row for row in rows if isinstance(row,dict) and row.get('event')=='summary')
 assert summary['cases']==16 and summary['falseAdoptions']==0
+assert summary['structureCases']==1 and summary['structureFalseAdoptions']==0
+assert len([row for row in rows if isinstance(row,dict) and row.get('event')=='structure_case'])==1
 assert summary['initialized'] and summary['released'] and summary['nativeCancellationDemonstrated']
 provider=next(row for row in rows if isinstance(row,dict) and row.get('event')=='provider_cancel')
 assert provider['requestedWhileActive'] and provider['joined']

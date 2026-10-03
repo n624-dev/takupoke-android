@@ -69,6 +69,7 @@ object PdfReader {
             // Font-size changes and TJ kerning continue the same source line.
             if (operator.name in setOf("Q", "cm", "BT", "Tm", "Td", "TD", "T*", "Ts", "'", "\"")) sourceLine++
             super.processOperator(operator, operands)
+            if (operator.name == "gs" && (graphicsState.alphaConstant != 1.0 || graphicsState.nonStrokeAlphaConstant != 1.0 || graphicsState.softMask != null || graphicsState.blendMode != com.tom_roush.pdfbox.pdmodel.graphics.blend.BlendMode.NORMAL)) fail("未対応の透明・合成描画")
         }
         override fun showGlyph(matrix: Matrix, font: PDFont, code: Int, displacement: Vector) {
             interrupted()

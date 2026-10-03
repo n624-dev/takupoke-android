@@ -18,6 +18,9 @@ internal fun specialRecoveryFixture(kind:MaterialKind,oppositePeriod:Boolean=fal
 /** Entirely invented geometry/data. No production model download, OCR or school URL is used. */
 internal class OfflineRecoveryServices(var offer:Boolean=true,var hasModel:Boolean=true):RecoveryServices {
     var preparedDocument:RecoveryDocument?=null
+    var structurePages:List<RecoveryLayoutPage>?=null
+    var structureAnswer:((RecoveryPromptCell)->List<RecoveryLesson>)?=null
+    var holdStructure=false;val structureEntered=CompletableDeferred<Unit>();var providerClosures=0
     private val manifest=RecoveryModelManifest("synthetic-offline","1","https://models.example.invalid/synthetic",1024,"a".repeat(64),"liteRtLm","29",4L*1024*1024*1024,"CPU","test-only",true)
     override val offered get()=manifest.takeIf { offer }
     override val error:String?=null
@@ -28,14 +31,21 @@ internal class OfflineRecoveryServices(var offer:Boolean=true,var hasModel:Boole
     val downloadEntered=CompletableDeferred<Unit>();var holdDownload=false
     override fun delete() { deletions++;hasModel=false }
     override suspend fun download(foreground:()->Boolean,progress:(Long)->Unit) { check(foreground());downloads++;progress(512);downloadEntered.complete(Unit);if(holdDownload)awaitCancellation();hasModel=true;progress(1024) }
-    override fun provider(foreground:()->Boolean):LocalRecoveryProvider { providerConstructions++;return object:LocalRecoveryProvider {
+    override fun provider(foreground:()->Boolean):LocalRecoveryProvider { providerConstructions++;return object:LocalRecoveryProvider,AutoCloseable {
         override val id="liteRtLm";override val localOnly=true
         override val metadata=RecoveryMetadata(id,"synthetic-offline","1","fake-runtime","2",RecoveryValidator.SCHEMA_VERSION,RecoveryValidator.VERSION,"test-only")
         override suspend fun availability()=if(hasModel)LocalProviderState.READY else LocalProviderState.DOWNLOAD_REQUIRED
-        override suspend fun recoverCell(cell:RecoveryPromptCell):List<RecoveryLesson> { providerCalls++;error("Known role scopes must use Rules before this mock provider") }
+        override suspend fun recoverCell(cell:RecoveryPromptCell):List<RecoveryLesson> {
+            providerCalls++;check(foreground());structureEntered.complete(Unit)
+            if(holdStructure)awaitCancellation()
+            if(cell.mode==RecoveryPromptMode.structureProposal)return requireNotNull(structureAnswer).invoke(cell)
+            error("Known role scopes must use Rules before this mock provider")
+        }
+        override fun close() { providerClosures++ }
     } }
     override suspend fun prepare(file:File,hash:String,kind:MaterialKind,capture:RecoveryReadCapture):RecoveryDocument {
         preparationEntered.complete(Unit);if(holdPreparation)awaitCancellation()
+        structurePages?.let { return RecoveryLayout.prepare(it,hash,kind) }
         preparedDocument?.let { doc -> check(RecoveryPolicy.kind(kind)==doc.kind);return doc.copy(pdfHash=hash) }
         return RecoveryLayout.prepare(listOf(RecoveryLayoutPage(1,layout())),hash,kind)
     }

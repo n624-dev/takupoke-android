@@ -67,6 +67,34 @@ class PdfTest {
             catch (error: ParseFailure) { assertEquals("P20", error.code) }
         } finally { file.delete() }
     }
+    @Test fun transparentAndClippingTextCannotBecomeCompleteRecoveryInventory() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        for(mode in listOf("fill0","stroke0","fillHalf","clip")) {
+            val file=File.createTempFile("synthetic-alpha-",".pdf",context.cacheDir)
+            try {
+                PDDocument().use { doc ->
+                    val page=PDPage(PDRectangle(200f,200f));doc.addPage(page)
+                    val fontFile=File("/system/fonts/Roboto-Regular.ttf").takeIf { it.isFile }?:File("/system/fonts/NotoSans-Regular.ttf")
+                    val font=PDType0Font.load(doc,fontFile)
+                    PDPageContentStream(doc,page).use { stream ->
+                        stream.beginText();stream.setFont(font,12f);stream.newLineAtOffset(20f,170f);stream.showText("Visible");stream.endText()
+                        if(mode!="clip")stream.setGraphicsStateParameters(com.tom_roush.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState().apply {
+                            if(mode=="stroke0")strokingAlphaConstant=0f else nonStrokingAlphaConstant=if(mode=="fill0")0f else .5f
+                        })
+                        stream.beginText();stream.setFont(font,12f);stream.newLineAtOffset(20f,120f)
+                        if(mode=="clip")stream.setRenderingMode(com.tom_roush.pdfbox.pdmodel.graphics.state.RenderingMode.NEITHER_CLIP)
+                        if(mode=="stroke0")stream.setRenderingMode(com.tom_roush.pdfbox.pdmodel.graphics.state.RenderingMode.STROKE)
+                        stream.showText("Hidden");stream.endText()
+                    };doc.save(file)
+                }
+                val capture=jp.n624.takupoke.core.RecoveryReadCapture()
+                try { PdfReader.readPages(file,capture);fail("Unsupported alpha/clip marked complete: $mode") }catch(_:ParseFailure) {}
+                val snapshot=capture;assertFalse(snapshot.complete)
+                assertEquals(jp.n624.takupoke.core.RecoveryInputState.PARTIAL,snapshot.pages.single().state)
+                assertEquals("Visible",requireNotNull(snapshot.pages.single().layout).glyphs.joinToString("") { it.text })
+            } finally { file.delete() }
+        }
+    }
     @Test fun missingUnicodeMapFailsClosed() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext; val f = File.createTempFile("synthetic-", ".pdf", context.cacheDir)
         try {

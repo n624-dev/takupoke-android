@@ -46,7 +46,7 @@ class RecoveryTest {
     @Test fun approvalOnlyReusesExactValidatedResult() { val (d, r) = fixture(); val a = RecoveryAcceptance(d.pdfHash, RecoveryValidator.fingerprint(r), RecoveryValidator.fingerprint(d), r.metadata, 0); assertTrue(RecoveryValidator.canReuse(a, d, r)); assertFalse(RecoveryValidator.canReuse(a, d, r.copy(metadata = r.metadata.copy(modelVersion = "2")))) }
     @Test fun previousValidatorApprovalCannotAuthorizeNewOrOldResult() {
         val (doc,current)=fixture()
-        val old=current.copy(metadata=current.metadata.copy(validatorVersion=2))
+        val old=current.copy(metadata=current.metadata.copy(validatorVersion=RecoveryValidator.VERSION-1))
         val oldApproval=RecoveryAcceptance(doc.pdfHash,RecoveryValidator.fingerprint(old),RecoveryValidator.fingerprint(doc),old.metadata,0)
         assertContains(RecoveryValidator.validate(doc,old).errors,"versions")
         assertFalse(RecoveryValidator.canReuse(oldApproval,doc,old))

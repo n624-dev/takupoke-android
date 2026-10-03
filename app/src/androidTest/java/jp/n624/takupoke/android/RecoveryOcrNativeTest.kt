@@ -17,7 +17,7 @@ import java.io.File
 /** Actual bundled Japanese OCR; every pixel and string is invented, with no model/PDF network request. */
 @RunWith(AndroidJUnit4::class)
 class RecoveryOcrNativeTest {
-    @Test(timeout=90000) fun bundledJapaneseConfidenceAndBorderBlankProof()=runBlocking {
+    @Test(timeout=90000) fun bundledJapaneseConfidenceAndBorderBlankProof():Unit=runBlocking {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         assertTrue((context.applicationContext as OfflineApplication).offlineTransportInjected)
         val file=File(context.cacheDir,"invented-ocr-${java.util.UUID.randomUUID()}.pdf")
