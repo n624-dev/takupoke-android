@@ -123,9 +123,17 @@ object PdfReader {
             if(graphicsState.lineDashPattern.dashArray.isNotEmpty())fail("未対応の描画")
             if(graphicsState.strokingColor.toRGB()!=0)fail("未対応の罫線色")
             val transform=graphicsState.currentTransformationMatrix
+            val a=transform.scaleX.toDouble();val b=transform.shearY.toDouble();val c=transform.shearX.toDouble();val d=transform.scaleY.toDouble()
+            val firstNorm=a*a+b*b;val secondNorm=c*c+d*d
+            if(!listOf(a,b,c,d).all(Double::isFinite) || firstNorm<=0 || firstNorm!=secondNorm || a*c+b*d!=0.0)fail("未対応の描画")
+            if(!graphicsState.lineWidth.isFinite() || graphicsState.lineWidth<0)fail("未対応の描画")
             val scale=maxOf(kotlin.math.hypot(transform.scaleX.toDouble(),transform.shearY.toDouble()),kotlin.math.hypot(transform.shearX.toDouble(),transform.scaleY.toDouble()))
             val pad=maxOf(1.0,kotlin.math.abs(graphicsState.lineWidth.toDouble())*scale*.75)
             pending.forEach { (a, b) ->
+                interrupted()
+                // Exact display axes plus a similarity stroke CTM preserve
+                // right-angle joins; near-axis acute miters can exceed this pad.
+                if(a.x!=b.x && a.y!=b.y)fail("未対応の描画")
                 val line = Line(minOf(a.x, b.x).toDouble(), minOf(a.y, b.y).toDouble(), maxOf(a.x, b.x).toDouble(), maxOf(a.y, b.y).toDouble())
                 if(!insideViewport(Box(line.x1,line.y1,line.x2,line.y2)))fail("CropBox外の罫線")
                 if(!line.horizontal && !line.vertical)fail("未対応の罫線方向")

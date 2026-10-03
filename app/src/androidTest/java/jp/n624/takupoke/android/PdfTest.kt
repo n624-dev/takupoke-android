@@ -165,7 +165,7 @@ class PdfTest {
             } finally { file.delete() }
         }
     }
-    @Test fun rendererInvisibleDashSegmentsCannotBecomeSolidGridEvidence() {
+    @Test fun rendererDashSegmentsCannotBecomeSolidGridEvidence() {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         for(dashed in listOf(false,true)) {
             val file=File.createTempFile("synthetic-dash-",".pdf",context.cacheDir)
@@ -185,9 +185,12 @@ class PdfTest {
                 try {
                     bitmap.eraseColor(android.graphics.Color.WHITE)
                     android.os.ParcelFileDescriptor.open(file,android.os.ParcelFileDescriptor.MODE_READ_ONLY).use { fd -> android.graphics.pdf.PdfRenderer(fd).use { renderer -> renderer.openPage(0).use { it.render(bitmap,null,null,android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY) } } }
-                    var borderInk=0
-                    for(y in 9..191)for(x in 9..191)if((x<=11 || x>=189 || y<=11 || y>=189) && (bitmap.getPixel(x,y) and 0xffffff)!=0xffffff)borderInk++
-                    if(dashed)assertEquals("Zero-length butt-cap dashes paint no border",0,borderInk)else assertTrue("Solid control paints its border",borderInk>100)
+                    var middleBorderInk=0
+                    // PdfRenderer can leave tiny endpoint artifacts for zero
+                    // dashes. A full 180pt edge requires its middle too; exact
+                    // white middle bands prove no full solid grid exists.
+                    for(y in 9..191)for(x in 9..191)if(((x<=11 || x>=189) && y in 50..150 || (y<=11 || y>=189) && x in 50..150) && (bitmap.getPixel(x,y) and 0xffffff)!=0xffffff)middleBorderInk++
+                    if(dashed)assertEquals("Zero dashes do not paint the middle of the claimed edges",0,middleBorderInk)else assertTrue("Solid control paints its middle border",middleBorderInk>100)
                 } finally { bitmap.recycle() }
                 val capture=jp.n624.takupoke.core.RecoveryReadCapture()
                 if(dashed) {
@@ -195,6 +198,45 @@ class PdfTest {
                     assertFalse(capture.complete);assertEquals(jp.n624.takupoke.core.RecoveryInputState.PARTIAL,capture.pages.single().state)
                     assertTrue(requireNotNull(capture.pages.single().layout).lines.isEmpty())
                 }else { val page=PdfReader.readPages(file,capture).single();assertTrue(capture.complete);assertEquals(4,page.lines.size) }
+            } finally { file.delete() }
+        }
+    }
+    @Test fun acuteMiterAndNonSimilarityStrokeCannotHideFillGlyphsInCompleteCapture() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        for(mode in listOf("fill","acuteMiter","unequalScale","shear")) {
+            val file=File.createTempFile("synthetic-miter-",".pdf",context.cacheDir)
+            try {
+                PDDocument().use { doc ->
+                    val page=PDPage(PDRectangle(200f,200f));doc.addPage(page)
+                    val fontFile=File("/system/fonts/Roboto-Regular.ttf").takeIf { it.isFile }?:File("/system/fonts/NotoSans-Regular.ttf")
+                    val font=PDType0Font.load(doc,fontFile)
+                    PDPageContentStream(doc,page).use { stream ->
+                        stream.beginText();stream.setFont(font,12f);stream.newLineAtOffset(20f,170f);stream.showText("Visible");stream.endText()
+                        stream.beginText();stream.setFont(font,12f);stream.newLineAtOffset(120f,110f);stream.showText("X");stream.endText()
+                        if(mode=="acuteMiter") {
+                            stream.setLineWidth(25f);stream.setLineCapStyle(0);stream.setLineJoinStyle(0);stream.setMiterLimit(10f)
+                            stream.moveTo(80f,120f);stream.lineTo(81.1f,120f);stream.lineTo(80f,120.29f);stream.stroke()
+                        }
+                        if(mode=="unequalScale" || mode=="shear") {
+                            stream.transform(if(mode=="unequalScale")com.tom_roush.pdfbox.util.Matrix(2f,0f,0f,1f,0f,0f)else com.tom_roush.pdfbox.util.Matrix(1f,0f,.5f,1f,0f,0f))
+                            stream.moveTo(10f,40f);stream.lineTo(if(mode=="unequalScale")90f else 160f,40f);stream.stroke()
+                        }
+                    };doc.save(file)
+                }
+                val bitmap=android.graphics.Bitmap.createBitmap(200,200,android.graphics.Bitmap.Config.ARGB_8888)
+                try {
+                    bitmap.eraseColor(android.graphics.Color.WHITE)
+                    android.os.ParcelFileDescriptor.open(file,android.os.ParcelFileDescriptor.MODE_READ_ONLY).use { fd -> android.graphics.pdf.PdfRenderer(fd).use { renderer -> renderer.openPage(0).use { it.render(bitmap,null,null,android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY) } } }
+                    val colors=(82..89).flatMap { y -> (120..126).map { x -> bitmap.getPixel(x,y) and 0xffffff } }.toSet()
+                    if(mode=="acuteMiter")assertEquals("Miter paint covers X outside the old segment pad",setOf(0),colors)else assertTrue("Fill control still shows a distinct glyph",colors.size>1)
+                } finally { bitmap.recycle() }
+                val capture=jp.n624.takupoke.core.RecoveryReadCapture()
+                if(mode=="fill") { PdfReader.readPages(file,capture);assertTrue(capture.complete) }
+                else {
+                    try { PdfReader.readPages(file,capture);fail("Unsupported stroke marked complete: $mode") }catch(_:ParseFailure) {}
+                    assertFalse(capture.complete);assertEquals(jp.n624.takupoke.core.RecoveryInputState.PARTIAL,capture.pages.single().state)
+                    assertEquals("VisibleX",requireNotNull(capture.pages.single().layout).glyphs.joinToString("") { it.text })
+                }
             } finally { file.delete() }
         }
     }
