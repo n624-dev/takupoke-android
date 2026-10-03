@@ -36,7 +36,14 @@ val darkMainColors = listOf(Color(0xFF90CAF9), Color(0xFFA5D6A7), Color(0xFFFFF5
     var tab by rememberSaveable { mutableIntStateOf(0) }; var page by rememberSaveable { mutableStateOf("") }; var setupOffered by rememberSaveable { mutableStateOf(false) }
     var setupStep by rememberSaveable { mutableIntStateOf(0) }
     var returnToSetup by rememberSaveable { mutableStateOf(false) }
-    var selectedLesson by remember { mutableStateOf<Pair<LocalDate, Slot>?>(null) }
+    // A Slot captures the source/formal data used when its card was opened.
+    // Close it when those inputs change, before rendering current names around an old lesson.
+    val lessonSources = remember(state.materials) { state.materials.map { Triple(it.kind, it.digest, it.analysis) } }
+    var selectedLesson by remember(state.period, lessonSources, state.events, state.mapping, state.times,
+        state.settings.primaryClass, state.settings.additionalClass, state.settings.international,
+        state.settings.includesChanges, state.settings.defaultSchoolYear) {
+        mutableStateOf<Pair<LocalDate, Slot>?>(null)
+    }
     var source by remember { mutableStateOf<MaterialRecord?>(null) }
     var todayRequest by rememberSaveable { mutableStateOf<String?>(null) }
     var clockPeriod by remember { mutableStateOf(retentionPeriod()) }
@@ -55,6 +62,9 @@ val darkMainColors = listOf(Color(0xFF90CAF9), Color(0xFFA5D6A7), Color(0xFFFFF5
     LaunchedEffect(state.ready, lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { while (true) { kotlinx.coroutines.delay(1000); clockPeriod = retentionPeriod(); if (state.ready && state.period != clockPeriod && !expiryQueued) { expiryQueued = true; repository.cancel(); repository.action(queued = true) { repository.activate(false) } } } } }
     LaunchedEffect(tab) { if (tab == 1 && state.ready) repository.action { repository.checkLinkRevision() } }
     LaunchedEffect(state.period) { selectedLesson = null; source = null }
+    LaunchedEffect(state.materials.map { it.kind }) {
+        if (source != null && state.materials.none { it.kind == source?.kind }) source = null
+    }
     MaterialTheme(colorScheme = colors) {
         BackHandler(page.isNotEmpty()) { if (page == "setup" && setupStep > 0) setupStep-- else closePage() }
         Scaffold(topBar = { TopAppBar(title = { Text(if (page.isEmpty()) listOf("たくポケ", "一覧", "時間割", "設定")[tab] else if (page == "setup") listOf("データを取得", "時間割ファイル", "クラス")[setupStep] else mapOf("materials" to "時間割ファイル", "events" to "学校行事", "account" to "リンク・名称・授業時刻", "classes" to "クラス", "notifications" to "通知", "about" to "このアプリについて", "help" to "使い方")[page].orEmpty()) }, navigationIcon = { if (page.isNotEmpty() && page != "setup") IconButton(onClick = ::closePage) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "戻る") } }, actions = { if (page == "setup") TextButton(onClick = { settings { it.copy(setupComplete = true) }; page = "" }) { Text("あとで設定") }; if (state.busy) TextButton(onClick = repository::cancel) { Text("中止") } }) }, bottomBar = {

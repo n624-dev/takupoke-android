@@ -194,6 +194,72 @@ class RecoveryScreenTest {
             assertEquals(0,seed.services.providerCalls)
         } finally { compose.runOnIdle { seed.stop() };source.delete() }
     }
+    @Test fun removedSourceDoesNotReopenOriginalPdfAfterReimport() {
+        val seed=mount()
+        try {
+            val original=seed.database.records().single()
+            compose.onNodeWithText("保存済みのPDFを見る").performScrollTo().performClick()
+            compose.waitUntil(10000) { compose.onAllNodesWithContentDescription("PDFの表示領域").fetchSemanticsNodes().isNotEmpty() }
+            seed.database.clearSchool(retentionPeriod())
+            runBlocking { seed.repository.activate(false) }
+            compose.waitUntil(10000) { seed.repository.state.value.materials.isEmpty() }
+            compose.onNodeWithContentDescription("PDFの表示領域").assertDoesNotExist()
+            seed.database.save(original)
+            runBlocking { seed.repository.activate(false) }
+            compose.waitUntil(10000) { seed.repository.state.value.materials.singleOrNull()?.digest==original.digest }
+            compose.onNodeWithContentDescription("PDFの表示領域").assertDoesNotExist()
+            assertEquals(seed.oldAnalysis,seed.database.records().single().analysis)
+            assertEquals(0,seed.services.providerCalls)
+        } finally { compose.runOnIdle { seed.stop() } }
+    }
+    @Test fun timetableDetailClosesOnFormalAdoptionAndSourceUpdate() {
+        val seed=mount()
+        val source=java.io.File(seed.context.cacheDir,"recovery-slot-source-${java.util.UUID.randomUUID()}.pdf")
+        try {
+            val original=seed.database.records().single()
+            source.writeBytes(seed.repository.file(original).readBytes())
+            seed.database.save(original.copy(uri=android.net.Uri.fromFile(source).toString()))
+            runBlocking { seed.repository.activate(false);seed.repository.startRecovery(MaterialKind.TIMETABLE) }
+            val preview=seed.repository.state.value.recoveryPreviews.getValue(MaterialKind.TIMETABLE)
+            compose.onNodeWithText("閉じる").performClick()
+            compose.onNodeWithContentDescription("戻る").performClick()
+            compose.onNodeWithText("時間割").performClick()
+            val oldCard=hasContentDescription("架空の前回科目",substring=true)
+            compose.waitForIdle()
+            // The first week of a half can begin in the previous half. Use the next real week.
+            if(compose.onAllNodes(oldCard).fetchSemanticsNodes().isEmpty())compose.onNodeWithText("翌週").performClick()
+            compose.onNode(oldCard).performScrollTo().performClick()
+            compose.onNodeWithText("授業詳細").assertIsDisplayed()
+            compose.onNodeWithText("科目: 架空の前回科目").assertIsDisplayed()
+            assertEquals(seed.oldAnalysis,seed.database.records().single().analysis)
+            // Explicitly invoke the same adoption contract while the captured Slot remains open.
+            runBlocking { seed.repository.adoptRecovery(MaterialKind.TIMETABLE,preview.resultHash) }
+            compose.waitForIdle()
+            compose.onNodeWithText("授業詳細").assertDoesNotExist()
+            val adopted=seed.database.records().single()
+            assertEquals(preview.analysis,adopted.analysis)
+            assertEquals(RecoveryJobState.ADOPTED,adopted.recoveryJob?.state)
+            compose.onNode(hasContentDescription("架空復旧科目",substring=true)).performScrollTo().performClick()
+            compose.onNodeWithText("科目: 架空復旧科目").assertIsDisplayed()
+            android.graphics.pdf.PdfDocument().let { pdf ->
+                try {
+                    val page=pdf.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(600,300,1).create())
+                    page.canvas.drawText("Invented newer source for captured slot",30f,40f,android.graphics.Paint().apply { textSize=12f })
+                    pdf.finishPage(page);source.outputStream().use { pdf.writeTo(it) }
+                } finally { pdf.close() }
+            }
+            val updatedHash=sha256(source.readBytes())
+            assertNotEquals(adopted.digest,updatedHash)
+            runBlocking { seed.repository.refresh(sourcesOnly=true) }
+            compose.waitUntil(10000) { seed.repository.state.value.materials.single().digest==updatedHash }
+            compose.onNodeWithText("授業詳細").assertDoesNotExist()
+            val saved=seed.database.records().single()
+            assertEquals(adopted.analysis,saved.analysis)
+            assertEquals(adopted.parsedDigest,saved.parsedDigest)
+            assertEquals(RecoveryJobState.PENDING,saved.recoveryJob?.state)
+            assertEquals(0,seed.services.providerCalls)
+        } finally { compose.runOnIdle { seed.stop() };source.delete() }
+    }
     private fun specialPreviewAdoptionAndRestart(kind:MaterialKind,fixture:String) {
         val document=specialRecoveryFixture(kind)
         val service=OfflineRecoveryServices().apply { preparedDocument=document }

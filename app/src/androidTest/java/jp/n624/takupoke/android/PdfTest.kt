@@ -95,6 +95,43 @@ class PdfTest {
             } finally { file.delete() }
         }
     }
+    @Test fun transferFunctionsAndUnknownGsParametersCannotBecomeCompleteVectorEvidence() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        for(mode in listOf("benign","TR","TR2","UnknownVisibility")) {
+            val file=File.createTempFile("synthetic-transfer-",".pdf",context.cacheDir)
+            try {
+                PDDocument().use { doc ->
+                    val page=PDPage(PDRectangle(200f,200f));doc.addPage(page)
+                    val fontFile=File("/system/fonts/Roboto-Regular.ttf").takeIf { it.isFile }?:File("/system/fonts/NotoSans-Regular.ttf")
+                    val font=PDType0Font.load(doc,fontFile)
+                    PDPageContentStream(doc,page).use { stream ->
+                        stream.beginText();stream.setFont(font,12f);stream.newLineAtOffset(20f,170f);stream.showText("Visible");stream.endText()
+                        val gs=com.tom_roush.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState().apply { lineWidth=1f }
+                        if(mode in listOf("TR","TR2")) {
+                            fun values(vararg values:Float)=com.tom_roush.pdfbox.cos.COSArray().apply { values.forEach { add(com.tom_roush.pdfbox.cos.COSFloat(it)) } }
+                            val function=com.tom_roush.pdfbox.cos.COSDictionary().apply {
+                                setInt(com.tom_roush.pdfbox.cos.COSName.FUNCTION_TYPE,2)
+                                setItem(com.tom_roush.pdfbox.cos.COSName.DOMAIN,values(0f,1f))
+                                setItem(com.tom_roush.pdfbox.cos.COSName.getPDFName("C0"),values(1f))
+                                setItem(com.tom_roush.pdfbox.cos.COSName.getPDFName("C1"),values(1f))
+                                setFloat(com.tom_roush.pdfbox.cos.COSName.N,1f)
+                            }
+                            gs.cosObject.setItem(com.tom_roush.pdfbox.cos.COSName.getPDFName(mode),function)
+                        } else if(mode!="benign")gs.cosObject.setBoolean(com.tom_roush.pdfbox.cos.COSName.getPDFName(mode),true)
+                        stream.setGraphicsStateParameters(gs)
+                        stream.beginText();stream.setFont(font,12f);stream.newLineAtOffset(20f,120f);stream.showText("Transfer");stream.endText()
+                    };doc.save(file)
+                }
+                val capture=jp.n624.takupoke.core.RecoveryReadCapture()
+                if(mode=="benign") { assertEquals("VisibleTransfer",PdfReader.readPages(file,capture).single().glyphs.joinToString("") { it.text });assertTrue(capture.complete) }
+                else {
+                    try { PdfReader.readPages(file,capture);fail("Unsupported gs parameter accepted: $mode") }catch(_:ParseFailure) {}
+                    assertFalse(capture.complete);assertEquals(jp.n624.takupoke.core.RecoveryInputState.PARTIAL,capture.pages.single().state)
+                    assertEquals("Visible",requireNotNull(capture.pages.single().layout).glyphs.joinToString("") { it.text })
+                }
+            } finally { file.delete() }
+        }
+    }
     @Test fun rendererInvisibleWhiteTextAndOpaqueCoverNeverHaveCompleteCapture() {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         for(mode in listOf("whiteText","whiteFill","whiteImage","blackStroke","whiteStroke")) {

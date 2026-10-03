@@ -8,13 +8,22 @@ object PdfSchoolParser {
         catch (e: ParseFailure) { throw if (e.page == null) e.located(page = 1) else e }
         catch (e: InterruptedException) { throw e }
         catch (_: Exception) { throw ParseFailure("P01", "文字・位置・解析上限", page = 1) }
+    private fun headingYear(heading:String):Int {
+        val matches=Regex("(?:令和([0-9]+)|(?<![0-9])([0-9]+))年度").findAll(heading).toList()
+        val years=matches.map { match ->
+            if(match.groupValues[1].isNotEmpty())(match.groupValues[1].toIntOrNull()?.takeIf { it in 1..99 }?:fail("年度"))+2018
+            else match.groupValues[2].toIntOrNull()?:fail("年度")
+        }
+        if(years.distinct().size!=1 || matches.none { it.groupValues[1].isNotEmpty() })fail("年度")
+        return years.singleOrNull()?:years.first()
+    }
     private fun parseDocument(pages: List<Page>, kind: MaterialKind): Analysis {
         require(kind != MaterialKind.CHANGES)
         if (pages.size != when (kind) { MaterialKind.EXAM -> 6; else -> 1 }) fail("ページ数")
         pages.forEach { p -> require(p.width in 1.0..5000.0 && p.height in 1.0..5000.0 && p.glyphs.size in 1..100000 && p.lines.size <= 100000)
             require(p.glyphs.all { listOf(it.x, it.y, it.width, it.height).all(Double::isFinite) && it.text.toByteArray().size <= 64 }) }
         val heading = Grid.rows(pages.first().glyphs.filter { it.cy < pages.first().height / (if (kind == MaterialKind.TIMETABLE) 8 else 4) }).joinToString("") { row -> key(row.joinToString("") { it.text }) }
-        val year = Regex("令和([0-9]{1,2})年度").find(heading)?.groupValues?.get(1)?.toInt()?.takeIf { it in 1..99 }?.plus(2018) ?: fail("年度")
+        val year = headingYear(heading)
         if (kind == MaterialKind.TIMETABLE) {
             if (!heading.contains("時間割") || heading.contains("前期") == heading.contains("後期")) fail("学期")
             val term = if (heading.contains("前期")) 1 else 2
@@ -27,7 +36,7 @@ object PdfSchoolParser {
             try {
             interrupted()
             val pageHeading = key(Grid.rows(page.glyphs.filter { it.cy < page.height / 4 }).joinToString("") { row -> row.joinToString("") { it.text } })
-            if (Regex("令和([0-9]{1,2})年度").find(pageHeading)?.groupValues?.get(1)?.toIntOrNull()?.plus(2018) != year || !pageHeading.contains("試験") || pageHeading.contains("返却") != (kind == MaterialKind.RETURN)) fail("年度・種類")
+            if (headingYear(pageHeading) != year || !pageHeading.contains("試験") || pageHeading.contains("返却") != (kind == MaterialKind.RETURN)) fail("年度・種類")
             val times = times(page, if (kind == MaterialKind.EXAM) 6 else 8)
             if (firstTimes != null && firstTimes != times) fail("ページ間の授業時刻")
             firstTimes = times

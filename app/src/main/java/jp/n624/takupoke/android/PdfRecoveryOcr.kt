@@ -16,6 +16,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.job
+import kotlinx.coroutines.runInterruptible
 import java.io.File
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -65,7 +66,7 @@ object PdfRecoveryOcr {
                         val box = requireNotNull(element.second); require(element.first.length <= 4096)
                         RecoverySource("ocr-${index + 1}-$order", "unassigned", index + 1, element.first, RecoveryBox(box.left.toDouble(), box.top.toDouble(), box.width().toDouble(), box.height().toDouble()), fromOcr = true)
                     }
-                    val geometry = RecoveryRasterGeometry.analyze(width,height,pixels,spans.map { it.box })
+                    val geometry = runInterruptible { RecoveryRasterGeometry.analyze(width,height,pixels,spans.map { it.box }) }
                     RecoveryOcrPage(index + 1, width, height, spans, if(RecoveryOcrQuality.complete(geometry.complete,confidences))RecoveryInputState.COMPLETE else RecoveryInputState.PARTIAL,geometry.lines,geometry.blankBoxes,confidences)
                 }
             } }

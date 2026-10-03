@@ -77,6 +77,14 @@ object PdfReader {
             // These operators explicitly start/move a text line or change its coordinate system.
             // Font-size changes and TJ kerning continue the same source line.
             if (operator.name in setOf("Q", "cm", "BT", "Tm", "Td", "TD", "T*", "Ts", "'", "\"")) sourceLine++
+            if(operator.name=="gs") {
+                val name=operands.singleOrNull() as? COSName?:fail("未対応の描画")
+                val state=resources.getExtGState(name)?:fail("未対応の描画")
+                // Transfer functions and unknown paint parameters can change
+                // visible ink without changing the extracted black source color.
+                val supported=setOf("Type","LW","LC","LJ","ML","D","Font","CA","ca","SMask","BM")
+                if(state.cosObject.keySet().any { it.name !in supported })fail("未対応の描画")
+            }
             super.processOperator(operator, operands)
             if (operator.name == "gs" && (graphicsState.alphaConstant != 1.0 || graphicsState.nonStrokeAlphaConstant != 1.0 || graphicsState.softMask != null || graphicsState.blendMode != com.tom_roush.pdfbox.pdmodel.graphics.blend.BlendMode.NORMAL)) fail("未対応の透明・合成描画")
         }

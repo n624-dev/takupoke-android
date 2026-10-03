@@ -28,6 +28,15 @@ class RecoveryLayoutTest {
         assertEquals(RecoveryJobState.AWAITING_CONFIRMATION,run.state)
         val analysis=RecoveryAnalysis.convert(doc,requireNotNull(run.result));assertEquals(40,analysis.lessons.size);assertEquals("架空担当",analysis.lessons[0].names.teacher)
     }
+    @Test fun recoveryHeadingRequiresOneYearMeaningAndPreservesDuplicateEvidence() {
+        fun heading(text:String):Page { val p=page();return p.copy(glyphs=p.glyphs.filterNot { it.y==5.0 }+text.mapIndexed { i,c -> Glyph(c.toString(),i*2.0,5.0,2.0,3.0,p.glyphs.size+i) }) }
+        for(title in listOf("2026年度令和9年度前期時間割","令和8年度令和9年度前期時間割"))
+            assertFailsWith<RecoveryPreparationFailure> { RecoveryLayout.prepare(listOf(RecoveryLayoutPage(1,heading(title))),"a".repeat(64),MaterialKind.TIMETABLE) }
+        for(title in listOf("2026年度令和8年度前期時間割","2026年度2026年度前期時間割")) {
+            val doc=RecoveryLayout.prepare(listOf(RecoveryLayoutPage(1,heading(title))),"a".repeat(64),MaterialKind.TIMETABLE)
+            assertEquals(2026,doc.schoolYear);assertEquals(2,doc.yearEvidence.size);assertEquals(emptyList(),RecoveryValidator.inputErrors(doc))
+        }
+    }
     @Test fun missedRoleLineCannotShiftRoomIntoTeacher() {
         val page=page().copy(glyphs=page().glyphs.filterNot { it.text=="架空担当"&&it.y==108.0&&it.x==130.0 })
         assertFailsWith<RecoveryPreparationFailure> { RecoveryLayout.prepare(listOf(RecoveryLayoutPage(1,page)),"a".repeat(64),MaterialKind.TIMETABLE) }
@@ -216,6 +225,24 @@ class RecoveryLayoutTest {
         for(i in 10..190) { pixels[10*200+i]=0xff000000.toInt();pixels[190*200+i]=0xff000000.toInt();pixels[i*200+10]=0xff000000.toInt();pixels[i*200+190]=0xff000000.toInt() }
         val result=RecoveryRasterGeometry.analyze(200,200,pixels,emptyList())
         assertTrue(result.complete);assertEquals(4,result.lines.size);assertEquals(1,result.blankBoxes.size)
+    }
+    @Test fun layoutAllPairsWorkHasOneDocumentBudget() {
+        val glyphs=mutableListOf(Glyph("2026年度",0.0,5.0,60.0,3.0,0),Glyph("前期",70.0,5.0,20.0,3.0,1))
+        for(y in 0 until 100)for(x in 0 until 100)glyphs+=Glyph("字",x*5.0+.5,y*5.0+100,1.0,1.0,glyphs.size)
+        val lines=(0..100).flatMap { n -> listOf(Line(n*5.0,100.0,n*5.0,600.0),Line(0.0,n*5.0+100,500.0,n*5.0+100)) }
+        val error=assertFailsWith<RecoveryPreparationFailure> { RecoveryLayout.prepare(listOf(RecoveryLayoutPage(1,Page(1000.0,1000.0,glyphs,lines))),"a".repeat(64),MaterialKind.TIMETABLE) }
+        assertEquals("表構造の比較上限",error.reason)
+    }
+    @Test fun rasterGraphAndRepeatedRecognizedBoxesHaveSharedBudgets() {
+        val width=2048;val pixels=IntArray(width*width) { i -> if(i%width%128<124 && i/width%4<2)0xff000000.toInt()else -1 }
+        assertEquals("画像罫線の比較上限",assertFailsWith<IllegalArgumentException> { RecoveryRasterGeometry.analyze(width,width,pixels,emptyList()) }.message)
+        val white=IntArray(256*256){-1}
+        assertEquals("画像画素の解析上限",assertFailsWith<IllegalArgumentException> { RecoveryRasterGeometry.analyze(256,256,white,List(1000){RecoveryBox(0.0,0.0,256.0,256.0)}) }.message)
+    }
+    @Test fun rasterChecksCancellationInsideRecognizedPixelTraversal() {
+        Thread.currentThread().interrupt()
+        try { assertFailsWith<InterruptedException> { RecoveryRasterGeometry.analyze(100,100,IntArray(10000){-1},emptyList()) } }
+        finally { Thread.interrupted() }
     }
     @Test fun rasterEmptyCellNeedsPixelProof() {
         val p=page().copy(glyphs=page().glyphs.filterNot { it.x==130.0&&it.y in setOf(102.0,108.0,114.0) })

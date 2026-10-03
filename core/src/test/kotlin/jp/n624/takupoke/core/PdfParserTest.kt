@@ -41,6 +41,15 @@ class PdfParserTest {
         assertEquals(Names("Math", "Teacher", "Room"), a.lessons.first().names)
         assertEquals(1, a.lessons.first().weekday); assertEquals(1, a.lessons.first().period)
     }
+    @Test fun conflictingHeadingYearsAreRejectedButConsistentDuplicatesAreAllowed() {
+        fun heading(page:Page,text:String):Page = page.copy(glyphs=page.glyphs.filterNot { it.y==10.0 }+text.mapIndexed { i,c -> Glyph(c.toString(),i*2.0,10.0,2.0,4.0,page.glyphs.size+i) })
+        for(title in listOf("令和8年度令和9年度後期時間割","2027年度令和8年度後期時間割","令和8年度令和0年度後期時間割","令和8年度令和100年度後期時間割","令和8年度12026年度後期時間割"))
+            assertEquals("年度",assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(heading(ordinary(),title)),MaterialKind.TIMETABLE) }.stage)
+        for(title in listOf("令和8年度令和8年度後期時間割","2026年度令和8年度後期時間割"))
+            assertEquals(2026,PdfSchoolParser.parse(listOf(heading(ordinary(),title)),MaterialKind.TIMETABLE).schoolYear)
+        val pages=(1..6).map(::exam).toMutableList();pages[2]=heading(pages[2],"令和8年度令和9年度試験時間割")
+        assertEquals("年度",assertFailsWith<ParseFailure> { PdfSchoolParser.parse(pages,MaterialKind.EXAM) }.stage)
+    }
     @Test fun ordinaryRejectsAmbiguousSemesterAndMissingGrid() {
         val page = ordinary()
         assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(page.copy(lines = emptyList())), MaterialKind.TIMETABLE) }
