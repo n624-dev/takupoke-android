@@ -11,7 +11,16 @@ object PdfSchoolParser {
     private fun headingYear(heading:String):Int {
         // Capture every original fiscal-year token before compatibility
         // normalization can turn a Roman numeric glyph into ordinary letters.
-        val raw=heading.filterNot(Char::isWhitespace)
+        val numericTypes=setOf(Character.DECIMAL_DIGIT_NUMBER.toInt(),Character.LETTER_NUMBER.toInt(),Character.OTHER_NUMBER.toInt())
+        val raw=buildString {
+            for(cp in heading.codePoints().toArray()) {
+                if(Character.isWhitespace(cp) || Character.isSpaceChar(cp))continue
+                val original=String(Character.toChars(cp))
+                // Normalize structural marker aliases (e.g. 度 and ㋿),
+                // retaining every original numeric scalar until token parsing.
+                append(if(Character.getType(cp) in numericTypes)original else key(original))
+            }
+        }
         val matches=Regex("令和([^年]*?)年度|(?<!\\p{N})(\\p{N}+)年度").findAll(raw).toList()
         val years=matches.map { match ->
             val era=match.groups[1]!=null

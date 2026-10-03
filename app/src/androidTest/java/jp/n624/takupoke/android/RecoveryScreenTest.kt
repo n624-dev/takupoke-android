@@ -259,6 +259,34 @@ class RecoveryScreenTest {
             assertEquals(0,service.providerCalls)
         } finally { compose.runOnIdle { seed.stop() } }
     }
+    @Test fun materialLessonDetailClosesOnSameHashFormalAdoptionButKeepsMetadataOnlyUpdates() {
+        val seed=mount()
+        try {
+            compose.onNodeWithText("端末内で復旧する").performScrollTo().performClick()
+            compose.waitUntil(15000) { seed.repository.state.value.recoveryPreviews.isNotEmpty() && !seed.repository.state.value.busy }
+            val preview=seed.repository.state.value.recoveryPreviews.getValue(MaterialKind.TIMETABLE)
+            compose.onNodeWithText("閉じる").performClick()
+            compose.onNode(hasScrollAction()).performScrollToNode(hasText("架空の前回科目"))
+            compose.onNodeWithText("架空の前回科目").performClick()
+            compose.onNodeWithText("授業詳細").assertIsDisplayed()
+            compose.onNodeWithText("科目: 架空の前回科目").assertIsDisplayed()
+            val before=seed.database.records().single()
+            seed.database.save(before.copy(checkedAt=before.checkedAt+1))
+            runBlocking { seed.repository.activate(false) }
+            compose.waitForIdle()
+            compose.onNodeWithText("科目: 架空の前回科目").assertIsDisplayed()
+            // Invoke the real adoption contract with an open captured row, without changing the PDF.
+            runBlocking { seed.repository.adoptRecovery(MaterialKind.TIMETABLE,preview.resultHash) }
+            compose.waitForIdle()
+            compose.onNodeWithText("授業詳細").assertDoesNotExist()
+            val saved=seed.database.records().single()
+            assertEquals(before.digest,saved.digest);assertEquals(saved.digest,saved.parsedDigest)
+            assertEquals(preview.analysis,saved.analysis);assertEquals(RecoveryJobState.ADOPTED,saved.recoveryJob?.state)
+            compose.onNode(hasScrollAction()).performScrollToNode(hasText("架空復旧科目"))
+            compose.onNodeWithText("架空復旧科目").assertIsDisplayed()
+            assertEquals(0,seed.services.providerCalls)
+        } finally { compose.runOnIdle { seed.stop() } }
+    }
     @Test fun timetableDetailClosesOnFormalAdoptionAndSourceUpdate() {
         val seed=mount()
         val source=java.io.File(seed.context.cacheDir,"recovery-slot-source-${java.util.UUID.randomUUID()}.pdf")
