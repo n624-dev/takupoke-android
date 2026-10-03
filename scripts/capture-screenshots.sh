@@ -14,7 +14,7 @@ mkdir -p "$RUNNER_TEMP/takupoke-screenshots"
 adb logcat -v raw -s TakupokeScreenshots:I '*:S' > "$RUNNER_TEMP/takupoke-screenshots/capture.log" &
 capture_log_pid=$!
 trap 'kill "$capture_log_pid" 2>/dev/null || true' EXIT
-./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Dorg.gradle.jvmargs=-Xmx3g -Pandroid.testInstrumentationRunnerArguments.class=jp.n624.takupoke.android.ScreenTest -Ptakupoke.captureScreenshots=true
+./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Dorg.gradle.jvmargs=-Xmx3g -Pandroid.testInstrumentationRunnerArguments.class=jp.n624.takupoke.android.ScreenTest,jp.n624.takupoke.android.RecoveryScreenTest -Ptakupoke.captureScreenshots=true
 kill "$capture_log_pid"
 wait "$capture_log_pid" || true
 trap - EXIT

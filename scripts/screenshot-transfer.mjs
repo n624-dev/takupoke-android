@@ -4,7 +4,8 @@ import crypto from 'node:crypto';
 
 // Screens from a fresh offline test install only. No artifact/cache storage or production data.
 const marker = 'TAKUPOKE_SCREENSHOT ';
-const names = ['00-setup', '01-home', '02-links', '03-timetable', '04-settings', '05-materials'].map(name => `${name}.png`);
+const names = ['00-setup', '01-home', '02-links', '03-timetable', '04-settings', '05-materials',
+  'recovery-preview', 'recovery-original', 'recovery-models', 'recovery-exam', 'recovery-return'].map(name => `${name}.png`);
 const magic = Buffer.from('89504e470d0a1a0a', 'hex');
 const limit = 2 * 1024 * 1024;
 const digest = bytes => crypto.createHash('sha256').update(bytes).digest('hex');

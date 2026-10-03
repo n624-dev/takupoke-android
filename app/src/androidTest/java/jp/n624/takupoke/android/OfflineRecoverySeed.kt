@@ -10,6 +10,7 @@ import java.io.File
 
 /** Entirely invented geometry/data. No production model download, OCR or school URL is used. */
 internal class OfflineRecoveryServices(var offer:Boolean=true,var hasModel:Boolean=true):RecoveryServices {
+    var preparedDocument:RecoveryDocument?=null
     private val manifest=RecoveryModelManifest("synthetic-offline","1","https://models.example.invalid/synthetic",1024,"a".repeat(64),"liteRtLm","29",4L*1024*1024*1024,"CPU","test-only",true)
     override val offered get()=manifest.takeIf { offer }
     override val error:String?=null
@@ -28,6 +29,7 @@ internal class OfflineRecoveryServices(var offer:Boolean=true,var hasModel:Boole
     }
     override suspend fun prepare(file:File,hash:String,kind:MaterialKind,capture:RecoveryReadCapture):RecoveryDocument {
         preparationEntered.complete(Unit);if(holdPreparation)awaitCancellation()
+        preparedDocument?.let { doc -> check(RecoveryPolicy.kind(kind)==doc.kind);return doc.copy(pdfHash=hash) }
         return RecoveryLayout.prepare(listOf(RecoveryLayoutPage(1,layout())),hash,kind)
     }
     private fun layout():Page {
@@ -44,17 +46,18 @@ internal class OfflineRecoveryServices(var offer:Boolean=true,var hasModel:Boole
         return Page(610.0,280.0,glyphs,lines)
     }
 }
-internal class OfflineRecoverySeed(context:Context,val services:OfflineRecoveryServices=OfflineRecoveryServices()) {
+internal class OfflineRecoverySeed(context:Context,val services:OfflineRecoveryServices=OfflineRecoveryServices(),val kind:MaterialKind=MaterialKind.TIMETABLE) {
     val context=object:ContextWrapper(context) { private val root=File(context.cacheDir,"offline-recovery-${java.util.UUID.randomUUID()}").also { it.mkdirs() };override fun getNoBackupFilesDir()=root }
     val database=Database(this.context)
-    val repository=AppRepository(this.context,RejectNetwork,database,MemorySettings(Settings(primaryClass="3_CN",setupComplete=true)),services)
-    val oldAnalysis=Analysis(MaterialKind.TIMETABLE,schoolYear(),if(retentionPeriod().endsWith("-1"))1 else 2,listOf(Lesson("3_CN",1,1,Names("架空の前回科目","架空の前回担当","架空の前回教室"))),classes=listOf("3_CN"))
+    val preferences=MemorySettings(Settings(primaryClass="3_CN",setupComplete=true))
+    val repository=AppRepository(this.context,RejectNetwork,database,preferences,services)
+    val oldAnalysis=Analysis(kind,schoolYear(),if(kind!=MaterialKind.TIMETABLE)0 else if(retentionPeriod().endsWith("-1"))1 else 2,listOf(Lesson("3_CN",1,1,Names("架空の前回科目","架空の前回担当","架空の前回教室"))),classes=listOf("3_CN"))
     suspend fun install() {
         database.put("period",retentionPeriod())
         val folder=File(context.noBackupFilesDir,"school/materials").also { it.mkdirs() }
         val bytes=java.io.ByteArrayOutputStream().also { output -> PdfDocument().let { pdf -> try { val page=pdf.startPage(PdfDocument.PageInfo.Builder(600,300,1).create());page.canvas.drawText("Synthetic recovery source only",30f,40f,Paint().apply { textSize=12f });pdf.finishPage(page);pdf.writeTo(output) } finally { pdf.close() } } }.toByteArray()
-        val hash=sha256(bytes);File(folder,"TIMETABLE-$hash.pdf").writeBytes(bytes)
-        database.save(MaterialRecord(MaterialKind.TIMETABLE,"content://example.invalid/synthetic-recovery","synthetic-recovery.pdf",hash,1,1,parsedAt=1,parsedDigest="b".repeat(64),analysis=oldAnalysis,failure="架空PDFの通常解析を完了できませんでした。",recoveryJob=RecoveryJob(hash,RecoveryDocumentKind.TIMETABLE,RecoveryJobState.PENDING,1)))
+        val hash=sha256(bytes);File(folder,"${kind.name}-$hash.pdf").writeBytes(bytes)
+        database.save(MaterialRecord(kind,"content://example.invalid/synthetic-recovery","synthetic-recovery.pdf",hash,1,1,parsedAt=1,parsedDigest="b".repeat(64),analysis=oldAnalysis,failure="架空PDFの通常解析を完了できませんでした。",recoveryJob=RecoveryJob(hash,requireNotNull(RecoveryPolicy.kind(kind)),RecoveryJobState.PENDING,1)))
         repository.foreground(true);repository.activate(false)
     }
     fun stop() { repository.foreground(false);repository.cancel();repository.stopObserving() }

@@ -5,7 +5,8 @@ import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'takupoke-screenshot-transfer-'));
-const names = ['00-setup', '01-home', '02-links', '03-timetable', '04-settings', '05-materials'];
+const names = ['00-setup', '01-home', '02-links', '03-timetable', '04-settings', '05-materials',
+  'recovery-preview', 'recovery-original', 'recovery-models', 'recovery-exam', 'recovery-return'];
 // Independent one-pixel PNG fixture. No captured user or school information.
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5v8AAAAASUVORK5CYII=', 'base64');
 const run = args => spawnSync(process.execPath, ['scripts/screenshot-transfer.mjs', ...args], { encoding: 'utf8' });
