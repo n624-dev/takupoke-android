@@ -228,14 +228,17 @@ class RecoveryScreenTest {
                 compose.onNodeWithText("教室: 架空並記教室$suffix").assertIsDisplayed()
             }
             val pairedTexts=listOf("A","B").flatMap { suffix -> listOf("架空並記科目$suffix","教員: 架空並記担当$suffix","教室: 架空並記教室$suffix") }
+            compose.onNodeWithText(pairedTexts.last(),useUnmergedTree=true).performScrollTo()
             val frames=pairedTexts.map { text ->
-                val node=compose.onNodeWithText(text).assertIsDisplayed()
+                // A clickable Card merges its text into the same card bounds.
+                // Measure the real text children when proving vertical role order.
+                val node=compose.onNodeWithText(text,useUnmergedTree=true).assertIsDisplayed()
                 node.fetchSemanticsNode().boundsInRoot.also { bounds ->
                     println("SYNTHETIC_PARALLEL_UI $text bounds=$bounds")
                     assertTrue(bounds.width>0f && bounds.height>0f)
                 }
             }
-            assertTrue("Both parallel pairs are simultaneously visible with each teacher and room below its own subject",
+            assertTrue("Both parallel pairs are simultaneously visible with each teacher and room below its own subject: ${pairedTexts.zip(frames)}",
                 frames.zipWithNext().all { (first,second) -> first.bottom<=second.top+1f })
             assertEquals(seed.oldAnalysis,seed.database.records().single().analysis)
             compose.onNode(hasScrollAction()).performScrollToNode(hasText("この復旧結果を使用"))
