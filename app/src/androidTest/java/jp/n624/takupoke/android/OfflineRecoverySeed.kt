@@ -15,6 +15,15 @@ internal fun specialRecoveryFixture(kind:MaterialKind,oppositePeriod:Boolean=fal
     return json.decodeFromString<RecoveryDocument>(text)
 }
 
+/** Measured synthetic rows and separators pass the real layout Builder, without a model. */
+internal fun parallelRecoveryFixture():RecoveryDocument {
+    val doc=RecoveryLayout.prepare(listOf(RecoveryLayoutPage(1,OfflineRecoveryServices().layout(parallel=true))),"a".repeat(64),MaterialKind.TIMETABLE)
+    val parallel=doc.cells.single { it.parallelCount==2 }
+    check(parallel.lessonBindings.size==2 && parallel.separatorIds.size==3)
+    check(RecoveryValidator.inputErrors(doc).isEmpty())
+    return doc
+}
+
 /** Entirely invented geometry/data. No production model download, OCR or school URL is used. */
 internal class OfflineRecoveryServices(var offer:Boolean=true,var hasModel:Boolean=true):RecoveryServices {
     var preparedDocument:RecoveryDocument?=null
@@ -49,14 +58,18 @@ internal class OfflineRecoveryServices(var offer:Boolean=true,var hasModel:Boole
         preparedDocument?.let { doc -> check(RecoveryPolicy.kind(kind)==doc.kind);return doc.copy(pdfHash=hash) }
         return RecoveryLayout.prepare(listOf(RecoveryLayoutPage(1,layout())),hash,kind)
     }
-    private fun layout():Page {
+    internal fun layout(parallel:Boolean=false):Page {
         val glyphs=mutableListOf<Glyph>();val lines=mutableListOf<Line>()
         fun text(value:String,x:Double,y:Double,w:Double=20.0) { glyphs+=Glyph(value,x,y,w,3.0,glyphs.size) }
         text("${schoolYear()}年度",0.0,5.0,60.0);text(if(retentionPeriod().endsWith("-1"))"前期" else "後期",70.0,5.0)
         text("3_CN",5.0,103.0,25.0)
         listOf("月","火","水","木","金").forEachIndexed { i,day->text(day,105.0+i*100,65.0) }
         (1..8).forEach { p->text(p.toString(),50.0,102.0+(p-1)*20) }
-        listOf("科目","教員","教室").forEachIndexed { i,label->text(label,102.0,102.0+i*6,12.0);text(listOf("架空復旧科目","架空復旧担当","架空復旧教室")[i],140.0,102.0+i*6,40.0) }
+        if(parallel)listOf("科目","担当","教室").forEachIndexed { i,role ->
+            text("架空並記${role}A",103.0,102.0+i*6,30.0)
+            text("・",140.0,102.0+i*6,2.0)
+            text("架空並記${role}B",150.0,102.0+i*6,35.0)
+        } else listOf("科目","教員","教室").forEachIndexed { i,label->text(label,102.0,102.0+i*6,12.0);text(listOf("架空復旧科目","架空復旧担当","架空復旧教室")[i],140.0,102.0+i*6,40.0) }
         listOf(0.0,40.0,100.0,200.0,300.0,400.0,500.0,600.0).forEach { x->lines+=Line(x,60.0,x,260.0) }
         listOf(60.0,80.0,100.0,260.0).forEach { y->lines+=Line(0.0,y,600.0,y) }
         (1..7).forEach { p->lines+=Line(40.0,100.0+p*20,600.0,100.0+p*20) }

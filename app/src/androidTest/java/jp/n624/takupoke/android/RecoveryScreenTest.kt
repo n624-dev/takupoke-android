@@ -212,6 +212,50 @@ class RecoveryScreenTest {
             assertEquals(0,seed.services.providerCalls)
         } finally { compose.runOnIdle { seed.stop() } }
     }
+    @Test fun parallelPreviewExplicitAdoptionAndFormalDisplayPreserveBothPairs() {
+        val document=parallelRecoveryFixture()
+        val service=OfflineRecoveryServices().apply { preparedDocument=document }
+        val seed=mount(service)
+        try {
+            compose.onNodeWithText("端末内で復旧する").performScrollTo().performClick()
+            compose.waitUntil(15000) { seed.repository.state.value.recoveryPreviews.isNotEmpty() && !seed.repository.state.value.busy }
+            compose.onNodeWithText("閉じる").performClick()
+            compose.onNodeWithText("復旧結果をプレビュー").performScrollTo().performClick()
+            for(suffix in listOf("A","B")) {
+                compose.onNode(hasScrollAction()).performScrollToNode(hasText("架空並記科目$suffix"))
+                compose.onNodeWithText("架空並記科目$suffix").assertIsDisplayed()
+                compose.onNodeWithText("教員: 架空並記担当$suffix").assertIsDisplayed()
+                compose.onNodeWithText("教室: 架空並記教室$suffix").assertIsDisplayed()
+            }
+            val pairedTexts=listOf("A","B").flatMap { suffix -> listOf("架空並記科目$suffix","教員: 架空並記担当$suffix","教室: 架空並記教室$suffix") }
+            val frames=pairedTexts.map { text ->
+                val node=compose.onNodeWithText(text).assertIsDisplayed()
+                node.fetchSemanticsNode().boundsInRoot.also { bounds ->
+                    println("SYNTHETIC_PARALLEL_UI $text bounds=$bounds")
+                    assertTrue(bounds.width>0f && bounds.height>0f)
+                }
+            }
+            assertTrue("Both parallel pairs are simultaneously visible with each teacher and room below its own subject",
+                frames.zipWithNext().all { (first,second) -> first.bottom<=second.top+1f })
+            assertEquals(seed.oldAnalysis,seed.database.records().single().analysis)
+            compose.onNode(hasScrollAction()).performScrollToNode(hasText("この復旧結果を使用"))
+            compose.onNodeWithText("この復旧結果を使用").performClick()
+            assertEquals(seed.oldAnalysis,seed.database.records().single().analysis)
+            compose.onNodeWithText("確認した結果を採用").performClick()
+            compose.waitUntil(10000) { seed.database.records().single().recoveryJob?.state==RecoveryJobState.ADOPTED && !seed.repository.state.value.busy }
+            val accepted=seed.database.records().single().analysis!!
+            assertEquals(2,accepted.lessons.size)
+            assertTrue(accepted.lessons.all { it.className=="3_CN" && it.weekday==1 && it.period==1 })
+            for(suffix in listOf("A","B")) {
+                val lesson=accepted.lessons.single { it.names.subject=="架空並記科目$suffix" }
+                assertEquals("架空並記担当$suffix",lesson.names.teacher);assertEquals("架空並記教室$suffix",lesson.names.room)
+                compose.onNode(hasScrollAction()).performScrollToNode(hasText(lesson.names.subject))
+                compose.onNodeWithText(lesson.names.subject).assertIsDisplayed()
+                compose.onNodeWithText("${lesson.names.teacher} / ${lesson.names.room}").assertIsDisplayed()
+            }
+            assertEquals(0,service.providerCalls)
+        } finally { compose.runOnIdle { seed.stop() } }
+    }
     @Test fun timetableDetailClosesOnFormalAdoptionAndSourceUpdate() {
         val seed=mount()
         val source=java.io.File(seed.context.cacheDir,"recovery-slot-source-${java.util.UUID.randomUUID()}.pdf")
