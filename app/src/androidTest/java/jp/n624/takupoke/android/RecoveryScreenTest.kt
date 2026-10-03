@@ -4,6 +4,7 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.test.platform.app.InstrumentationRegistry
 import jp.n624.takupoke.core.*
 import kotlinx.coroutines.runBlocking
@@ -50,13 +51,20 @@ class RecoveryScreenTest {
                 if(color.red<.25f && color.green<.25f && color.blue<.25f)sourceInk++
             }
             assertTrue("The actual synthetic source text is drawn",sourceInk>20)
+            // Inspect the actual Text leaf, as clickable/merged ancestors can
+            // replace its default semantics while the original page is displayed.
+            val pageCounter=compose.onNodeWithText("1/1",useUnmergedTree=true)
             try {
-                compose.waitUntil(10000) { compose.onNodeWithText("1/1").isDisplayed() }
-                compose.onNodeWithText("1/1").assertIsDisplayed()
+                compose.waitUntil(10000) { pageCounter.isDisplayed() }
+                pageCounter.assertIsDisplayed()
             } catch (failure: Throwable) {
-                val counter = compose.onNodeWithText("1/1").fetchSemanticsNode().boundsInRoot
-                val image = compose.onNodeWithContentDescription("保存済みPDF 1ページ").fetchSemanticsNode().boundsInRoot
-                throw AssertionError("Actual PDF controls must remain visible: counter=$counter, image=$image", failure)
+                val merged=compose.onAllNodesWithText("1/1").fetchSemanticsNodes().map { it.boundsInRoot }
+                val actual=compose.onAllNodesWithText("1/1",useUnmergedTree=true).fetchSemanticsNodes().map { it.boundsInRoot }
+                val image=compose.onAllNodesWithContentDescription("保存済みPDF 1ページ").fetchSemanticsNodes().map { it.boundsInRoot }
+                val close=compose.onAllNodesWithText("閉じる",useUnmergedTree=true).fetchSemanticsNodes().map { it.boundsInRoot }
+                val counters=compose.onAllNodes(hasText("/",substring=true) and hasAnyAncestor(isDialog()),useUnmergedTree=true)
+                    .fetchSemanticsNodes().take(8).map { "${it.config.getOrNull(SemanticsProperties.Text)}@${it.boundsInRoot}" }
+                throw AssertionError("Actual PDF controls must remain visible: merged=$merged, actual=$actual, counters=$counters, image=$image, close=$close",failure)
             }
             repeat(3) { compose.onNodeWithContentDescription("PDFを拡大").performClick() }
             compose.onNodeWithText("400%").assertIsDisplayed()

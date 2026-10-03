@@ -26,20 +26,49 @@ fun fail(stage: String, code: String = when (stage) {
     "クラス重複", "クラスの重複", "返却クラス重複" -> "P16"; "授業欄の行数", "特別時間割の行数", "授業欄" -> "P17"; "並記授業" -> "P18"; "科目の空欄" -> "P19"
     "文字列断片の位置と読み順" -> "P20"; "文字列断片が属する行" -> "P21"; else -> "P01"
 }): Nothing = throw ParseFailure(code, stage)
-class Grid(val page: Page) {
+internal class PdfGeometryLimit : IllegalArgumentException("PDF geometry comparison limit exceeded")
+/** Shared by every query in one strict parse, including role-band calibration. */
+internal class PdfGeometryWork(private val limit:Long=20_000_000) {
+    var comparisons=0L; private set
+    init { interrupted() }
+    fun step() {
+        comparisons++
+        if(comparisons%128==0L)interrupted()
+        if(comparisons>limit)throw PdfGeometryLimit()
+    }
+}
+class Grid(val page: Page, private val check:()->Unit = ::interrupted) {
+    private val byCy by lazy { page.glyphs.withIndex().sortedWith { a,b -> check();a.value.cy.compareTo(b.value.cy) } }
+    /** The strict containment predicate is unchanged; only the candidate lookup is indexed. */
+    internal fun glyphsIn(box:Box):List<Glyph> {
+        val indexed=byCy
+        fun boundary(value:Double,upper:Boolean):Int {
+            var low=0;var high=indexed.size
+            while(low<high) { check();val middle=(low+high)/2
+                if(indexed[middle].value.cy<value || upper && indexed[middle].value.cy==value)low=middle+1 else high=middle
+            }
+            return low
+        }
+        val start=boundary(box.top+.3,true);val end=boundary(box.bottom-.3,false)
+        val found=mutableListOf<IndexedValue<Glyph>>()
+        for(i in start until end) { check();val entry=indexed[i];val g=entry.value;if(g.cx>box.left+.3 && g.cx<box.right-.3)found+=entry }
+        // Filtering used to preserve page order. Restore it before downstream
+        // stable sorts, including sourceLine-less glyphs with equal order values.
+        return found.sortedWith { a,b -> check();a.index.compareTo(b.index) }.map { check();it.value }
+    }
     fun box(x: Double, y: Double): Box {
-        val vs = page.lines.filter { it.vertical && it.y1 - .8 <= y && y <= it.y2 + .8 }
-        val hs = page.lines.filter { it.horizontal && it.x1 - .8 <= x && x <= it.x2 + .8 }
-        return Box(vs.filter { it.x1 < x - .5 }.maxOfOrNull { it.x1 } ?: fail("罫線・列"),
-            hs.filter { it.y1 < y - .5 }.maxOfOrNull { it.y1 } ?: fail("罫線・行"),
-            vs.filter { it.x1 > x + .5 }.minOfOrNull { it.x1 } ?: fail("罫線・列"),
-            hs.filter { it.y1 > y + .5 }.minOfOrNull { it.y1 } ?: fail("罫線・行"))
+        val vs = page.lines.filter { check();it.vertical && it.y1 - .8 <= y && y <= it.y2 + .8 }
+        val hs = page.lines.filter { check();it.horizontal && it.x1 - .8 <= x && x <= it.x2 + .8 }
+        return Box(vs.filter { check();it.x1 < x - .5 }.maxOfOrNull { it.x1 } ?: fail("罫線・列"),
+            hs.filter { check();it.y1 < y - .5 }.maxOfOrNull { it.y1 } ?: fail("罫線・行"),
+            vs.filter { check();it.x1 > x + .5 }.minOfOrNull { it.x1 } ?: fail("罫線・列"),
+            hs.filter { check();it.y1 > y + .5 }.minOfOrNull { it.y1 } ?: fail("罫線・行"))
     }
     fun text(box: Box, combineFragments: Boolean = true): List<String> {
-        val glyphs = page.glyphs.filter { it.cx > box.left + .3 && it.cx < box.right - .3 && it.cy > box.top + .3 && it.cy < box.bottom - .3 }
-        require(glyphs.sumOf { it.text.toByteArray().size } <= 4096)
-        if (glyphs.any { it.sourceLine != null }) {
-            if (glyphs.any { (it.sourceLine ?: -1) < 0 || it.order < 0 } || glyphs.map { it.order }.distinct().size != glyphs.size) fail("文字行の対応")
+        val glyphs = glyphsIn(box)
+        require(glyphs.sumOf { check();it.text.toByteArray().size } <= 4096)
+        if (glyphs.any { check();it.sourceLine != null }) {
+            if (glyphs.any { check();(it.sourceLine ?: -1) < 0 || it.order < 0 } || glyphs.map { it.order }.distinct().size != glyphs.size) fail("文字行の対応")
             val rows = glyphs.groupBy { it.sourceLine }.values.map { it.sortedBy(Glyph::order) }
             fun center(row: List<Glyph>): Double = row.map { it.cy }.sorted()[row.size / 2]
             if (!combineFragments) return rows.sortedWith(compareBy<List<Glyph>> { center(it) }.thenBy { it.first().order }).map { it.joinToString("") { g -> g.text }.trim() }.filter(String::isNotEmpty)
@@ -52,19 +81,19 @@ class Grid(val page: Page) {
             }
             val bands = mutableListOf<MutableList<Fragment>>()
             rows.map(::Fragment).sortedWith(compareBy<Fragment> { it.top }.thenBy { it.left }).forEach { fragment ->
-                val aligned = bands.filter { band -> band.all { abs(it.top - fragment.top) <= .35 && abs(it.bottom - fragment.bottom) <= .35 } }
+                val aligned = bands.filter { band -> check();band.all { check();abs(it.top - fragment.top) <= .35 && abs(it.bottom - fragment.bottom) <= .35 } }
                 if (aligned.size > 1) fail("文字列断片が属する行")
                 if (aligned.isEmpty()) bands += mutableListOf(fragment) else {
                     val band = aligned.single()
-                    if (band.any { if (it.left < fragment.left) !it.precedes(fragment) else !fragment.precedes(it) }) fail("文字列断片の位置と読み順")
+                    if (band.any { check();if (it.left < fragment.left) !it.precedes(fragment) else !fragment.precedes(it) }) fail("文字列断片の位置と読み順")
                     band += fragment
                 }
             }
             return bands.map { band -> band.sortedBy { it.left }.flatMap { it.glyphs }.joinToString("") { it.text }.trim() }.filter(String::isNotEmpty)
         }
         val bands = mutableListOf<MutableList<Glyph>>()
-        glyphs.sortedBy { it.order }.forEach { g ->
-            val aligned = bands.filter { band -> band.all { abs(it.y - g.y) <= .35 && abs(it.y + it.height - g.y - g.height) <= .35 } }
+        glyphs.sortedWith { a,b -> check();a.order.compareTo(b.order) }.forEach { g -> check()
+            val aligned = bands.filter { band -> check();band.all { check();abs(it.y - g.y) <= .35 && abs(it.y + it.height - g.y - g.height) <= .35 } }
             if (aligned.size > 1) fail("文字行の対応")
             if (aligned.isEmpty()) bands += mutableListOf(g) else {
                 val band = aligned.single(); val prior = band.last()
@@ -75,14 +104,14 @@ class Grid(val page: Page) {
         return bands.sortedBy { it.minOf(Glyph::y) }.map { it.joinToString("") { g -> g.text }.trim() }.filter(String::isNotEmpty)
     }
     fun subdivisions(x: Double, row: Box): List<Box> {
-        val cuts = page.lines.filter { it.horizontal && it.x1 - .5 <= x && x <= it.x2 + .5 && it.y1 > row.top + 1 && it.y1 < row.bottom - 1 }.map { kotlin.math.round(it.y1 * 100) / 100 }.distinct().sorted()
+        val cuts = page.lines.filter { check();it.horizontal && it.x1 - .5 <= x && x <= it.x2 + .5 && it.y1 > row.top + 1 && it.y1 < row.bottom - 1 }.map { kotlin.math.round(it.y1 * 100) / 100 }.distinct().sorted()
         return (listOf(row.top) + cuts + row.bottom).zipWithNext().filter { it.second - it.first >= 2 }.map { box(x, (it.first + it.second) / 2) }.distinct()
     }
     companion object {
-        fun rows(glyphs: List<Glyph>): List<List<Glyph>> {
+        fun rows(glyphs: List<Glyph>, check:()->Unit = ::interrupted): List<List<Glyph>> {
             val rows = mutableListOf<MutableList<Glyph>>()
-            glyphs.sortedBy { it.cy }.forEach { g -> if (rows.isNotEmpty() && abs(rows.last().first().cy - g.cy) <= 2) rows.last() += g else rows += mutableListOf(g) }
-            return rows.map { it.sortedBy(Glyph::cx) }
+            glyphs.sortedWith { a,b -> check();a.cy.compareTo(b.cy) }.forEach { g -> check(); if (rows.isNotEmpty() && abs(rows.last().first().cy - g.cy) <= 2) rows.last() += g else rows += mutableListOf(g) }
+            return rows.map { it.sortedWith { a,b -> check();a.cx.compareTo(b.cx) } }
         }
         fun runs(glyphs: List<Glyph>): List<Pair<String, Box>> = rows(glyphs).flatMap { row ->
             val chunks = mutableListOf<MutableList<Glyph>>()

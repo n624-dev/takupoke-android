@@ -52,13 +52,13 @@ class PdfParserTest {
     }
     @Test fun unsupportedUnicodeFiscalYearCannotDisappearDuringNormalization() {
         fun heading(page:Page,text:String):Page = page.copy(glyphs=page.glyphs.filterNot { it.y==10.0 }+text.mapIndexed { i,c -> Glyph(c.toString(),i*2.0,10.0,2.0,4.0,page.glyphs.size+i) })
-        for(extra in listOf("令和Ⅸ年度","令和௰年度","ⅯⅯⅩⅩⅦ年度","令和九年度","令和年度","２０２７　年度")) {
+        for(extra in listOf("令和Ⅸ年度","令和௰年度","ⅯⅯⅩⅩⅦ年度","令和九年度","令和年度","２０２７　年度","𝟚𝟘𝟚𝟟年度")) {
             val title="令和8年度${extra}後期時間割"
             assertEquals("年度",assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(heading(ordinary(),title)),MaterialKind.TIMETABLE) }.stage)
             val pages=(1..6).map(::exam).toMutableList();pages[2]=heading(pages[2],"令和8年度${extra}試験時間割")
             assertEquals("年度",assertFailsWith<ParseFailure> { PdfSchoolParser.parse(pages,MaterialKind.EXAM) }.stage)
         }
-        for(title in listOf("令和８年度２０２６年度後期時間割","令和8年度令和８年度後期時間割","２０２６　年度令和８　年度後期時間割"))
+        for(title in listOf("令和８年度２０２６年度後期時間割","令和8年度令和８年度後期時間割","２０２６　年度令和８　年度後期時間割","令和8年度𝟚𝟘𝟚𝟞年度後期時間割"))
             assertEquals(2026,PdfSchoolParser.parse(listOf(heading(ordinary(),title)),MaterialKind.TIMETABLE).schoolYear)
     }
     @Test fun compatibilityYearMarkersDoNotHideAnotherFiscalYear() {
@@ -137,6 +137,52 @@ class PdfParserTest {
         for((row,value) in listOf("NoteA","NoteB","NoteC").withIndex())value.forEachIndexed { i,c->glyphs+=Glyph(c.toString(),351.0+i*.8,213.0+row*6,0.6,4.0,glyphs.size) }
         val lines=original.lines+listOf(Line(350.0,200.0,360.0,200.0),Line(350.0,230.0,360.0,230.0),Line(350.0,200.0,350.0,230.0),Line(360.0,200.0,360.0,230.0))
         assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(original.copy(glyphs=glyphs,lines=lines)),MaterialKind.TIMETABLE) }
+    }
+    @Test fun cyIndexPreservesOriginalGlyphOrderWhenOrderValuesTie() {
+        val glyphs=listOf(Glyph("A",1.0,1.1,.5,1.0,0),Glyph("B",2.0,1.0,.5,1.0,0))
+        assertEquals(listOf("AB"),Grid(Page(20.0,20.0,glyphs,emptyList())).text(Box(0.0,0.0,10.0,10.0)))
+        val page=ordinary();var index=0
+        val tied=page.copy(glyphs=page.glyphs.map { if(it.y==106.0)it.copy(order=0,y=it.y+if(index++%2==0).1 else .0)else it })
+        assertEquals(Names("Math","Teacher","Room"),PdfSchoolParser.parse(listOf(tied),MaterialKind.TIMETABLE).lessons.first().names)
+    }
+    @Test fun denseMicroscopicHeightCalibrationCachesEveryReferenceOnce() {
+        val cells=(0 until 680).map { i -> val x=(i%20)*20.0;val y=(i/20)*10.0;Box(x,y,x+18,y+7+(i%340)*.00001) }
+        val glyphs=mutableListOf<Glyph>()
+        cells.forEachIndexed { i,b ->
+            val values=if(i%2==0)listOf("架空科目","架空教員","架空教室")else listOf("架空科目")
+            values.forEachIndexed { row,text -> glyphs+=Glyph(text,b.left+1,b.top+1+row*2.1,4.0,.5,glyphs.size) }
+        }
+        repeat(100_000-glyphs.size) { glyphs+=Glyph("資料",1.0,400.0,1.0,.5,glyphs.size) }
+        val work=PdfGeometryWork()
+        val calibration=PdfSchoolParser.SubjectBandCalibration(Grid(Page(500.0,1000.0,glyphs,emptyList()),work::step),cells,work)
+        for(b in cells.filterIndexed { i,_->i%2==1 })assertTrue(calibration.matches(b))
+        // Repeating all 340 slightly different heights costs only indexed ownership
+        // and the cached positive/negative baseline references, never 100k rescans.
+        assertTrue(work.comparisons<2_000_000,"Indexed calibration work=${work.comparisons}")
+    }
+    @Test fun calibrationInterruptionAndSharedLimitAreNeverHiddenByNegativeReferenceCache() {
+        val own=Box(0.0,0.0,10.0,10.0);val reference=Box(20.0,0.0,160.0,10.0)
+        val glyphs=listOf(Glyph("A",1.0,1.0,1.0,1.0,0))+(0 until 200).map { i -> Glyph("X",21.0+i*.4,1.0,.3,1.0,i+1) }
+        val page=Page(200.0,200.0,glyphs,emptyList())
+        // Sorting/indexing and the one-line owner finish before the reference
+        // lookup exceeds the cap. The former runCatching would hide this failure.
+        val work=PdfGeometryWork(360)
+        val calibration=PdfSchoolParser.SubjectBandCalibration(Grid(page,work::step),listOf(own,reference),work)
+        assertFailsWith<PdfGeometryLimit> { calibration.matches(own) }
+        assertEquals(361L,work.comparisons)
+        val cancelling=PdfGeometryWork()
+        val cancelledGrid=Grid(page) {
+            if(cancelling.comparisons==255L)Thread.currentThread().interrupt()
+            cancelling.step()
+        }
+        try { assertFailsWith<InterruptedException> { PdfSchoolParser.SubjectBandCalibration(cancelledGrid,listOf(own,reference),cancelling).matches(own) } }
+        finally { Thread.interrupted() }
+        assertEquals(256L,cancelling.comparisons)
+        // A huge rule domain exhausts the same strict budget and is not an
+        // eligible ParseFailure that could start AI after a resource rejection.
+        val ordinary=ordinary()
+        val overloaded=ordinary.copy(lines=ordinary.lines+List(99_000) { i -> Line(490.0,150.0+i*.0001,491.0,150.0+i*.0001) })
+        assertFailsWith<PdfGeometryLimit> { PdfSchoolParser.parse(listOf(overloaded),MaterialKind.TIMETABLE) }
     }
     @Test fun strictNeverAssignsInlineRoleLabelsByTheirLineOrder() {
         val p=ordinary();val extra=mutableListOf<Glyph>();var order=p.glyphs.size
