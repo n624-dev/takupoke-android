@@ -50,6 +50,26 @@ class RecoveryLayoutTest {
         val result=run.result!!;val changed=result.cells.mapIndexed { i,c->if(i==0)c.copy(lessons=c.lessons.map { it.copy(teacher=it.room) })else c }
         assertContains(RecoveryValidator.validate(doc,result.copy(cells=changed)).errors,"fieldEvidence")
     }
+    @Test fun everyKnownAliasHasIndependentRecoveryRoleProof() = runBlocking {
+        val original=page(true)
+        for((role,aliases) in RecoveryRoles.labels)for(alias in aliases) {
+            val canonical=RecoveryRoles.labels.getValue(role).first()
+            val p=original.copy(glyphs=original.glyphs.map { if(it.text==canonical)it.copy(text=alias)else it })
+            val doc=RecoveryLayout.prepare(listOf(RecoveryLayoutPage(1,p)),"a".repeat(64),MaterialKind.TIMETABLE)
+            val run=RecoveryEngine.run(doc,"android",36,true,emptyList(),{null})
+            assertEquals(emptyList(),run.errors);assertEquals("rule",run.result?.metadata?.provider)
+        }
+    }
+    @Test fun fixedBindingRejectsEveryAliasInLaterParallelParts() {
+        val doc=RecoveryLayout.prepare(listOf(RecoveryLayoutPage(1,page())),"a".repeat(64),MaterialKind.TIMETABLE)
+        val subject=doc.cells.first().lessonBindings.single().subject.first()
+        for(label in RecoveryRoles.byLabel.keys)for(separator in listOf("・","･","/")) {
+            val changed=doc.copy(sources=doc.sources.map { if(it.id==subject)it.copy(text="架空A$separator$label：架空B")else it })
+            assertContains(RecoveryValidator.inputErrors(changed),"unboundRoleLabel")
+            assertTrue(RecoveryRoles.explicitLabel("架空A$separator$label：架空B"))
+            assertFalse(RecoveryRoles.prefix.containsMatchIn("架空A$separator$label：架空B"))
+        }
+    }
     private fun specialPages(kind: MaterialKind, merged:Boolean=false,firstDayClocksOnly:Boolean=false):List<RecoveryLayoutPage> = (1..5).map { day ->
         val glyphs=mutableListOf<Glyph>();val lines=mutableListOf<Line>();val max=if(kind==MaterialKind.EXAM)6 else 8
         fun text(value:String,x:Double,y:Double,w:Double=40.0,h:Double=3.0) { glyphs+=Glyph(value,x,y,w,h,glyphs.size) }

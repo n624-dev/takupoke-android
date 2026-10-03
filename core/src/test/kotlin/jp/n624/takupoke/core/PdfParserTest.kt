@@ -72,6 +72,17 @@ class PdfParserTest {
         val changed=p.copy(glyphs=p.glyphs.filterNot { it.y in setOf(106.0,113.0,120.0) }+extra)
         assertEquals("P17",assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(changed),MaterialKind.TIMETABLE) }.code)
     }
+    @Test fun strictRejectsEveryKnownAliasAfterAParallelSeparator() {
+        for(label in RecoveryRoles.byLabel.keys) {
+            val p=ordinary();val extra=mutableListOf<Glyph>();var order=p.glyphs.size
+            listOf("架空A・$label:架空B","架空C・架空D","架空E・架空F").forEachIndexed { i,value -> value.forEachIndexed { j,c -> extra+=Glyph(c.toString(),41.0+j*.2,106.0+i*7,.18,4.0,order++) } }
+            val changed=p.copy(glyphs=p.glyphs.filterNot { it.y in setOf(106.0,113.0,120.0) }+extra)
+            assertEquals("P17",assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(changed),MaterialKind.TIMETABLE) }.code)
+            val pages=(1..6).map(::exam).toMutableList();val first=pages.first()
+            pages[0]=first.copy(glyphs=first.glyphs.map { if(it.x==52.0 && it.y==120.0)it.copy(text="架空A・$label:架空B",width=10.0)else it })
+            assertFailsWith<ParseFailure> { PdfSchoolParser.parse(pages,MaterialKind.EXAM) }
+        }
+    }
     @Test fun repeatedHalfwidthMarksCollapse() {
         assertEquals("ｺﾞ", PdfSchoolParser.collapseMarks("ｺﾞﾞﾞ"))
         assertEquals("Aーー", PdfSchoolParser.collapseMarks("Aーー"))

@@ -22,7 +22,7 @@ object LinkSearch {
     fun score(terms: String, query: String): Int {
         val q = normalize(query); if (q.isEmpty()) return -1
         val expanded = terms.split('|').filter(String::isNotEmpty).flatMap { t -> val text = normalize(t)
-            if (hiragana(t).any { it.code in 0x3041..0x3096 }) { val r = normalize(romaji(t)); listOf(text, r, r.replace("ou", "o").replace("uu", "o").replace("oo", "o")) } else listOf(text)
+            if (hiragana(t).any { it.code in 0x3041..0x3096 }) { val r = normalize(romaji(t)); listOf(text, r, r.replace("ou", "o").replace("uu", "u").replace("oo", "o")) } else listOf(text)
         }
         return expanded.mapIndexed { i, term -> when { term == q -> 1000 - i; term.startsWith(q) -> 800 - i; term.contains(q) -> 500 - i; else -> -1 } }.maxOrNull() ?: -1
     }

@@ -38,10 +38,14 @@ object RecoveryNotes {
     fun span(start: Int, end: Int): String? = if(start in 1..8 && end in start..8) Schedule.normalTimes[start-1].substringBefore('〜')+"〜"+Schedule.normalTimes[end-1].substringAfter('〜') else null
 }
 object RecoveryRoles {
-    val labels=mapOf("subject" to listOf("科目","科目名","授業","授業名"),"teacher" to listOf("教員","教員名","担当","担当者","担当教員"),"room" to listOf("教室","教室名","場所","会場"))
+    val labels=mapOf("subject" to listOf("科目","科目名","授業","授業名","授業科目"),"teacher" to listOf("教員","教員名","教師","教師名","担当","担当者","担当教員"),"room" to listOf("教室","教室名","場所","会場","授業教室"))
     val byLabel=labels.flatMap { (role,labels)->labels.map { it to role } }.toMap()
     val prefix=Regex("^("+byLabel.keys.sortedByDescending(String::length).joinToString("|") { Regex.escape(it) }+")[:：]")
-    fun explicitLabel(value:String)=prefix.containsMatchIn(key(value))
+    private val inlinePrefix=Regex("(?:^|[・･/])("+byLabel.keys.sortedByDescending(String::length).joinToString("|") { Regex.escape(it) }+")[:：]")
+    // Reject partial labels in every parallel part, not just the first word.
+    // Keep `prefix` anchored because only a leading, exactly bounded label can
+    // be split into independent source atoms during acquisition.
+    fun explicitLabel(value:String)=inlinePrefix.containsMatchIn(key(value))
 }
 
 object RecoveryValidator {

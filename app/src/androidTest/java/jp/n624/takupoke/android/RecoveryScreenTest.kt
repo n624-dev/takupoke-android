@@ -27,7 +27,8 @@ class RecoveryScreenTest {
             assertEquals(seed.oldAnalysis,seed.database.records().single().analysis)
             compose.onNodeWithText("閉じる").performClick()
             compose.onNodeWithText("復旧結果をプレビュー").performScrollTo().performClick()
-            compose.onNodeWithText("復旧結果のプレビュー（未採用）").performScrollTo().assertIsDisplayed()
+            compose.onNode(hasScrollAction()).performScrollToNode(hasText("復旧結果のプレビュー（未採用）"))
+            compose.onNodeWithText("復旧結果のプレビュー（未採用）").assertIsDisplayed()
             compose.onNodeWithText("元PDFを確認").performScrollTo().performClick()
             compose.waitUntil(10000) { compose.onAllNodesWithContentDescription("保存済みPDF 1ページ").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithText("1/1").assertIsDisplayed();compose.onNodeWithText("閉じる").performClick()
