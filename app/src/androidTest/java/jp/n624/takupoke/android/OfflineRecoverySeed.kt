@@ -8,6 +8,13 @@ import jp.n624.takupoke.core.*
 import kotlinx.coroutines.*
 import java.io.File
 
+internal fun specialRecoveryFixture(kind:MaterialKind,oppositePeriod:Boolean=false):RecoveryDocument {
+    val name=when(kind){MaterialKind.EXAM->"recovery-exam";MaterialKind.RETURN->"recovery-return";else->error("Special fixture kind")}
+    var text=androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().context.assets.open("$name.json").bufferedReader().use { it.readText() }.replace("2026",schoolYear().toString())
+    if(retentionPeriod().endsWith("-1") xor oppositePeriod)text=text.replace("-10-","-05-").replace("10月","5月").replace("10/","5/")
+    return json.decodeFromString<RecoveryDocument>(text)
+}
+
 /** Entirely invented geometry/data. No production model download, OCR or school URL is used. */
 internal class OfflineRecoveryServices(var offer:Boolean=true,var hasModel:Boolean=true):RecoveryServices {
     var preparedDocument:RecoveryDocument?=null
@@ -16,17 +23,17 @@ internal class OfflineRecoveryServices(var offer:Boolean=true,var hasModel:Boole
     override val error:String?=null
     override fun installed()=manifest.takeIf { hasModel }
     override fun cleanup() {}
-    var deletions=0;var downloads=0;var providerCalls=0
+    var deletions=0;var downloads=0;var providerCalls=0;var providerConstructions=0
     val preparationEntered=CompletableDeferred<Unit>();var holdPreparation=false
     val downloadEntered=CompletableDeferred<Unit>();var holdDownload=false
     override fun delete() { deletions++;hasModel=false }
     override suspend fun download(foreground:()->Boolean,progress:(Long)->Unit) { check(foreground());downloads++;progress(512);downloadEntered.complete(Unit);if(holdDownload)awaitCancellation();hasModel=true;progress(1024) }
-    override fun provider(foreground:()->Boolean)=object:LocalRecoveryProvider {
+    override fun provider(foreground:()->Boolean):LocalRecoveryProvider { providerConstructions++;return object:LocalRecoveryProvider {
         override val id="liteRtLm";override val localOnly=true
         override val metadata=RecoveryMetadata(id,"synthetic-offline","1","fake-runtime","2",RecoveryValidator.SCHEMA_VERSION,RecoveryValidator.VERSION,"test-only")
         override suspend fun availability()=if(hasModel)LocalProviderState.READY else LocalProviderState.DOWNLOAD_REQUIRED
         override suspend fun recoverCell(cell:RecoveryPromptCell):List<RecoveryLesson> { providerCalls++;error("Known role scopes must use Rules before this mock provider") }
-    }
+    } }
     override suspend fun prepare(file:File,hash:String,kind:MaterialKind,capture:RecoveryReadCapture):RecoveryDocument {
         preparationEntered.complete(Unit);if(holdPreparation)awaitCancellation()
         preparedDocument?.let { doc -> check(RecoveryPolicy.kind(kind)==doc.kind);return doc.copy(pdfHash=hash) }

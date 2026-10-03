@@ -36,6 +36,7 @@ class LiteRtRuntimeEvaluationTest {
     }
     @Test(timeout=900000) fun pinnedCandidateCpu4096SchemaValidatorCancellationAndRelease()=runBlocking {
         check(InstrumentationRegistry.getArguments().getString("runtimeEvaluation")=="true")
+        assertTrue("Optimized target must call the offline virtual repository hook", (context.applicationContext as OfflineApplication).offlineTransportInjected)
         val manifest=json.decodeFromString<RecoveryModelManifest>(instrumentation.context.assets.open("litert-evaluation-candidate.json").bufferedReader().use { it.readText() })
         assertEquals(RecoveryModelCatalog.candidates.first(),manifest);assertFalse(manifest.validated)
         val model=File(requireNotNull(InstrumentationRegistry.getArguments().getString("modelPath")))

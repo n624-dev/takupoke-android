@@ -2,6 +2,7 @@ package jp.n624.takupoke.android
 
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.test.platform.app.InstrumentationRegistry
 import jp.n624.takupoke.core.*
 import kotlinx.coroutines.runBlocking
@@ -36,6 +37,18 @@ class RecoveryScreenTest {
             compose.onNode(hasScrollAction()).performScrollToNode(hasText("元PDFを確認"))
             compose.onNodeWithText("元PDFを確認").performClick()
             compose.waitUntil(10000) { compose.onAllNodesWithContentDescription("保存済みPDF 1ページ").fetchSemanticsNodes().isNotEmpty() }
+            // PixelCopy waits for the Image draw, unlike semantics publication.
+            val pixels=compose.onNodeWithContentDescription("保存済みPDF 1ページ").captureToImage().toPixelMap()
+            val paperHeight=pixels.width/2 // The fixture page is 600 by 300.
+            val paperTop=(pixels.height-paperHeight)/2
+            val center=pixels[pixels.width/2,pixels.height/2]
+            assertTrue("The saved PDF has rendered its white page",center.red>.9f && center.green>.9f && center.blue>.9f)
+            var sourceInk=0
+            for(y in (paperTop+paperHeight/20)..(paperTop+paperHeight/5))for(x in (pixels.width/40)..(pixels.width*4/5)) {
+                val color=pixels[x,y]
+                if(color.red<.25f && color.green<.25f && color.blue<.25f)sourceInk++
+            }
+            assertTrue("The actual synthetic source text is drawn",sourceInk>20)
             compose.onNodeWithText("1/1").assertIsDisplayed();offlineScreenshot(compose,"recovery-original");compose.onNodeWithText("閉じる").performClick()
             compose.onNodeWithText("この復旧結果を使用").performScrollTo().performClick()
             assertEquals(seed.oldAnalysis,seed.database.records().single().analysis)
@@ -108,9 +121,7 @@ class RecoveryScreenTest {
     @Test fun examClockPreviewAdoptionAndRestartStayOffline()=specialPreviewAdoptionAndRestart(MaterialKind.EXAM,"recovery-exam")
     @Test fun returnClockPreviewAdoptionAndRestartStayOffline()=specialPreviewAdoptionAndRestart(MaterialKind.RETURN,"recovery-return")
     private fun specialPreviewAdoptionAndRestart(kind:MaterialKind,fixture:String) {
-        val instrumentation=InstrumentationRegistry.getInstrumentation()
-        val original=instrumentation.context.assets.open("$fixture.json").bufferedReader().use { it.readText() }.replace("2026",schoolYear().toString())
-        val document=json.decodeFromString<RecoveryDocument>(original)
+        val document=specialRecoveryFixture(kind)
         val service=OfflineRecoveryServices().apply { preparedDocument=document }
         val seed=mount(service,kind)
         var restarted:AppRepository?=null

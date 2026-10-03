@@ -22,7 +22,7 @@ import kotlin.coroutines.resumeWithException
 import kotlin.math.roundToInt
 
 /** Acquisition completeness does not certify that OCR found every visible character or that a cell is empty. */
-data class RecoveryOcrPage(val page: Int, val width: Int, val height: Int, val sources: List<RecoverySource>, val inputState: RecoveryInputState, val lines: List<Line>, val verifiedBlankBoxes: List<RecoveryBox>) {
+data class RecoveryOcrPage(val page: Int, val width: Int, val height: Int, val sources: List<RecoverySource>, val inputState: RecoveryInputState, val lines: List<Line>, val verifiedBlankBoxes: List<RecoveryBox>, val confidenceScores: List<Float> = emptyList()) {
     fun layout() = RecoveryLayoutPage(page, Page(width.toDouble(), height.toDouble(), sources.mapIndexed { i,s -> Glyph(s.text,s.box.x,s.box.y,s.box.width,s.box.height,i) },lines),true,inputState==RecoveryInputState.COMPLETE,verifiedBlankBoxes)
 }
 object PdfRecoveryOcr {
@@ -54,14 +54,19 @@ object PdfRecoveryOcr {
                         task.addOnCanceledListener { continuation.cancel() }
                     } }
                     currentCoroutineContext().ensureActive()
-                    val elements = result.textBlocks.flatMap { it.lines }.flatMap { it.elements }.flatMap { element -> if(element.symbols.isNotEmpty())element.symbols.map { it.text to it.boundingBox } else listOf(element.text to element.boundingBox) }
+                    val words = result.textBlocks.flatMap { it.lines }.flatMap { it.elements }
+                    // The bundled SDK exposes primitive float confidence. Zero
+                    // (including an unavailable score), NaN and low confidence
+                    // retain their original atoms but cannot certify completion.
+                    val confidences=words.flatMap { word -> listOf(word.confidence)+word.symbols.map { it.confidence } }
+                    val elements = words.flatMap { element -> if(element.symbols.isNotEmpty())element.symbols.map { it.text to it.boundingBox } else listOf(element.text to element.boundingBox) }
                     require(elements.size <= 100000)
                     val spans = elements.mapIndexed { order, element ->
                         val box = requireNotNull(element.second); require(element.first.length <= 4096)
                         RecoverySource("ocr-${index + 1}-$order", "unassigned", index + 1, element.first, RecoveryBox(box.left.toDouble(), box.top.toDouble(), box.width().toDouble(), box.height().toDouble()), fromOcr = true)
                     }
                     val geometry = RecoveryRasterGeometry.analyze(width,height,pixels,spans.map { it.box })
-                    RecoveryOcrPage(index + 1, width, height, spans, if(geometry.complete)RecoveryInputState.COMPLETE else RecoveryInputState.PARTIAL,geometry.lines,geometry.blankBoxes)
+                    RecoveryOcrPage(index + 1, width, height, spans, if(RecoveryOcrQuality.complete(geometry.complete,confidences))RecoveryInputState.COMPLETE else RecoveryInputState.PARTIAL,geometry.lines,geometry.blankBoxes,confidences)
                 }
             } }
         }

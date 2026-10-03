@@ -201,6 +201,22 @@ class RecoveryLayoutTest {
             assertFalse(result.complete);assertTrue(result.blankBoxes.none { it.x<100 && it.x+it.width>100 && it.y<100 && it.y+it.height>100 })
         }
     }
+    @Test fun unrecognizedInkOnePixelInsideBorderCannotBecomeEmpty() {
+        for((x,y) in listOf(11 to 55,189 to 55,55 to 11,55 to 189))for(color in listOf(0xfffefefe.toInt(),0xffff0000.toInt())) {
+            val pixels=IntArray(200*200){-1}
+            for(i in 10..190) { pixels[10*200+i]=0xff000000.toInt();pixels[190*200+i]=0xff000000.toInt();pixels[i*200+10]=0xff000000.toInt();pixels[i*200+190]=0xff000000.toInt() }
+            pixels[y*200+x]=color
+            val result=RecoveryRasterGeometry.analyze(200,200,pixels,emptyList())
+            assertFalse(result.complete);assertTrue(result.blankBoxes.isEmpty());assertEquals(4,result.lines.size)
+        }
+    }
+    @Test fun continuousPhysicalBorderAndFaintFringeAreNotText() {
+        val pixels=IntArray(200*200){-1}
+        for(i in 10..190) { pixels[11*200+i]=0xfffefefe.toInt();pixels[189*200+i]=0xfffefefe.toInt();pixels[i*200+11]=0xfffefefe.toInt();pixels[i*200+189]=0xfffefefe.toInt() }
+        for(i in 10..190) { pixels[10*200+i]=0xff000000.toInt();pixels[190*200+i]=0xff000000.toInt();pixels[i*200+10]=0xff000000.toInt();pixels[i*200+190]=0xff000000.toInt() }
+        val result=RecoveryRasterGeometry.analyze(200,200,pixels,emptyList())
+        assertTrue(result.complete);assertEquals(4,result.lines.size);assertEquals(1,result.blankBoxes.size)
+    }
     @Test fun rasterEmptyCellNeedsPixelProof() {
         val p=page().copy(glyphs=page().glyphs.filterNot { it.x==130.0&&it.y in setOf(102.0,108.0,114.0) })
         assertFailsWith<RecoveryPreparationFailure> { RecoveryLayout.prepare(listOf(RecoveryLayoutPage(1,p,true)),"a".repeat(64),MaterialKind.TIMETABLE) }

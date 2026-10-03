@@ -28,9 +28,12 @@ with zipfile.ZipFile('app/build/outputs/apk/release/app-release.apk') as apk:
 refs={name.decode().replace('/','.') for name in re.findall(rb'com/google/ai/edge/litertlm/[A-Z][A-Za-z0-9_$]*',native)}
 assert len(refs)>=6 and all(names.get(name)==name for name in refs), 'Native JNI class references must survive R8'
 assert 'com.google.ai.edge.litertlm.LiteRtLmJniException' in refs
+assert 'jp.n624.takupoke.android.TakupokeApplication -> jp.n624.takupoke.android.TakupokeApplication:' in mapping
+assert 'jp.n624.takupoke.android.Transport -> jp.n624.takupoke.android.Transport:' in mapping
+assert re.search(r'AppRepository createRepository\(\).* -> createRepository$',mapping,re.M), 'Offline repository virtual hook must survive R8'
 compiler=re.search(r'^# compiler_version: (.+)$',mapping,re.M)
 assert compiler
-print(json.dumps({'event':'r8_keep','r8Version':compiler.group(1),'nativeReferencedClassesPreserved':len(refs),'optimized':True,'distributionArtifact':False}))
+print(json.dumps({'event':'r8_keep','r8Version':compiler.group(1),'nativeReferencedClassesPreserved':len(refs),'optimized':True,'offlineVirtualHookRetained':True,'distributionArtifact':False}))
 PY
     curl --fail --location --proto '=https' --proto-redir '=https' --max-redirs 5 --connect-timeout 20 --max-time 360 --max-filesize 344671744 --output "$evaluation_dir/candidate.litertlm" "$(cat "$evaluation_dir/url")"
     python3 - "$candidate" "$evaluation_dir/candidate.litertlm" <<'PY'
@@ -63,6 +66,10 @@ PY
     cleanup_evaluation() {
       stop_evaluation_log
       adb logcat -d -v raw -s TakupokeRuntimeEvaluation:I '*:S' > "$evaluation_dir/runtime.log" || true
+      # Startup can crash before the first evaluation tag (for example a
+      # cross-APK VerifyError). This disposable device has no school input.
+      adb logcat -d -v threadtime -s AndroidRuntime:E DEBUG:E libc:F '*:S' > "$evaluation_dir/startup-diagnostics.log" || true
+      adb logcat -b crash -d -v threadtime >> "$evaluation_dir/startup-diagnostics.log" || true
       adb shell rm -f /sdcard/Android/data/jp.n624.takupoke.android/files/runtime-evaluation/candidate.litertlm || true
       adb uninstall jp.n624.takupoke.android.test || true
       adb uninstall jp.n624.takupoke.android || true
@@ -74,6 +81,11 @@ for line in pathlib.Path(sys.argv[1]).read_text(errors='replace').splitlines():
     except json.JSONDecodeError: continue
     if isinstance(row,dict) and row.get('event') in {'configuration','initialize','smoke','native_cancel','case','provider_cancel','release','summary','cleanup'}:
         print('TAKUPOKE_RUNTIME_REPORT '+json.dumps(row,ensure_ascii=False))
+PY
+      python3 - "$evaluation_dir/startup-diagnostics.log" <<'PY'
+import pathlib,sys
+for line in pathlib.Path(sys.argv[1]).read_text(errors='replace').splitlines()[:500]:
+    print('TAKUPOKE_RUNTIME_DIAGNOSTIC '+line)
 PY
     }
     trap cleanup_evaluation EXIT

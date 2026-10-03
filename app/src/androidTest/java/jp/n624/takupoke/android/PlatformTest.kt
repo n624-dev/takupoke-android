@@ -181,6 +181,59 @@ class PlatformTest {
     private fun replaceDocument(bytes: ByteArray, grant: Boolean = false) {
         context.contentResolver.call(SyntheticControl.AUTHORITY, "replaceSynthetic", null, Bundle().apply { putByteArray("bytes", bytes); putBoolean("grant", grant) })
     }
+    @Test fun specialRecoveryFromAnotherSemesterIsHiddenRejectedAndStopsBeforeProvider() = runBlocking {
+        for(kind in listOf(MaterialKind.EXAM,MaterialKind.RETURN)) {
+            val service=OfflineRecoveryServices().apply { preparedDocument=specialRecoveryFixture(kind) }
+            val seed=OfflineRecoverySeed(context,service,kind)
+            try {
+                seed.install();seed.repository.startRecovery(kind)
+                val valid=requireNotNull(seed.repository.state.value.recoveryPreviews[kind])
+                assertTrue(RecoveryAdoption.matchesPeriod(valid.document,retentionPeriod()))
+                var encoded=json.encodeToString(RecoveryPreview.serializer(),valid)
+                encoded=if(retentionPeriod().endsWith("-1"))encoded.replace("-05-","-10-").replace("5月","10月").replace("5/","10/") else encoded.replace("-10-","-05-").replace("10月","5月").replace("10/","5/")
+                val wrong=json.decodeFromString<RecoveryPreview>(encoded)
+                assertTrue(RecoveryValidator.validate(wrong.document,wrong.result).canAdopt)
+                assertFalse(RecoveryAdoption.matchesPeriod(wrong.document,retentionPeriod()))
+                val before=seed.database.records().single().let { it.copy(recoveryJob=it.recoveryJob!!.copy(resultHash=wrong.resultHash)) }
+                seed.database.save(before);seed.database.put("recovery-preview:${kind.name}",encoded)
+                seed.repository.activate(false)
+                assertTrue(seed.repository.state.value.recoveryPreviews.isEmpty())
+                try { seed.repository.adoptRecovery(kind,wrong.resultHash);fail("Other-semester preview was adopted") }catch(_:IllegalArgumentException) {}
+                assertEquals(before,seed.database.records().single());assertEquals(seed.oldAnalysis,seed.database.records().single().analysis)
+                assertNull(seed.database.value("recovery-accepted:${kind.name}:${wrong.document.pdfHash}"))
+                service.preparedDocument=wrong.document;val providers=service.providerConstructions
+                try { seed.repository.startRecovery(kind);fail("Other-semester recovery reached inference") }catch(_:IllegalArgumentException) {}
+                assertEquals(providers,service.providerConstructions)
+                val failed=seed.database.records().single();assertEquals(RecoveryJobState.FAILED,failed.recoveryJob?.state)
+                assertEquals(before.analysis,failed.analysis);assertEquals(before.parsedDigest,failed.parsedDigest);assertEquals(before.parsedAt,failed.parsedAt)
+                assertTrue(seed.repository.state.value.recoveryPreviews.isEmpty());assertNull(failed.recoveryAcceptance)
+            } finally { seed.stop() }
+        }
+    }
+    @Test fun oldValidatorPreviewAndApprovalCannotReplacePreviousFormalResult() = runBlocking {
+        val seed=OfflineRecoverySeed(context)
+        try {
+            seed.install();seed.repository.startRecovery(MaterialKind.TIMETABLE)
+            val current=requireNotNull(seed.repository.state.value.recoveryPreviews[MaterialKind.TIMETABLE])
+            val old=current.copy(result=current.result.copy(metadata=current.result.metadata.copy(validatorVersion=2)))
+            val approval=RecoveryAcceptance(old.document.pdfHash,old.resultHash,RecoveryValidator.fingerprint(old.document),old.result.metadata,0)
+            val formal=seed.database.records().single().let { it.copy(recoveryJob=it.recoveryJob!!.copy(resultHash=old.resultHash)) }
+            seed.database.save(formal);seed.database.put("recovery-preview:TIMETABLE",json.encodeToString(RecoveryPreview.serializer(),old))
+            seed.database.put("recovery-accepted:TIMETABLE:${old.document.pdfHash}",json.encodeToString(RecoveryAccepted.serializer(),RecoveryAccepted(old,approval)))
+            seed.repository.activate(false)
+            assertTrue(seed.repository.state.value.recoveryPreviews.isEmpty())
+            try { seed.repository.adoptRecovery(MaterialKind.TIMETABLE,old.resultHash);fail("Old validator preview was adopted") }catch(_:IllegalArgumentException) {}
+            assertEquals(formal,seed.database.records().single())
+            seed.repository.startRecovery(MaterialKind.TIMETABLE)
+            val fresh=requireNotNull(seed.repository.state.value.recoveryPreviews[MaterialKind.TIMETABLE])
+            assertEquals(3,fresh.result.metadata.validatorVersion)
+            assertEquals(RecoveryJobState.AWAITING_CONFIRMATION,seed.database.records().single().recoveryJob?.state)
+            assertEquals(seed.oldAnalysis,seed.database.records().single().analysis)
+            assertNull(seed.database.records().single().recoveryAcceptance)
+            seed.repository.adoptRecovery(MaterialKind.TIMETABLE,fresh.resultHash)
+            assertEquals(3,seed.database.records().single().recoveryAcceptance?.metadata?.validatorVersion)
+        } finally { seed.stop() }
+    }
     @Test fun oldOrLegacyRecoveryPreviewCannotSkipCurrentStrictParserAfterUpgrade() = runBlocking {
         val seed=OfflineRecoverySeed(context)
         try {

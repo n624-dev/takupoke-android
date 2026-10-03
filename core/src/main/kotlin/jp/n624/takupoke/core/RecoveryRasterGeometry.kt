@@ -12,8 +12,8 @@ object RecoveryRasterGeometry {
         fun ruleInk(x:Int,y:Int):Boolean { val c=pixels[y*width+x]; return ((c ushr 16) and 255)<180 && ((c ushr 8) and 255)<180 && (c and 255)<180 }
         val covered=BooleanArray(pixels.size); val lines=mutableListOf<Line>()
         fun mark(x:Int,y:Int) { if(x in 0 until width && y in 0 until height)covered[y*width+x]=true }
-        for(y in 0 until height) { interrupted();var start=0;while(start<width) { if(!ruleInk(start,y)){start++;continue};var end=start+1;while(end<width&&ruleInk(end,y))end++;if(end-start>=maxOf(80,width/20)){lines+=Line(start.toDouble(),y.toDouble(),(end-1).toDouble(),y.toDouble());for(x in start until end)for(d in -2..2)mark(x,y+d)};start=end } }
-        for(x in 0 until width) { interrupted();var start=0;while(start<height) { if(!ruleInk(x,start)){start++;continue};var end=start+1;while(end<height&&ruleInk(x,end))end++;if(end-start>=maxOf(80,height/20)){lines+=Line(x.toDouble(),start.toDouble(),x.toDouble(),(end-1).toDouble());for(y in start until end)for(d in -2..2)mark(x+d,y)};start=end } }
+        for(y in 0 until height) { interrupted();var start=0;while(start<width) { if(!ruleInk(start,y)){start++;continue};var end=start+1;while(end<width&&ruleInk(end,y))end++;if(end-start>=maxOf(80,width/20)){lines+=Line(start.toDouble(),y.toDouble(),(end-1).toDouble(),y.toDouble())};start=end } }
+        for(x in 0 until width) { interrupted();var start=0;while(start<height) { if(!ruleInk(x,start)){start++;continue};var end=start+1;while(end<height&&ruleInk(x,end))end++;if(end-start>=maxOf(80,height/20)){lines+=Line(x.toDouble(),start.toDouble(),x.toDouble(),(end-1).toDouble())};start=end } }
         // Collapse stroke thickness; otherwise a three-pixel line creates spurious tiny cells.
         val collapsed=mutableListOf<Line>()
         lines.sortedWith(compareBy<Line>{if(it.horizontal)0 else 1}.thenBy{if(it.horizontal)it.y1 else it.x1}).forEach { line -> if(collapsed.none { old -> old.horizontal==line.horizontal && (if(line.horizontal)kotlin.math.abs(old.y1-line.y1)<=3 && kotlin.math.abs(old.x1-line.x1)<=3 && kotlin.math.abs(old.x2-line.x2)<=3 else kotlin.math.abs(old.x1-line.x1)<=3 && kotlin.math.abs(old.y1-line.y1)<=3 && kotlin.math.abs(old.y2-line.y2)<=3) })collapsed+=line }
@@ -30,14 +30,34 @@ object RecoveryRasterGeometry {
             if(retained.size==ruled.size)break
             ruled=retained
         }
-        covered.fill(false)
-        ruled.forEach { line -> if(line.horizontal)for(x in line.x1.toInt()..line.x2.toInt())for(d in -3..3)mark(x,line.y1.toInt()+d) else for(y in line.y1.toInt()..line.y2.toInt())for(d in -3..3)mark(line.x1.toInt()+d,y) }
+        // Mask the measured stroke and only contiguous full-length fringe
+        // scanlines. A nearby isolated faint glyph is not part of the border.
+        ruled.forEach { line ->
+            interrupted()
+            if(line.horizontal) {
+                val xs=line.x1.toInt()..line.x2.toInt();val base=line.y1.toInt()
+                xs.forEach { mark(it,base) }
+                for(direction in listOf(-1,1))for(step in 1..3) {
+                    val y=base+direction*step
+                    if(y !in 0 until height || !xs.all { ink(it,y) })break
+                    xs.forEach { mark(it,y) }
+                }
+            } else {
+                val ys=line.y1.toInt()..line.y2.toInt();val base=line.x1.toInt()
+                ys.forEach { mark(base,it) }
+                for(direction in listOf(-1,1))for(step in 1..3) {
+                    val x=base+direction*step
+                    if(x !in 0 until width || !ys.all { ink(x,it) })break
+                    ys.forEach { mark(x,it) }
+                }
+            }
+        }
         val textCovered=covered.copyOf()
         recognized.forEach { box -> require(box.valid);for(y in (box.y.toInt()-2).coerceAtLeast(0)..(box.y+box.height+2).toInt().coerceAtMost(height-1))for(x in (box.x.toInt()-2).coerceAtLeast(0)..(box.x+box.width+2).toInt().coerceAtMost(width-1))textCovered[y*width+x]=true }
         val complete=pixels.indices.none { i -> !textCovered[i] && ink(i%width,i/width) }
         val blank=mutableListOf<RecoveryBox>();val page=Page(width.toDouble(),height.toDouble(),emptyList(),ruled);val grid=Grid(page)
         val xs=ruled.filter{it.vertical}.map{it.x1}.distinct().sorted();val ys=ruled.filter{it.horizontal}.map{it.y1}.distinct().sorted()
-        if(xs.size.toLong()*ys.size<=100000)xs.zipWithNext().forEach { (a,b)->ys.zipWithNext().forEach { (c,d)-> if(b-a>6 && d-c>6)runCatching{grid.box((a+b)/2,(c+d)/2)}.getOrNull()?.let { box -> var clear=true;for(y in (box.top.toInt()+3) until (box.bottom.toInt()-3))for(x in (box.left.toInt()+3) until (box.right.toInt()-3))if(ink(x,y)&&!covered[y*width+x])clear=false;if(clear)blank+=RecoveryBox(box.left,box.top,box.right-box.left,box.bottom-box.top) } } }
+        if(xs.size.toLong()*ys.size<=100000)xs.zipWithNext().forEach { (a,b)->ys.zipWithNext().forEach { (c,d)-> if(b-a>6 && d-c>6)runCatching{grid.box((a+b)/2,(c+d)/2)}.getOrNull()?.let { box -> var clear=true;for(y in (box.top.toInt()+1) until box.bottom.toInt())for(x in (box.left.toInt()+1) until box.right.toInt())if(ink(x,y)&&!covered[y*width+x])clear=false;if(clear)blank+=RecoveryBox(box.left,box.top,box.right-box.left,box.bottom-box.top) } } }
         return Result(complete,ruled,blank.distinct())
     }
 }

@@ -50,7 +50,7 @@ object RecoveryRoles {
 
 object RecoveryValidator {
     const val SCHEMA_VERSION = 2
-    const val VERSION = 2
+    const val VERSION = 3
     inline fun <reified T> fingerprint(value: T): String = sha256(json.encodeToString(value).toByteArray(Charsets.UTF_8))
     private fun text(value: String) = normalized(value).replace(Regex("\\s+"), "")
     val specialClasses = listOf("1_1", "1_2", "1_3") + (2..5).flatMap { year -> listOf("CN", "ES", "IT").map { "${year}_$it" } } + listOf("AI_1", "AI_2")

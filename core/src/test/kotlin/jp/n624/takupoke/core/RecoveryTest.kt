@@ -44,6 +44,14 @@ class RecoveryTest {
     @Test fun changedYearIsRejected() { val (d, r) = fixture(); assertContains(RecoveryValidator.validate(d, r.copy(schoolYear = 2025)).errors, "documentIdentity") }
     @Test fun changedHashIsRejected() { val (d, r) = fixture(); assertContains(RecoveryValidator.validate(d, r.copy(pdfHash = "b".repeat(64))).errors, "sourceHash") }
     @Test fun approvalOnlyReusesExactValidatedResult() { val (d, r) = fixture(); val a = RecoveryAcceptance(d.pdfHash, RecoveryValidator.fingerprint(r), RecoveryValidator.fingerprint(d), r.metadata, 0); assertTrue(RecoveryValidator.canReuse(a, d, r)); assertFalse(RecoveryValidator.canReuse(a, d, r.copy(metadata = r.metadata.copy(modelVersion = "2")))) }
+    @Test fun previousValidatorApprovalCannotAuthorizeNewOrOldResult() {
+        val (doc,current)=fixture()
+        val old=current.copy(metadata=current.metadata.copy(validatorVersion=2))
+        val oldApproval=RecoveryAcceptance(doc.pdfHash,RecoveryValidator.fingerprint(old),RecoveryValidator.fingerprint(doc),old.metadata,0)
+        assertContains(RecoveryValidator.validate(doc,old).errors,"versions")
+        assertFalse(RecoveryValidator.canReuse(oldApproval,doc,old))
+        assertFalse(RecoveryValidator.canReuse(oldApproval,doc,current))
+    }
     @Test fun wrongSchemaRejects() { val (d, r) = fixture(); assertContains(RecoveryValidator.validate(d, r.copy(metadata = r.metadata.copy(recoverySchemaVersion = 999))).errors, "versions") }
     @Test fun xlsxAndTemporaryNotReadyNeverTriggerFallback() { assertNull(RecoveryPolicy.kind(MaterialKind.CHANGES)); assertFalse(RecoveryPolicy.mayTryNext(LocalProviderState.NOT_READY)); assertFalse(RecoveryPolicy.mayTryNext(LocalProviderState.DISABLED)); assertEquals(listOf("liteRtLm"), RecoveryPolicy.providers("android")) }
     @Test fun wrongHeaderTextIsRejected() { val (d, r) = fixture(); assertFalse(RecoveryValidator.validate(d.copy(sources = d.sources.map { if (it.id == "class") it.copy(text = "3_ES") else it }), r).canAdopt) }
@@ -58,6 +66,30 @@ class RecoveryTest {
 
     @Serializable private data class SpecialFixture(val document: RecoveryDocument, val result: RecoveryResult)
     private fun special(kind: String = "exam"): Pair<RecoveryDocument, RecoveryResult> { val fixture = json.decodeFromString<SpecialFixture>(requireNotNull(javaClass.classLoader.getResourceAsStream("recovery-$kind.json")).bufferedReader().use { it.readText() }); return fixture.document to fixture.result.copy(metadata = fixture.result.metadata.copy(recoverySchemaVersion = RecoveryValidator.SCHEMA_VERSION, validatorVersion = RecoveryValidator.VERSION)) }
+    @Test fun specialRecoveryPeriodRequiresEveryDateAndHandlesJanuaryAndOctoberBoundary() {
+        for(kind in listOf("exam","return")) {
+            val(d,_)=special(kind)
+            assertTrue(RecoveryAdoption.matchesPeriod(d,"2026-2"));assertFalse(RecoveryAdoption.matchesPeriod(d,"2026-1"))
+            val may=d.copy(days=(1..5).map { "2026-05-0$it" })
+            assertTrue(RecoveryAdoption.matchesPeriod(may,"2026-1"));assertFalse(RecoveryAdoption.matchesPeriod(may,"2026-2"))
+            assertTrue(RecoveryAdoption.matchesPeriod(d.copy(days=(1..5).map { "2027-01-0$it" }),"2026-2"))
+            val crossing=d.copy(days=listOf("2026-09-30","2026-10-01"))
+            assertFalse(RecoveryAdoption.matchesPeriod(crossing,"2026-1"));assertFalse(RecoveryAdoption.matchesPeriod(crossing,"2026-2"))
+            assertFalse(RecoveryAdoption.matchesPeriod(d.copy(days=emptyList()),"2026-2"));assertFalse(RecoveryAdoption.matchesPeriod(d.copy(days=listOf("2026-10-32")),"2026-2"))
+            assertFalse(RecoveryAdoption.matchesPeriod(d,"2025-2"));assertFalse(RecoveryAdoption.matchesPeriod(d,"2026-02"))
+        }
+    }
+    @Test fun fullyValidSpecialRecoveryCannotReplaceAnotherSemestersFormalData() {
+        for(kind in listOf("exam","return")) {
+            val(d,r)=special(kind);assertTrue(RecoveryValidator.validate(d,r).canAdopt)
+            val material=if(kind=="exam")MaterialKind.EXAM else MaterialKind.RETURN
+            val same=RecoverySelection("2026-2","content://synthetic/$kind",material,d.pdfHash)
+            assertTrue(RecoveryAdoption.allowed(same,same,d.pdfHash,d,r,java.time.LocalDate.of(2026,10,3)))
+            assertTrue(RecoveryAdoption.allowed(same,same,d.pdfHash,d,r,java.time.LocalDate.of(2027,1,3)))
+            val other=same.copy(period="2026-1")
+            assertFalse(RecoveryAdoption.allowed(other,other,d.pdfHash,d,r,java.time.LocalDate.of(2026,5,3)))
+        }
+    }
     @Test fun specialSchedulesWithFullScopeAndExplicitSpanTimesPass() { listOf("exam", "return").forEach { val (d, r) = special(it); assertEquals(emptyList(), RecoveryValidator.validate(d, r).errors, it) } }
     @Test fun inventoryCannotDiscardTextToClaimEmpty() { val (d, r) = fixture(); assertContains(RecoveryValidator.validate(d.copy(cells = d.cells.mapIndexed { i, c -> if (i == 0) c.copy(sourceIds = emptyList(), lessonBindings = emptyList(), confirmedEmpty = true) else c }), r.copy(cells = r.cells.mapIndexed { i, c -> if (i == 0) c.copy(state = RecoveryValueState.EMPTY, lessons = emptyList()) else c })).errors, "sourceInventory") }
     @Test fun unassignedTextInBlankCellRejects() { val (d, r) = fixture(); assertContains(RecoveryValidator.validate(d.copy(sources = d.sources + RecoverySource("unassigned", "unassigned", d.cells[1].page, "架空の未割当文字", d.cells[1].box)), r).errors, "unassignedCellText") }

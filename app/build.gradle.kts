@@ -30,6 +30,7 @@ android {
         sourceSets.getByName("androidTest").java.srcDir("src/runtimeEvaluationAndroidTest/java")
         sourceSets.getByName("androidTest").assets.srcDir("src/runtimeEvaluationAndroidTest/assets")
         buildTypes.getByName("release").signingConfig = signingConfigs.getByName("debug")
+        buildTypes.getByName("release").proguardFiles("runtime-evaluation.pro")
     }
 }
 kotlin { jvmToolchain(21) }
