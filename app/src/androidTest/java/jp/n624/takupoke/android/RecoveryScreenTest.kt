@@ -50,18 +50,36 @@ class RecoveryScreenTest {
                 if(color.red<.25f && color.green<.25f && color.blue<.25f)sourceInk++
             }
             assertTrue("The actual synthetic source text is drawn",sourceInk>20)
-            compose.onNodeWithText("1/1").assertIsDisplayed()
+            try {
+                compose.waitUntil(10000) { compose.onNodeWithText("1/1").isDisplayed() }
+                compose.onNodeWithText("1/1").assertIsDisplayed()
+            } catch (failure: Throwable) {
+                val counter = compose.onNodeWithText("1/1").fetchSemanticsNode().boundsInRoot
+                val image = compose.onNodeWithContentDescription("保存済みPDF 1ページ").fetchSemanticsNode().boundsInRoot
+                throw AssertionError("Actual PDF controls must remain visible: counter=$counter, image=$image", failure)
+            }
             repeat(3) { compose.onNodeWithContentDescription("PDFを拡大").performClick() }
             compose.onNodeWithText("400%").assertIsDisplayed()
             val viewport = compose.onNodeWithContentDescription("PDFの表示領域")
             val axes = viewport.fetchSemanticsNode().config
             assertTrue("The enlarged original can move horizontally", axes[SemanticsProperties.HorizontalScrollAxisRange].maxValue() > 0f)
             assertTrue("The enlarged original can move vertically", axes[SemanticsProperties.VerticalScrollAxisRange].maxValue() > 0f)
-            viewport.performTouchInput { swipeLeft(); swipeUp() }
-            compose.waitUntil(10000) {
-                val moved = viewport.fetchSemanticsNode().config
-                moved[SemanticsProperties.HorizontalScrollAxisRange].value() > 0f && moved[SemanticsProperties.VerticalScrollAxisRange].value() > 0f
+            fun awaitPan(horizontal: Boolean) {
+                try {
+                    compose.waitUntil(10000) {
+                        val moved = viewport.fetchSemanticsNode().config
+                        moved[if (horizontal) SemanticsProperties.HorizontalScrollAxisRange else SemanticsProperties.VerticalScrollAxisRange].value() > 0f
+                    }
+                } catch (failure: Throwable) {
+                    val node = viewport.fetchSemanticsNode()
+                    val x = node.config[SemanticsProperties.HorizontalScrollAxisRange]
+                    val y = node.config[SemanticsProperties.VerticalScrollAxisRange]
+                    throw AssertionError("Actual PDF pan horizontal=$horizontal: x=${x.value()}/${x.maxValue()}, y=${y.value()}/${y.maxValue()}, viewport=${node.boundsInRoot}", failure)
+                }
             }
+            // Let the first real gesture settle before injecting the second.
+            viewport.performTouchInput { swipeLeft() }; awaitPan(true)
+            viewport.performTouchInput { swipeUp() }; awaitPan(false)
             compose.onNodeWithText("全体を表示").performClick()
             compose.onNodeWithText("100%").assertIsDisplayed()
             compose.waitUntil(10000) {

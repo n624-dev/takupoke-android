@@ -95,6 +95,72 @@ class PdfTest {
             } finally { file.delete() }
         }
     }
+    @Test fun rendererInvisibleWhiteTextAndOpaqueCoverNeverHaveCompleteCapture() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        for(mode in listOf("whiteText","whiteFill","whiteImage","blackStroke","whiteStroke")) {
+            val file=File.createTempFile("synthetic-hidden-",".pdf",context.cacheDir)
+            try {
+                PDDocument().use { doc ->
+                    val page=PDPage(PDRectangle(200f,200f));doc.addPage(page)
+                    val fontFile=File("/system/fonts/Roboto-Regular.ttf").takeIf { it.isFile }?:File("/system/fonts/NotoSans-Regular.ttf")
+                    val font=PDType0Font.load(doc,fontFile)
+                    PDPageContentStream(doc,page).use { stream ->
+                        stream.beginText();stream.setFont(font,12f);stream.newLineAtOffset(20f,170f);stream.showText("Visible");stream.endText()
+                        if(mode=="whiteText")stream.setNonStrokingColor(255,255,255)
+                        stream.beginText();stream.setFont(font,12f);stream.newLineAtOffset(20f,120f);stream.showText("Hidden");stream.endText()
+                        when(mode) {
+                            "whiteFill" -> { stream.setNonStrokingColor(255,255,255);stream.addRect(15f,110f,150f,25f);stream.fill() }
+                            "whiteImage" -> {
+                                val image=android.graphics.Bitmap.createBitmap(150,25,android.graphics.Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.WHITE) }
+                                try { stream.drawImage(com.tom_roush.pdfbox.pdmodel.graphics.image.LosslessFactory.createFromImage(doc,image),15f,110f,150f,25f) }finally { image.recycle() }
+                            }
+                            "blackStroke","whiteStroke" -> { stream.setStrokingColor(if(mode=="blackStroke")0 else 255,if(mode=="blackStroke")0 else 255,if(mode=="blackStroke")0 else 255);stream.setLineWidth(25f);stream.moveTo(15f,122f);stream.lineTo(165f,122f);stream.stroke() }
+                        }
+                    };doc.save(file)
+                }
+                val bitmap=android.graphics.Bitmap.createBitmap(200,200,android.graphics.Bitmap.Config.ARGB_8888)
+                try {
+                    bitmap.eraseColor(android.graphics.Color.WHITE)
+                    android.os.ParcelFileDescriptor.open(file,android.os.ParcelFileDescriptor.MODE_READ_ONLY).use { fd -> android.graphics.pdf.PdfRenderer(fd).use { renderer -> renderer.openPage(0).use { it.render(bitmap,null,null,android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY) } } }
+                    var visible=0;for(y in 20..45)for(x in 15..150)if((bitmap.getPixel(x,y) and 0xffffff)!=0xffffff)visible++
+                    assertTrue("Prefix really is rendered",visible>10)
+                    val expected=if(mode=="blackStroke")0 else 0xffffff
+                    for(y in 68..87)for(x in 20..150)assertEquals("Hidden area has no distinct text: $mode",expected,bitmap.getPixel(x,y) and 0xffffff)
+                } finally { bitmap.recycle() }
+                val capture=jp.n624.takupoke.core.RecoveryReadCapture()
+                try { PdfReader.readPages(file,capture);fail("Invisible content marked complete: $mode") }catch(_:ParseFailure) {}
+                assertFalse(capture.complete);assertEquals(jp.n624.takupoke.core.RecoveryInputState.PARTIAL,capture.pages.single().state)
+            } finally { file.delete() }
+        }
+    }
+    @Test fun rendererCropOutsideGlyphsAndLinesCannotBecomeCompleteInventory() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        for(mode in listOf("within","outsideText","outsideLine")) {
+            val file=File.createTempFile("synthetic-crop-",".pdf",context.cacheDir)
+            try {
+                PDDocument().use { doc ->
+                    val page=PDPage(PDRectangle(200f,200f));page.cropBox=PDRectangle(0f,150f,200f,50f);doc.addPage(page)
+                    val fontFile=File("/system/fonts/Roboto-Regular.ttf").takeIf { it.isFile }?:File("/system/fonts/NotoSans-Regular.ttf")
+                    val font=PDType0Font.load(doc,fontFile)
+                    PDPageContentStream(doc,page).use { stream ->
+                        stream.beginText();stream.setFont(font,12f);stream.newLineAtOffset(20f,170f);stream.showText("Visible");stream.endText()
+                        if(mode=="outsideText") { stream.beginText();stream.setFont(font,12f);stream.newLineAtOffset(20f,120f);stream.showText("Hidden");stream.endText() }
+                        if(mode=="outsideLine") { stream.moveTo(20f,120f);stream.lineTo(180f,120f);stream.stroke() }
+                    };doc.save(file)
+                }
+                android.os.ParcelFileDescriptor.open(file,android.os.ParcelFileDescriptor.MODE_READ_ONLY).use { fd -> android.graphics.pdf.PdfRenderer(fd).use { renderer -> renderer.openPage(0).use { page ->
+                    assertEquals(200,page.width);assertEquals(50,page.height)
+                    val bitmap=android.graphics.Bitmap.createBitmap(page.width,page.height,android.graphics.Bitmap.Config.ARGB_8888)
+                    try { bitmap.eraseColor(android.graphics.Color.WHITE);page.render(bitmap,null,null,android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                        assertTrue((0 until 50).any { y -> (0 until 200).any { x -> (bitmap.getPixel(x,y) and 0xffffff)!=0xffffff } })
+                    }finally { bitmap.recycle() }
+                } } }
+                val capture=jp.n624.takupoke.core.RecoveryReadCapture()
+                if(mode=="within") { assertEquals("Visible",PdfReader.readPages(file,capture).single().glyphs.joinToString("") { it.text });assertTrue(capture.complete) }
+                else { try { PdfReader.readPages(file,capture);fail("Crop-hidden content marked complete") }catch(_:ParseFailure) {};assertFalse(capture.complete);assertEquals(jp.n624.takupoke.core.RecoveryInputState.PARTIAL,capture.pages.single().state) }
+            }finally { file.delete() }
+        }
+    }
     @Test fun missingUnicodeMapFailsClosed() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext; val f = File.createTempFile("synthetic-", ".pdf", context.cacheDir)
         try {

@@ -46,7 +46,7 @@ object XlsxParser {
             val cells = linkedMapOf<Int, Pair<String, Boolean>>()
             row.children.filter { it.name == "c" && it.namespace == spreadsheet }.forEach { cell ->
                 require(++cellCount <= 100000)
-                val ref = Regex("([A-Z]+)([0-9]+)").matchEntire(requireNotNull(cell.attrs["r"])) ?: error("セル位置を確認できません")
+                val ref = Regex("([A-Z]{1,2})([0-9]+)").matchEntire(requireNotNull(cell.attrs["r"])) ?: error("セル位置を確認できません")
                 require(ref.groupValues[2].toInt() == number)
                 val col = ref.groupValues[1].fold(0) { a, c -> a * 26 + c.code - 64 } - 1
                 require(col in 0..127 && col !in cells && cell.children.count { it.name == "v" } <= 1 && cell.children.count { it.name == "f" } <= 1)

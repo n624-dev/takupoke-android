@@ -13,3 +13,7 @@
 # Keep only this cross-APK entry. SDK/core/coroutine/schema/oracle code is in
 # the same optimized target, allowing normal R8 rewriting of those libraries.
 -keep class jp.n624.takupoke.android.LiteRtRuntimeEvaluationHarness { *; }
+
+# The separate Runner calls this Kotlin multifile facade through TestDirCalculator.
+# Keep the facade and its inherited static lazy methods, not the whole stdlib.
+-keep class kotlin.LazyKt** { *; }

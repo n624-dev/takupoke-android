@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 case "$SCREENSHOT_THEME" in
-  light) adb shell cmd uimode night no;;
-  dark) adb shell cmd uimode night yes;;
+  light) screenshot_night_mode=no;;
+  dark) screenshot_night_mode=yes;;
   *) exit 1;;
 esac
+# Android 10's default emulator locks night-mode changes to privileged callers.
+# This disposable google_apis image permits adbd root; the app remains its own UID.
+screenshot_sdk="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
+if [[ "$screenshot_sdk" == 29 ]]; then
+  adb root
+  adb wait-for-device
+fi
+adb shell cmd uimode night "$screenshot_night_mode"
 # Android 10 can defer a system night-mode change until the next screen-off.
 # Apply the real OS configuration before the test activity starts.
 adb shell input keyevent KEYCODE_SLEEP
@@ -12,6 +20,12 @@ sleep 0.5
 adb shell input keyevent KEYCODE_WAKEUP
 adb shell wm dismiss-keyguard
 adb shell dumpsys uimode
+screenshot_actual_night="$(adb shell cmd uimode night)"
+printf '%s\n' "$screenshot_actual_night"
+if [[ "$screenshot_actual_night" != *"Night mode: $screenshot_night_mode"* ]]; then
+  printf 'Requested screenshot theme was not applied by the real OS.\n' >&2
+  exit 1
+fi
 adb shell wm size 720x1280
 adb shell wm density 320
 adb logcat -G 16M

@@ -226,12 +226,12 @@ class PlatformTest {
             assertEquals(formal,seed.database.records().single())
             seed.repository.startRecovery(MaterialKind.TIMETABLE)
             val fresh=requireNotNull(seed.repository.state.value.recoveryPreviews[MaterialKind.TIMETABLE])
-            assertEquals(3,fresh.result.metadata.validatorVersion)
+            assertEquals(RecoveryValidator.VERSION,fresh.result.metadata.validatorVersion)
             assertEquals(RecoveryJobState.AWAITING_CONFIRMATION,seed.database.records().single().recoveryJob?.state)
             assertEquals(seed.oldAnalysis,seed.database.records().single().analysis)
             assertNull(seed.database.records().single().recoveryAcceptance)
             seed.repository.adoptRecovery(MaterialKind.TIMETABLE,fresh.resultHash)
-            assertEquals(3,seed.database.records().single().recoveryAcceptance?.metadata?.validatorVersion)
+            assertEquals(RecoveryValidator.VERSION,seed.database.records().single().recoveryAcceptance?.metadata?.validatorVersion)
         } finally { seed.stop() }
     }
     @Test fun oldOrLegacyRecoveryPreviewCannotSkipCurrentStrictParserAfterUpgrade() = runBlocking {

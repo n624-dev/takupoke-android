@@ -25,9 +25,9 @@ names=dict(entries)
 # must retain their actual class names. Check the pinned native binary itself.
 with zipfile.ZipFile('app/build/outputs/apk/release/app-release.apk') as apk:
     native=b''.join(apk.read(name) for name in apk.namelist() if name.startswith('lib/x86_64/') and 'litertlm' in name and name.endswith('.so'))
-refs={name.decode().replace('/','.') for name in re.findall(rb'com/google/ai/edge/litertlm/[A-Z][A-Za-z0-9_$]*',native)}
-assert len(refs)>=6 and all(names.get(name)==name for name in refs), 'Native JNI class references must survive R8'
-assert 'com.google.ai.edge.litertlm.LiteRtLmJniException' in refs
+native_refs={name.decode().replace('/','.') for name in re.findall(rb'com/google/ai/edge/litertlm/[A-Z][A-Za-z0-9_$]*',native)}
+assert len(native_refs)>=6 and all(names.get(name)==name for name in native_refs), 'Native JNI class references must survive R8'
+assert 'com.google.ai.edge.litertlm.LiteRtLmJniException' in native_refs
 assert 'jp.n624.takupoke.android.TakupokeApplication -> jp.n624.takupoke.android.TakupokeApplication:' in mapping
 assert 'jp.n624.takupoke.android.Transport -> jp.n624.takupoke.android.Transport:' in mapping
 assert 'androidx.tracing.Trace -> androidx.tracing.Trace:' in mapping
@@ -49,20 +49,52 @@ for label,filename in [('target','app/build/outputs/apk/release/app-release.apk'
     dumps[label]='\n'.join(parts)
 classes=set(re.findall(r"Class descriptor\s+: '(L[^']+;)'",dumps['target']+dumps['test']))
 entriesToCheck={'Ljp/n624/takupoke/android/OfflineRunner;','Ljp/n624/takupoke/android/OfflineApplication;','Ljp/n624/takupoke/android/RejectNetwork;','Ljp/n624/takupoke/android/LiteRtRuntimeEvaluationTest;','Landroidx/test/runner/AndroidJUnitRunner;'}
-checked=0;bridge=False
-for descriptor,body in re.findall(r"Class descriptor\s+: '(L[^']+;)'([\s\S]*?)(?=Class descriptor\s+:|\Z)",dumps['test']):
-    if descriptor in entriesToCheck or descriptor.startswith('Landroidx/test/platform/tracing/'):
-        refs=set(re.findall(r'L(?:[a-zA-Z0-9_$]+/)*[a-zA-Z0-9_$]+;',body))
-        missing={ref for ref in refs-classes if not ref.startswith(('Landroid/','Ljava/','Ljavax/','Ldalvik/','Lsun/','Lj$/'))}
-        assert not missing, 'Evaluation entry shared dependency absent: '+descriptor+' '+str(sorted(missing))
-        checked+=1
+bodies=dict(re.findall(r"Class descriptor\s+: '(L[^']+;)'([\s\S]*?)(?=Class descriptor\s+:|\Z)",dumps['test']))
+queue=list(entriesToCheck);visited=set();bridge=False
+while queue:
+    descriptor=queue.pop()
+    if descriptor in visited: continue
+    visited.add(descriptor)
+    body=bodies.get(descriptor)
+    if body is None: continue
+    entry_refs=set(re.findall(r'L(?:[a-zA-Z0-9_$]+/)*[a-zA-Z0-9_$]+;',body))
+    missing={ref for ref in entry_refs-classes if not ref.startswith(('Landroid/','Ljava/','Ljavax/','Ldalvik/','Lsun/','Lj$/'))}
+    assert not missing, 'Evaluation reachable runner dependency absent: '+descriptor+' '+str(sorted(missing))
+    queue.extend(entry_refs & bodies.keys()-visited)
     if descriptor=='Ljp/n624/takupoke/android/LiteRtRuntimeEvaluationTest;':
         bridge='LiteRtRuntimeEvaluationHarness;.evaluate:(Landroid/content/Context;Landroid/content/Context;Ljava/lang/String;)V' in body
+checked=len(visited)
+# Verify member descriptors too: a retained class can still lose a constructor,
+# field or method when target R8 cannot see its separate instrumentation caller.
+allBodies=dict(re.findall(r"Class descriptor\s+: '(L[^']+;)'([\s\S]*?)(?=Class descriptor\s+:|\Z)",dumps['target']+dumps['test']))
+members={owner:set(re.findall(r"name\s+: '([^']+)'\s+type\s+: '([^']+)'",body)) for owner,body in allBodies.items()}
+parents={owner:re.findall(r"'(L[^']+;)'",body.split('Static fields')[0].split('Instance fields')[0]) for owner,body in allBodies.items()}
+objectMethods={('toString','()Ljava/lang/String;'),('hashCode','()I'),('equals','(Ljava/lang/Object;)Z'),('getClass','()Ljava/lang/Class;'),('clone','()Ljava/lang/Object;'),('finalize','()V'),('notify','()V'),('notifyAll','()V'),('wait','()V'),('wait','(J)V'),('wait','(JI)V')}
+def resolves(owner,member,seen=None):
+    seen=set() if seen is None else seen
+    if owner in seen: return False
+    seen.add(owner)
+    if member in members.get(owner,set()): return True
+    if owner=='Ljava/lang/Object;': return member in objectMethods
+    if owner not in allBodies: return None  # Platform inherited members are outside the APK.
+    found=[resolves(parent,member,seen) for parent in parents[owner]]
+    if any(value is True for value in found): return True
+    if any(value is None for value in found): return None
+    return False
+memberRefsChecked=0;platformInherited=0
+for descriptor in visited & bodies.keys():
+    body=bodies[descriptor]
+    refsToMembers=re.findall(r'invoke-\S+[^\n]*? (L[^; ]+;)\.([^: ]+):(\([^)]*\)(?:\[*(?:L[^; ]+;|[ZBCSIJFDV])))',body)+re.findall(r'[is](?:get|put)[-\w]*[^\n]*? (L[^; ]+;)\.([^: ]+):(\[*(?:L[^; ]+;|[ZBCSIJFDV]))',body)
+    for owner,name,signature in set(refsToMembers):
+        if owner not in allBodies: continue
+        resolved=resolves(owner,(name,signature));memberRefsChecked+=1
+        assert resolved is not False, 'Evaluation reachable member absent: '+owner+'.'+name+':'+signature
+        if resolved is None: platformInherited+=1
 assert checked>=5 and bridge
-print(json.dumps({'event':'optimized_entry_abi','classesChecked':checked,'missingClassReferences':0,'fixedBridgeInvoked':True}))
+print(json.dumps({'event':'optimized_entry_abi','classesChecked':checked,'missingClassReferences':0,'fixedBridgeInvoked':True,'memberRefsChecked':memberRefsChecked,'missingKnownMemberReferences':0,'inheritedPlatformMembersOutsideApk':platformInherited}))
 compiler=re.search(r'^# compiler_version: (.+)$',mapping,re.M)
 assert compiler
-print(json.dumps({'event':'r8_keep','r8Version':compiler.group(1),'nativeReferencedClassesPreserved':len(refs),'optimized':True,'offlineVirtualHookRetained':True,'distributionArtifact':False}))
+print(json.dumps({'event':'r8_keep','r8Version':compiler.group(1),'nativeReferencedClassesPreserved':len(native_refs),'optimized':True,'offlineVirtualHookRetained':True,'distributionArtifact':False}))
 PY
     curl --fail --location --proto '=https' --proto-redir '=https' --max-redirs 5 --connect-timeout 20 --max-time 360 --max-filesize 344671744 --output "$evaluation_dir/candidate.litertlm" "$(cat "$evaluation_dir/url")"
     python3 - "$candidate" "$evaluation_dir/candidate.litertlm" <<'PY'

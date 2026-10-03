@@ -41,9 +41,14 @@ object PdfReader {
     }
     private class Engine(private val source: PDPage) : PDFGraphicsStreamEngine(source) {
         private val glyphs = mutableListOf<Glyph>(); private val lines = mutableListOf<Line>(); private val pending = mutableListOf<Pair<PointF, PointF>>()
+        private val paintedStrokes = mutableListOf<Box>()
+        private fun overlaps(a: Box, b: Box) = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
         private var current = PointF(); private var start = PointF(); private var operations = 0
         private var sourceLine = 0
         private val crop = source.cropBox
+        private val viewportWidth get()=if(source.rotation%180!=0)crop.height.toDouble()else crop.width.toDouble()
+        private val viewportHeight get()=if(source.rotation%180!=0)crop.width.toDouble()else crop.height.toDouble()
+        private fun insideViewport(box:Box)=box.left>=0 && box.top>=0 && box.right<=viewportWidth && box.bottom<=viewportHeight
         private fun point(x: Float, y: Float): PointF {
             val a = x - crop.lowerLeftX; val b = y - crop.lowerLeftY
             return when (((source.rotation % 360) + 360) % 360) {
@@ -75,6 +80,8 @@ object PdfReader {
             interrupted()
             if (font.isVertical || font.cosObject.getDictionaryObject(COSName.TO_UNICODE) == null || font.fontDescriptor == null) fail("未対応のPDFフォント")
             if (graphicsState.textState.renderingMode.isClip || !graphicsState.textState.renderingMode.isFill && !graphicsState.textState.renderingMode.isStroke) fail("不可視文字")
+            val mode=graphicsState.textState.renderingMode
+            if(mode.isFill && graphicsState.nonStrokingColor.toRGB()!=0 || mode.isStroke && graphicsState.strokingColor.toRGB()!=0)fail("未対応の文字色")
             val text = font.toUnicode(code) ?: fail("文字コード")
             require(text.toByteArray().size <= 64 && glyphs.size < 100000)
             if (text.isEmpty()) return
@@ -84,6 +91,9 @@ object PdfReader {
             val positions = listOf(matrix.transformPoint(0f, descent / 1000), matrix.transformPoint(displacement.x, descent / 1000), matrix.transformPoint(0f, ascent / 1000), matrix.transformPoint(displacement.x, ascent / 1000)).map { point(it.x, it.y) }
             val x = positions.minOf { it.x }.toDouble(); val y = positions.minOf { it.y }.toDouble()
             val width = positions.maxOf { it.x } - x; val height = positions.maxOf { it.y } - y
+            val glyphBox=Box(x,y,x+width,y+height)
+            if(!insideViewport(glyphBox))fail("CropBox外の文字")
+            if(paintedStrokes.any { overlaps(it,glyphBox) })fail("文字と描画の重なり")
             glyphs += Glyph(text, x, y, width, height, glyphs.size, sourceLine)
         }
         override fun showForm(form: PDFormXObject) { fail("Form XObject") }
@@ -101,13 +111,26 @@ object PdfReader {
             ps.zipWithNext().forEach { pending += it }; current = ps[0]; start = ps[0]
         }
         override fun strokePath() {
+            if(graphicsState.strokingColor.toRGB()!=0)fail("未対応の罫線色")
+            val transform=graphicsState.currentTransformationMatrix
+            val scale=maxOf(kotlin.math.hypot(transform.scaleX.toDouble(),transform.shearY.toDouble()),kotlin.math.hypot(transform.shearX.toDouble(),transform.scaleY.toDouble()))
+            val pad=maxOf(1.0,kotlin.math.abs(graphicsState.lineWidth.toDouble())*scale*.75)
             pending.forEach { (a, b) ->
                 val line = Line(minOf(a.x, b.x).toDouble(), minOf(a.y, b.y).toDouble(), maxOf(a.x, b.x).toDouble(), maxOf(a.y, b.y).toDouble())
-                if (line.horizontal || line.vertical) { require(lines.size < 100000); lines += line }
+                if(!insideViewport(Box(line.x1,line.y1,line.x2,line.y2)))fail("CropBox外の罫線")
+                if(!line.horizontal && !line.vertical)fail("未対応の罫線方向")
+                val paint=Box(line.x1-pad,line.y1-pad,line.x2+pad,line.y2+pad)
+                if(glyphs.any { overlaps(paint,Box(it.x,it.y,it.x+it.width,it.y+it.height)) })fail("文字後の重なり描画")
+                require(lines.size < 100000);lines+=line;paintedStrokes+=paint
             }
             pending.clear()
         }
-        override fun fillPath(rule: Path.FillType) { pending.clear() }
-        override fun fillAndStrokePath(rule: Path.FillType) { strokePath() }
+        private fun checkFill() {
+            // Only an initial white background is provably harmless. An opaque
+            // fill after text/rules can hide captured content regardless of its alpha.
+            if(glyphs.isNotEmpty() || lines.isNotEmpty() || graphicsState.nonStrokingColor.toRGB()!=0xffffff)fail("未対応の面描画")
+        }
+        override fun fillPath(rule: Path.FillType) { checkFill();pending.clear() }
+        override fun fillAndStrokePath(rule: Path.FillType) { checkFill();strokePath() }
     }
 }

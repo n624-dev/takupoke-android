@@ -6,6 +6,8 @@
 
 資料詳細から復旧を開始し、原文から決定できる部分をRulesで処理する。Strict途中成果のページ状態complete / partial / rasterOnlyを区別し、完全に取得した文字・座標・罫線・原文順序を再利用する。部分・未取得ページだけPdfRendererとバンドル日本語OCRで取得する。OCR boxの外に未認識のインクがあるページは完全として扱わない。Rasterの空欄はピクセルで確認する。薄い灰色や色付きの未読印も空欄と区別し、背景ノイズが残るページも推測せず失敗する。罫線は両端が直交する線へ接続する線のみ認め、未認識の「一」「I」を罫線へ変えない。
 
+Vector Readerは可視性を証明できるsubsetだけをcompleteにする。黒以外の文字、透明度・blend・clip、文字と重なるstroke、描画後のfill/image、回転後CropBox外の文字/線はpartialへ落とす。partialに残った文字を原文として再利用せず、実PdfRendererで表示されるページをOCRする。Raster罫線のmaskは実際の連続strokeだけに限定し、セル全域の薄い灰色・色付き画素も確認する。
+
 RecoveryLayoutは年度・学期・クラス・曜日/日付・時限・時刻の原文と位置を結び付ける。ページ数・フォント・固定列幅を正しさの条件にしない。未分類Sourceを捨てずに失敗する。既知の三行セル、独立した原文役割ラベル、明示的な三行並記区切り、結合時限と専用時計、返却の適用日が一致するPDF注記を扱う。初日の専用時刻だけがある返却PDFは、注記に明記された残り4日に限って通常時刻をコードで生成する。AIの知識から時刻を補わない。時刻・役割・クラスを独立証明できないレイアウトは安全に失敗する。
 
 Validator通過後も正式Analysisを保存しない。原文と復旧プレビューを利用者が確認し、資料全体の採用を明示した時だけ、原本SHA・選択URI・文書種別・保存期間・年度/学期・Doc/Result・取消状態を再検証する。SQLite transactionで正式Analysis、Metadata、Acceptanceを一緒に保存する。クラス/曜日の絞り込みは表示のみで、採用は全資料である。初回は自動採用しない。同じPDF hash、文書全体fingerprint、結果、各versionが一致する確認記録だけを再利用し、Validatorは再実行する。
@@ -42,6 +44,8 @@ Qwen3-0.6B INT4は最初の比較候補で、最終採用ではない。公式�
 
 OfflineRunnerのRecoveryScreenTestは実Compose・SQLite・PdfRendererで開始、未採用プレビュー、原本閲覧、全資料採用、中止、モデル未提供、fakeモデル取得・準備・削除・取消、学校資料全削除後のモデル削除を操作する。RecoveryServicesの完全架空mockを使い、学校URL・モデルURLへ通信しない。既知scopeではmock providerの呼出し0回を確認する。JDK21でcore tests、debug APK、androidTest APK、lint、optimized releaseをビルドする。実Android emulator/deviceでのUI、OCR、LiteRT CPU/GPU/NPU、nativeキャンセル、性能は別途実行する。
 
+日本語OCRは認識単位のconfidenceが0.8未満、0/NaN等で未提供、または未認識インクが残る場合partialとして保持する。実バンドル日本語Recognizerの完全架空テストは通常native suiteで実行し、専用tagのJSONだけを取り出して原文・生confidence・取得状態・空欄証明数を記録する。Gradle失敗statusをreport処理で消さず、report欠落もCIで失敗する。テストの成功と、実OCRがcompleteになったことは区別する。
+
 Kotlin 2.4のmetadataを扱うため、[Androidの公式互換表](https://developer.android.com/build/kotlin-support)の最低R8 9.1.29を満たす9.1.31を固定する。[R8の公式override手順](https://r8.googlesource.com/r8/+/refs/heads/main/README.md#replacing-r8-in-agp)に従い、AGP 8.13.2 / Gradle 8.13を維持する。LiteRT 0.17.1 AARにはconsumer keep rulesがなく、JNIはDTO・例外・callbackの名前を参照するため、そのRuntimeパッケージを明示保持する。最適化APKでの端末内Runtime smokeは、モデル配信の合格判定までに別途必要である。
 
 最重要指標は誤採用数。少数の架空fixtureやLinux CPU候補評価を、学校資料での誤採用率・実端末動作確認とみなさない。自動採用は初期版へ追加しない。
@@ -52,4 +56,4 @@ Kotlin 2.4のmetadataを扱うため、[Androidの公式互換表](https://devel
 
 実LiteRT-LM 0.17.1 / CPU / context4096でinitialize、smoke、Structured Outputのdecode、既存Validator、native cancel、Provider cancel、終了後closeを検証する。16ケースは役割順序、ラベルalias、教員/教室の明示空欄、並記2、同じ文字列の別ID、1/I・0/Oの原文、指示を装った本文、欠落とpartial pageを含む。欠落/partialは前処理やValidatorで安全に失敗するかを記録する。原文atomと独立scopeからRulesで一意に解けるセルについて、**モデル単体の評価**としてProviderを直接呼び、製品のRules優先経路を変更しない。原文再構築後の完全一致、raw完全一致、Validator採否、誤採用、危険な役割混入出力の拒否を別々に記録する。加えて、cheap Rulesで未解決の本文挟み込み型ラベル1件を実structureProposal→原文certificate→元ページ再build→Rules/Validatorで評価し、16件のfield評価とは別のmetricsで記録する。
 
-PSS、private footprint、native PSS、native heap、Java heap、初期化/各推論/取消の時間をActionsログへJSON行で出力する。R8後のJNI class名保持も確認する。評価時だけ別APKのOfflineApplicationから呼ぶvirtual repository hook・constructor・Transport interfaceを保持し、起動時に通信拒否transportの注入を実証する。起動前クラッシュでは架空評価専用のAndroidRuntime/crash診断を出力する。モデル、APK、入力、ログをActions artifact/cacheへ永続保存しない。比較候補の`validated=false`はこの評価でも維持する。16架空ケースやx86_64 emulator CPUの成功は、学校資料の誤採用率、ARM端末メモリ、GPU/NPU性能や配信合格の証明にはしない。manual評価はコードを追加した段階と実行済みの結果を区別する。
+PSS、private footprint、native PSS、native heap、Java heap、初期化/各推論/取消の時間をActionsログへJSON行で出力する。R8後のJNI class名保持と、Test APK入口から参照するclass/memberの閉包を確認する。評価時だけ別APKのOfflineApplicationから呼ぶvirtual repository hook・constructor・Transport interfaceを保持し、起動時に通信拒否transportの注入を実証する。起動前クラッシュでは架空評価専用のAndroidRuntime/crash診断を出力する。モデル、APK、入力、ログをActions artifact/cacheへ永続保存しない。比較候補の`validated=false`はこの評価でも維持する。16架空ケースやx86_64 emulator CPUの成功は、学校資料の誤採用率、ARM端末メモリ、GPU/NPU性能や配信合格の証明にはしない。manual評価はコードを追加した段階と実行済みの結果を区別する。

@@ -57,6 +57,17 @@ class ParityRegressionTest {
         assertFalse(invalid.message.orEmpty().contains("架空科目"))
     }
 
+    @Test fun xlsxOutOfRangeColumnCannotOverflowIntoGradeColumn() {
+        val source=xlsx(listOf(listOf("1","CN","10/2","1","架空科目A","架空科目B")))
+        assertEquals("1_CN",XlsxParser.parse(source,2026).changes.single().className)
+        val original=Archives.read(source)
+        for(column in listOf("MWLQKWW","DY","XFD")) {
+            val changed=original.toMutableMap()
+            changed["xl/worksheets/sheet1.xml"]=original.getValue("xl/worksheets/sheet1.xml").toString(Charsets.UTF_8).replace("r=\"A2\"","r=\"${column}2\"").toByteArray()
+            assertFailsWith<XlsxFailure> { XlsxParser.parse(zip(changed),2026) }
+        }
+    }
+
     @Test fun xlsxReadsOnlyNeededPartsAllowsDirectoriesAndBoundsDeclaredSize() {
         val rows = listOf(listOf("1", "CN", "10/2", "1", "", "架空科目B"))
         val files = Archives.read(xlsx(rows))
