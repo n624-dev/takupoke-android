@@ -151,7 +151,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
             } } }
             require(total > 0); currentCoroutineContext().ensureActive(); require(generation == retentionPeriod())
             val hash = digest.digest().joinToString("") { "%02x".format(it) }; val now = System.currentTimeMillis()
-            if (old?.digest == hash && old.uri == uri.toString() && old.analysis != null && old.parsedDigest == hash && old.analysis.parserVersion == PARSER_VERSION && (kind != MaterialKind.CHANGES || old.year == effectiveSchoolYear())) { db.save(old.copy(checkedAt = now, failure = null)); return }
+            if (old?.digest == hash && old.uri == uri.toString() && old.analysis != null && old.parsedDigest == hash && old.analysis.parserVersion == PARSER_VERSION && (kind != MaterialKind.CHANGES || old.year == effectiveSchoolYear())) { db.save(old.copy(name = name, sourceModified = modified, checkedAt = now, failure = null)); return }
             val destination = File(root, "${kind.name}-$hash.${kind.extension}")
             if (!destination.exists()) require(staging.renameTo(destination))
             val selected = MaterialRecord(kind, uri.toString(), name, hash, now, now, modified, old?.parsedAt, old?.parsedDigest, old?.analysis, year = effectiveSchoolYear(), recoveryMetadata=old?.recoveryMetadata, recoveryAcceptance=old?.recoveryAcceptance)

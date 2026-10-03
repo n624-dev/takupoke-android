@@ -16,7 +16,9 @@ class RecoveryScreenTest {
         val seed=OfflineRecoverySeed(InstrumentationRegistry.getInstrumentation().targetContext,services,kind)
         runBlocking { seed.install() }
         compose.setContent { TakupokeUi(seed.repository,{error("Unexpected document picker")},{error("Unexpected auth")},{error("Unexpected notification request")}) }
-        compose.onNodeWithText("設定").performClick();compose.onNodeWithText("時間割ファイル").performClick();compose.onNodeWithText("詳細を見る").performScrollTo().performClick()
+        compose.onNodeWithText("設定").performClick();compose.onNodeWithText("時間割ファイル").performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("詳細を見る"))
+        compose.onNodeWithText("詳細を見る").performClick()
         return seed
     }
     @Test fun pendingRunPreviewOriginalPdfAndExplicitAdoptionPreserveFormalUntilCommit() {

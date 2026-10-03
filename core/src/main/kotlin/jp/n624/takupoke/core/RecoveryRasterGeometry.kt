@@ -19,9 +19,16 @@ object RecoveryRasterGeometry {
         lines.sortedWith(compareBy<Line>{if(it.horizontal)0 else 1}.thenBy{if(it.horizontal)it.y1 else it.x1}).forEach { line -> if(collapsed.none { old -> old.horizontal==line.horizontal && (if(line.horizontal)kotlin.math.abs(old.y1-line.y1)<=3 && kotlin.math.abs(old.x1-line.x1)<=3 && kotlin.math.abs(old.x2-line.x2)<=3 else kotlin.math.abs(old.x1-line.x1)<=3 && kotlin.math.abs(old.y1-line.y1)<=3 && kotlin.math.abs(old.y2-line.y2)<=3) })collapsed+=line }
         // A character stroke (for example 一 or I) is not a table border.
         // Accept only strokes whose two endpoints join perpendicular ruled strokes.
-        val ruled=collapsed.filter { line ->
-            if(line.horizontal) listOf(line.x1,line.x2).all { x -> collapsed.any { it.vertical && kotlin.math.abs(it.x1-x)<=4 && line.y1>=it.y1-4 && line.y1<=it.y2+4 } }
-            else listOf(line.y1,line.y2).all { y -> collapsed.any { it.horizontal && kotlin.math.abs(it.y1-y)<=4 && line.x1>=it.x1-4 && line.x1<=it.x2+4 } }
+        var ruled=collapsed.toList()
+        while(true) {
+            interrupted()
+            val candidates=ruled
+            val retained=candidates.filter { line ->
+                if(line.horizontal) listOf(line.x1,line.x2).all { x -> candidates.any { it.vertical && kotlin.math.abs(it.x1-x)<=4 && line.y1>=it.y1-4 && line.y1<=it.y2+4 } }
+                else listOf(line.y1,line.y2).all { y -> candidates.any { it.horizontal && kotlin.math.abs(it.y1-y)<=4 && line.x1>=it.x1-4 && line.x1<=it.x2+4 } }
+            }
+            if(retained.size==ruled.size)break
+            ruled=retained
         }
         covered.fill(false)
         ruled.forEach { line -> if(line.horizontal)for(x in line.x1.toInt()..line.x2.toInt())for(d in -3..3)mark(x,line.y1.toInt()+d) else for(y in line.y1.toInt()..line.y2.toInt())for(d in -3..3)mark(line.x1.toInt()+d,y) }

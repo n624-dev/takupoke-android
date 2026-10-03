@@ -39,7 +39,7 @@ object PdfSchoolParser {
             require(lessons.size <= 20000)
             } catch (e: ParseFailure) { throw e.located(page = index + 1) }
         }
-        if (classes.size != 17 || lessons.isEmpty()) fail("クラス数・授業数")
+        if (classes != RecoveryValidator.specialClasses.toSet() || lessons.isEmpty()) fail("クラス数・授業数")
         val clocks = dates.orEmpty().mapIndexed { index, date ->
             val values = if (kind == MaterialKind.RETURN && index > 0) Schedule.normalTimes.mapIndexed { i, value -> i + 1 to value }.toMap() else firstTimes!!.single
             DayTimes(date, values.entries.sortedBy { it.key }.map { (period, value) -> PeriodTime(period, value.substringBefore('〜'), value.substringAfter('〜')) })

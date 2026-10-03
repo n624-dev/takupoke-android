@@ -181,6 +181,13 @@ class RecoveryLayoutTest {
         val pixels=IntArray(200*200){-1};for(x in 30..140)pixels[100*200+x]=0xff000000.toInt()
         val result=RecoveryRasterGeometry.analyze(200,200,pixels,emptyList());assertFalse(result.complete);assertTrue(result.lines.isEmpty())
     }
+    @Test fun rejectedEndpointsCannotCertifyADanglingHAsRulings() {
+        val pixels=IntArray(200*200){-1}
+        for(y in 20..180) { pixels[y*200+30]=0xff000000.toInt();pixels[y*200+170]=0xff000000.toInt() }
+        for(x in 30..170)pixels[100*200+x]=0xff000000.toInt()
+        val result=RecoveryRasterGeometry.analyze(200,200,pixels,emptyList())
+        assertFalse(result.complete);assertTrue(result.lines.isEmpty());assertTrue(result.blankBoxes.isEmpty())
+    }
     @Test fun rasterInkOutsideRecognitionCannotBecomeFreePeriod() {
         val pixels=IntArray(100*100){-1};pixels[55*100+55]=0xff000000.toInt()
         assertFalse(RecoveryRasterGeometry.analyze(100,100,pixels,emptyList()).complete)

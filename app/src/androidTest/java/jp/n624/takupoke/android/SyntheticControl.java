@@ -2,6 +2,7 @@ package jp.n624.takupoke.android;
 
 import android.content.ContentProvider;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
@@ -23,6 +24,11 @@ public final class SyntheticControl extends ContentProvider {
         long token = Binder.clearCallingIdentity();
         try {
             try (FileOutputStream out = new FileOutputStream(new File(getContext().getCacheDir(), "synthetic.xlsx"))) { out.write(bytes); }
+            // Reset absent overrides so each entirely fictional provider test is independent.
+            android.content.SharedPreferences.Editor metadata = getContext().getSharedPreferences("synthetic-metadata", Context.MODE_PRIVATE).edit();
+            metadata.putString("name", extras.getString("displayName", "synthetic.xlsx")).remove("modified");
+            if (extras.containsKey("modified")) metadata.putLong("modified", extras.getLong("modified"));
+            if (!metadata.commit()) throw new IllegalStateException("Synthetic metadata could not be saved");
             Uri uri = DocumentsContract.buildDocumentUri(SyntheticDocuments.AUTHORITY, "changes");
             if (extras.getBoolean("grant")) getContext().grantUriPermission("jp.n624.takupoke.android", uri, Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
             getContext().getContentResolver().notifyChange(uri, null);

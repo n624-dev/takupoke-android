@@ -181,6 +181,26 @@ class PlatformTest {
     private fun replaceDocument(bytes: ByteArray, grant: Boolean = false) {
         context.contentResolver.call(SyntheticControl.AUTHORITY, "replaceSynthetic", null, Bundle().apply { putByteArray("bytes", bytes); putBoolean("grant", grant) })
     }
+    @Test fun unchangedDigestUpdatesSafNameAndSourceTimeWithoutReparsing() = runBlocking {
+        val c=isolated();val db=Database(c);val repository=AppRepository(c,RejectNetwork,db,MemorySettings())
+        val uri=DocumentsContract.buildDocumentUri(SyntheticDocuments.AUTHORITY,"changes")
+        val bytes=syntheticXlsx("架空の更新後科目")
+        fun publish(name:String,modified:Long,grant:Boolean=false) {
+            context.contentResolver.call(SyntheticControl.AUTHORITY,"replaceSynthetic",null,Bundle().apply { putByteArray("bytes",bytes);putBoolean("grant",grant);putString("displayName",name);putLong("modified",modified) })
+        }
+        publish("架空の旧表示名.xlsx",1000,true)
+        try {
+            repository.select(MaterialKind.CHANGES,uri,Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            val initial=db.records().single().copy(fetchedAt=123,parsedAt=456,checkedAt=1)
+            db.save(initial);publish("架空の新表示名.xlsx",2000)
+            repository.refreshMaterial(MaterialKind.CHANGES)
+            val current=db.records().single()
+            assertEquals("架空の新表示名.xlsx",current.name);assertEquals(2000L,current.sourceModified)
+            assertEquals(initial.digest,current.digest);assertEquals(initial.parsedDigest,current.parsedDigest);assertEquals(initial.analysis,current.analysis)
+            assertEquals(123L,current.fetchedAt);assertEquals(456L,current.parsedAt);assertTrue(current.checkedAt>1);assertNull(current.failure)
+            assertEquals(current,repository.state.value.materials.single())
+        } finally { repository.stopObserving();c.contentResolver.releasePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+    }
     @Test fun defaultYearPersistsAndReparsesIdenticalFileOnRefreshAndReselect() = runBlocking {
         val c = isolated(); val db = Database(c)
         val preferences = MemorySettings(Settings(defaultSchoolYear = "2020"))

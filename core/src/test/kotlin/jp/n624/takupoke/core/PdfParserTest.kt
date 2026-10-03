@@ -38,6 +38,16 @@ class PdfParserTest {
         assertFailsWith<ParseFailure> { PdfSchoolParser.parse(pages.take(5), MaterialKind.EXAM) }
         assertFailsWith<ParseFailure> { PdfSchoolParser.parse(pages.dropLast(1) + pages[0], MaterialKind.EXAM) }
     }
+    @Test fun seventeenCountCannotHideAnUnknownExamClass() {
+        val pages=(1..6).map(::exam).toMutableList()
+        // Header 3-ES spans four independently acquired glyphs on page three.
+        val p=pages[2];val header=p.glyphs.filter { it.y==60.0 && it.x in 160.0..172.0 }.sortedBy { it.x }
+        assertEquals("3-ES",header.joinToString("") { it.text })
+        val wrong=header.takeLast(2).map { it.order }.toSet()
+        pages[2]=p.copy(glyphs=p.glyphs.map { if(it.order in wrong)it.copy(text="X")else it })
+        val error=assertFailsWith<ParseFailure> { PdfSchoolParser.parse(pages,MaterialKind.EXAM) }
+        assertEquals("クラス数・授業数",error.stage)
+    }
     @Test fun examBlankCellsStayBlank() {
         val a = PdfSchoolParser.parse((1..6).map(::exam), MaterialKind.EXAM)
         assertEquals(1, a.lessons.count { it.className == "1_1" })

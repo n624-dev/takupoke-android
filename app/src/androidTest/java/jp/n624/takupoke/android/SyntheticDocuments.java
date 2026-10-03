@@ -1,6 +1,7 @@
 package jp.n624.takupoke.android;
 
 import android.database.Cursor;
+import android.content.Context;
 import android.database.MatrixCursor;
 import android.os.CancellationSignal;
 import android.os.ParcelFileDescriptor;
@@ -22,15 +23,16 @@ public final class SyntheticDocuments extends DocumentsProvider {
         if (!"changes".equals(id)) throw new FileNotFoundException();
         String[] columns = projection != null ? projection : new String[] { DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME, DocumentsContract.Document.COLUMN_MIME_TYPE, DocumentsContract.Document.COLUMN_SIZE, DocumentsContract.Document.COLUMN_LAST_MODIFIED, DocumentsContract.Document.COLUMN_FLAGS };
         File file = new File(getContext().getCacheDir(), "synthetic.xlsx");
+        android.content.SharedPreferences metadata = getContext().getSharedPreferences("synthetic-metadata", Context.MODE_PRIVATE);
         MatrixCursor cursor = new MatrixCursor(columns);
         Object[] row = new Object[columns.length];
         for (int i = 0; i < columns.length; i++) {
             switch (columns[i]) {
                 case DocumentsContract.Document.COLUMN_DOCUMENT_ID: row[i] = "changes"; break;
-                case DocumentsContract.Document.COLUMN_DISPLAY_NAME: row[i] = "synthetic.xlsx"; break;
+                case DocumentsContract.Document.COLUMN_DISPLAY_NAME: row[i] = metadata.getString("name", "synthetic.xlsx"); break;
                 case DocumentsContract.Document.COLUMN_MIME_TYPE: row[i] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; break;
                 case DocumentsContract.Document.COLUMN_SIZE: row[i] = file.length(); break;
-                case DocumentsContract.Document.COLUMN_LAST_MODIFIED: row[i] = file.lastModified(); break;
+                case DocumentsContract.Document.COLUMN_LAST_MODIFIED: row[i] = metadata.getLong("modified", file.lastModified()); break;
                 case DocumentsContract.Document.COLUMN_FLAGS: row[i] = 0; break;
                 default: row[i] = null;
             }
