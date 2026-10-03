@@ -50,6 +50,17 @@ class PdfParserTest {
         val pages=(1..6).map(::exam).toMutableList();pages[2]=heading(pages[2],"令和8年度令和9年度試験時間割")
         assertEquals("年度",assertFailsWith<ParseFailure> { PdfSchoolParser.parse(pages,MaterialKind.EXAM) }.stage)
     }
+    @Test fun unsupportedUnicodeFiscalYearCannotDisappearDuringNormalization() {
+        fun heading(page:Page,text:String):Page = page.copy(glyphs=page.glyphs.filterNot { it.y==10.0 }+text.mapIndexed { i,c -> Glyph(c.toString(),i*2.0,10.0,2.0,4.0,page.glyphs.size+i) })
+        for(extra in listOf("令和Ⅸ年度","令和௰年度","ⅯⅯⅩⅩⅦ年度","令和九年度","令和年度","２０２７　年度")) {
+            val title="令和8年度${extra}後期時間割"
+            assertEquals("年度",assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(heading(ordinary(),title)),MaterialKind.TIMETABLE) }.stage)
+            val pages=(1..6).map(::exam).toMutableList();pages[2]=heading(pages[2],"令和8年度${extra}試験時間割")
+            assertEquals("年度",assertFailsWith<ParseFailure> { PdfSchoolParser.parse(pages,MaterialKind.EXAM) }.stage)
+        }
+        for(title in listOf("令和８年度２０２６年度後期時間割","令和8年度令和８年度後期時間割","２０２６　年度令和８　年度後期時間割"))
+            assertEquals(2026,PdfSchoolParser.parse(listOf(heading(ordinary(),title)),MaterialKind.TIMETABLE).schoolYear)
+    }
     @Test fun ordinaryRejectsAmbiguousSemesterAndMissingGrid() {
         val page = ordinary()
         assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(page.copy(lines = emptyList())), MaterialKind.TIMETABLE) }

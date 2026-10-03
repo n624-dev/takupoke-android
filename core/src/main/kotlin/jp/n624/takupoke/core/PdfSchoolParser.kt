@@ -9,21 +9,28 @@ object PdfSchoolParser {
         catch (e: InterruptedException) { throw e }
         catch (_: Exception) { throw ParseFailure("P01", "文字・位置・解析上限", page = 1) }
     private fun headingYear(heading:String):Int {
-        val matches=Regex("(?:令和([0-9]+)|(?<![0-9])([0-9]+))年度").findAll(heading).toList()
+        // Capture every original fiscal-year token before compatibility
+        // normalization can turn a Roman numeric glyph into ordinary letters.
+        val raw=heading.filterNot(Char::isWhitespace)
+        val matches=Regex("令和([^年]*?)年度|(?<!\\p{N})(\\p{N}+)年度").findAll(raw).toList()
         val years=matches.map { match ->
-            if(match.groupValues[1].isNotEmpty())(match.groupValues[1].toIntOrNull()?.takeIf { it in 1..99 }?:fail("年度"))+2018
-            else match.groupValues[2].toIntOrNull()?:fail("年度")
+            val era=match.groups[1]!=null
+            val digits=key(if(era)match.groupValues[1]else match.groupValues[2])
+            if(!digits.matches(Regex("[0-9]+")))fail("年度")
+            val number=digits.toIntOrNull()?:fail("年度")
+            if(era)(number.takeIf { it in 1..99 }?:fail("年度"))+2018 else number
         }
-        if(years.distinct().size!=1 || matches.none { it.groupValues[1].isNotEmpty() })fail("年度")
-        return years.singleOrNull()?:years.first()
+        if(years.distinct().size!=1 || matches.none { it.groups[1]!=null })fail("年度")
+        return years.first()
     }
     private fun parseDocument(pages: List<Page>, kind: MaterialKind): Analysis {
         require(kind != MaterialKind.CHANGES)
         if (pages.size != when (kind) { MaterialKind.EXAM -> 6; else -> 1 }) fail("ページ数")
         pages.forEach { p -> require(p.width in 1.0..5000.0 && p.height in 1.0..5000.0 && p.glyphs.size in 1..100000 && p.lines.size <= 100000)
             require(p.glyphs.all { listOf(it.x, it.y, it.width, it.height).all(Double::isFinite) && it.text.toByteArray().size <= 64 }) }
-        val heading = Grid.rows(pages.first().glyphs.filter { it.cy < pages.first().height / (if (kind == MaterialKind.TIMETABLE) 8 else 4) }).joinToString("") { row -> key(row.joinToString("") { it.text }) }
-        val year = headingYear(heading)
+        val rawHeading = Grid.rows(pages.first().glyphs.filter { it.cy < pages.first().height / (if (kind == MaterialKind.TIMETABLE) 8 else 4) }).joinToString("") { row -> row.joinToString("") { it.text } }
+        val heading=key(rawHeading)
+        val year = headingYear(rawHeading)
         if (kind == MaterialKind.TIMETABLE) {
             if (!heading.contains("時間割") || heading.contains("前期") == heading.contains("後期")) fail("学期")
             val term = if (heading.contains("前期")) 1 else 2
@@ -35,8 +42,9 @@ object PdfSchoolParser {
         pages.forEachIndexed { index, page ->
             try {
             interrupted()
-            val pageHeading = key(Grid.rows(page.glyphs.filter { it.cy < page.height / 4 }).joinToString("") { row -> row.joinToString("") { it.text } })
-            if (headingYear(pageHeading) != year || !pageHeading.contains("試験") || pageHeading.contains("返却") != (kind == MaterialKind.RETURN)) fail("年度・種類")
+            val rawPageHeading = Grid.rows(page.glyphs.filter { it.cy < page.height / 4 }).joinToString("") { row -> row.joinToString("") { it.text } }
+            val pageHeading=key(rawPageHeading)
+            if (headingYear(rawPageHeading) != year || !pageHeading.contains("試験") || pageHeading.contains("返却") != (kind == MaterialKind.RETURN)) fail("年度・種類")
             val times = times(page, if (kind == MaterialKind.EXAM) 6 else 8)
             if (firstTimes != null && firstTimes != times) fail("ページ間の授業時刻")
             firstTimes = times
