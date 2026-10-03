@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
 import java.io.InputStream
 import java.io.OutputStream
 
-@Serializable data class MaterialRecord(val kind: MaterialKind, val uri: String, val name: String, val digest: String, val fetchedAt: Long, val checkedAt: Long, val sourceModified: Long? = null, val parsedAt: Long? = null, val parsedDigest: String? = null, val analysis: Analysis? = null, val failure: String? = null, val year: Int = schoolYear())
+@Serializable data class MaterialRecord(val kind: MaterialKind, val uri: String, val name: String, val digest: String, val fetchedAt: Long, val checkedAt: Long, val sourceModified: Long? = null, val parsedAt: Long? = null, val parsedDigest: String? = null, val analysis: Analysis? = null, val failure: String? = null, val year: Int = schoolYear(), val recoveryJob: RecoveryJob? = null, val recoveryMetadata: RecoveryMetadata? = null, val recoveryAcceptance: RecoveryAcceptance? = null)
 class Database(context: Context) : SQLiteOpenHelper(context, java.io.File(context.noBackupFilesDir, "takupoke.sqlite").path, null, 1) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE material(kind TEXT PRIMARY KEY, record TEXT NOT NULL)")

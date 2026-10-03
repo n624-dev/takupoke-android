@@ -24,6 +24,13 @@ import java.time.LocalDate
 
 private fun AppState.classes() = listOf(settings.primaryClass, settings.additionalClass).filter(String::isNotEmpty).distinct()
 private fun AppState.projection(changes: Boolean) = ScheduleProjection(analyses, events, mapping, times, changes, settings.international)
+@Composable private fun UnreflectedMaterials(state: AppState) {
+    val stale = state.materials.filter { record -> record.analysis != null &&
+        (record.parsedDigest != record.digest || record.analysis.parserVersion != PARSER_VERSION || record.recoveryJob?.let { it.pdfHash == record.digest && it.state != RecoveryJobState.ADOPTED } == true) }
+    if (stale.isNotEmpty()) Surface(color = MaterialTheme.colorScheme.errorContainer, shape = MaterialTheme.shapes.medium) {
+        Text(stale.joinToString("・") { it.kind.title } + "の新しい資料をまだ反映できていません。前回の正常結果を表示しています。", Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onErrorContainer)
+    }
+}
 @Composable private fun schoolNow(): Instant {
     var now by remember { mutableStateOf(Instant.now()) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -35,6 +42,7 @@ private fun accessibility(day: LocalDate, slot: Slot): String = listOf(day.toStr
     var editing by remember { mutableStateOf<LinkItem?>(null) }
     val now = schoolNow(); val date = now.atZone(schoolZone).toLocalDate(); val projection = state.projection(true)
     Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        UnreflectedMaterials(state)
         if (state.updates.isNotEmpty()) TextButton(onClick = account) { Text(listOf("links-revision" to "一覧", "mapping-revision" to "名称データ", "timetable-times-revision" to "授業時刻").filter { it.first in state.updates }.joinToString("・") { it.second } + "に更新があります") }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("今日の予定", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium); TextButton(onClick = timetable) { Text("時間割を見る") } }
         Text("${date.monthValue}月${date.dayOfMonth}日（${"月火水木金土日"[date.dayOfWeek.value - 1]}）")
@@ -91,6 +99,7 @@ private fun accessibility(day: LocalDate, slot: Slot): String = listOf(day.toStr
     val days = projection.displayedDays(monday, selectedClasses)
     val changeClasses = if (state.settings.useTimetableClasses) selectedClasses.toSet() else state.settings.changeClasses.ifEmpty { selectedClasses.toSet() }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        UnreflectedMaterials(state)
         Text("表示クラス", style = MaterialTheme.typography.titleMedium)
         ClassSelectionRow(state.settings, classes)
         Text("週の時間割", style = MaterialTheme.typography.titleMedium)

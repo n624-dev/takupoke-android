@@ -58,6 +58,20 @@ class PdfParserTest {
         assertEquals("P17", error.code); assertEquals(1, error.page); assertEquals(1, error.classRow); assertEquals(1, error.day); assertEquals(1, error.period)
         assertFalse(error.message.orEmpty().contains("架空"))
     }
+    @Test fun ordinaryAndSpecialNeverShiftRoomWhenTeacherLineIsMissing() {
+        val ordinary=ordinary();assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(ordinary.copy(glyphs=ordinary.glyphs.filterNot { it.y==113.0 })),MaterialKind.TIMETABLE) }
+        val pages=(1..6).map(::exam).toMutableList();val first=pages[0];pages[0]=first.copy(glyphs=first.glyphs.filterNot { it.y==128.0 })
+        assertFailsWith<ParseFailure> { PdfSchoolParser.parse(pages,MaterialKind.EXAM) }
+    }
+    @Test fun loneTeacherOrRoomCannotBeRelabeledSubject() {
+        val p=ordinary();for(rows in listOf(setOf(106.0,113.0),setOf(106.0,120.0)))assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(p.copy(glyphs=p.glyphs.filterNot { it.y in rows })),MaterialKind.TIMETABLE) }
+    }
+    @Test fun strictNeverAssignsInlineRoleLabelsByTheirLineOrder() {
+        val p=ordinary();val extra=mutableListOf<Glyph>();var order=p.glyphs.size
+        listOf("教員:Teacher","科目:Math","教室:Room").forEachIndexed { i,value -> value.forEachIndexed { j,c -> extra+=Glyph(c.toString(),41.0+j*.5,106.0+i*7,.4,4.0,order++) } }
+        val changed=p.copy(glyphs=p.glyphs.filterNot { it.y in setOf(106.0,113.0,120.0) }+extra)
+        assertEquals("P17",assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(changed),MaterialKind.TIMETABLE) }.code)
+    }
     @Test fun repeatedHalfwidthMarksCollapse() {
         assertEquals("ｺﾞ", PdfSchoolParser.collapseMarks("ｺﾞﾞﾞ"))
         assertEquals("Aーー", PdfSchoolParser.collapseMarks("Aーー"))
@@ -88,7 +102,7 @@ private fun exam(number: Int): Page = Geometry(400.0).apply {
     for (x in listOf(0.0, 50.0) + (65..50 + classes.size * 90 step 15).map(Int::toDouble)) vertical(x, 80.0, 500.0)
     for (y in listOf(80.0, 100.0, 180.0, 260.0, 340.0, 420.0, 500.0)) horizontal(y, right = 50.0 + classes.size * 90)
     (0..4).forEach { day -> text("10月${day + 1}日", 5.0, 125.0 + day * 80) }
-    classes.indices.forEach { col -> text("Test", 52.0 + col * 90, 120.0, 2.0) }
+    classes.indices.forEach { col -> text("Test", 52.0 + col * 90, 120.0, 2.0) }; text("Teach",52.0,128.0,2.0);text("Room",52.0,136.0,2.0)
     (1..6).forEach { p -> text("${p}時限目${7 + p}:00〜${7 + p}:30", 0.0, 700.0 + p * 20) }
 }.page()
 private fun returned(): Page = Geometry(450.0).apply {
@@ -100,7 +114,7 @@ private fun returned(): Page = Geometry(450.0).apply {
     val labels = listOf("1", "2", "3") + (2..5).flatMap { listOf("CN", "ES", "IT") } + listOf("1", "2")
     labels.forEachIndexed { i, value -> text(value, 47.0, 108.0 + i * 20, 1.5) }
     listOf("1" to 128.0, "2" to 188.0, "3" to 248.0, "4" to 308.0, "5" to 368.0, "AI" to 418.0).forEach { (value, y) -> text(value, 20.0, y) }
-    text("Math", 51.0, 108.0, 1.5)
+    text("Math", 51.0, 103.0, 1.5);text("Teach",51.0,109.0,1.0);text("Room",51.0,115.0,1.5)
     text("10月1日の時間割は以下のとおり", 0.0, 625.0)
     text("10月2日~5日は通常の授業日どおりの授業時間", 0.0, 650.0)
     (1..8).forEach { p -> text("${p}時限目${7 + p}:00〜${7 + p}:30", 0.0, 700.0 + p * 20) }

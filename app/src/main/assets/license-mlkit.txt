@@ -1,0 +1,9 @@
+ML Kit Text Recognition v2 (Japanese), bundled model
+
+This SDK is distributed under the ML Kit Terms of Service:
+https://developers.google.com/ml-kit/terms
+
+This application uses Text Recognition, not ML Kit GenAI APIs.
+ML Kit SDK licensing and third-party software notices:
+https://developers.google.com/ml-kit/terms
+https://developers.google.com/ml-kit/terms/third-party

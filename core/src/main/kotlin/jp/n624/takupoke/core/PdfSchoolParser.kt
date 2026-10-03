@@ -52,7 +52,7 @@ object PdfSchoolParser {
         return rows.single()
     }
     private fun ordinary(page: Page): List<Lesson> {
-        val grid = Grid(page); val hs = header(page, "12345678", 5, normal = true)
+        val grid = Grid(page); val calibration=SubjectBandCalibration(page); val hs = header(page, "12345678", 5, normal = true)
         val first = grid.box(hs[0].cx, hs[0].cy); val cls = grid.box(first.left - 2, first.bottom + 20)
         val bottom = page.lines.filter { it.vertical && abs(it.x1 - cls.right) < .3 }.maxOfOrNull { it.y2 } ?: fail("クラス罫線")
         val rows = Grid.rows(page.glyphs.filter { it.cx > cls.left && it.cx < cls.right && it.cy > first.bottom && it.cy < bottom })
@@ -66,7 +66,9 @@ object PdfSchoolParser {
             hs.forEachIndexed { col, h ->
                 try { grid.subdivisions(h.cx, box).forEach { cell ->
                 val text = grid.text(cell); if (text.isNotEmpty()) {
-                    if (text.size > 3) fail("授業欄の行数")
+                    if(text.any { RecoveryRoles.explicitLabel(it) })fail("授業欄の行数")
+                    // A missing middle line must not shift the classroom into the teacher field.
+                    if (text.size !in listOf(1, 3) || text.size == 1 && !calibration.matches(cell)) fail("授業欄の行数")
                     val f = text + List(3 - text.size) { "" }; val parts = f.map { it.replace('･', '・').split('・') }
                     val parallel = text.size == 3 && parts.all { it.size == 2 }
                     if (parts[0].size > 1 && parts[1].size > 1 && !parallel) fail("並記授業")
@@ -107,14 +109,35 @@ object PdfSchoolParser {
         val m = Regex(if (slash) "^([0-9]{1,2})/([0-9]{1,2})$" else "^([0-9]{1,2})月([0-9]{1,2})日").find(text) ?: return null
         val month = m.groupValues[1].toInt(); return LocalDate.of(year + if (month < 4) 1 else 0, month, m.groupValues[2].toInt()).toString()
     }
-    private fun specialCell(page: Page, box: Box, date: String, name: String, period: Int, xs: List<Double>, times: Times): List<Lesson> {
+    private fun specialCell(page: Page, box: Box, date: String, name: String, period: Int, xs: List<Double>, times: Times, calibration:SubjectBandCalibration): List<Lesson> {
         val text = Grid(page).text(box, combineFragments = false); if (text.isEmpty()) return emptyList()
-        if (text.size > 8) fail("特別時間割の行数")
+        if(text.any { RecoveryRoles.explicitLabel(it) })fail("特別時間割の行数")
+        if (text.size !in listOf(1, 3) || text.size == 1 && !calibration.matches(box)) fail("特別時間割の行数")
         val covered = xs.indices.filter { xs[it] > box.left + .5 && xs[it] < box.right - .5 }.map { it + 1 }
         if (period !in covered) fail("結合時限")
         val a = covered.first(); val b = covered.last()
         val time = if (a == b) times.single[a] else times.consecutive["$a-$b"] ?: times.single[a]?.substringBefore('〜')?.let { start -> times.single[b]?.substringAfter('〜')?.let { "$start〜$it" } }
         return listOf(Lesson(name, LocalDate.parse(date).dayOfWeek.value, period, Names(text[0], text.getOrElse(1) { "" }, text.getOrElse(2) { "" }), text.joinToString("\n"), date, a, b, time))
+    }
+    /** Calibrate the first role band from complete three-line cells on this page.
+     * A sole surviving teacher/room line must never be relabeled as the subject. */
+    private class SubjectBandCalibration(val page:Page) {
+        private val grid=Grid(page)
+        private val cells by lazy { page.glyphs.mapNotNull { runCatching { grid.box(it.cx,it.cy) }.getOrNull() }.distinct() }
+        private val cache=mutableMapOf<Double,List<Double>>()
+        private fun glyphs(b:Box)=page.glyphs.filter { it.cx>b.left+.3 && it.cx<b.right-.3 && it.cy>b.top+.3 && it.cy<b.bottom-.3 && key(it.text).isNotEmpty() }
+        fun matches(box:Box):Boolean {
+            val own=glyphs(box);if(own.isEmpty())return false
+            val height=box.bottom-box.top
+            val bands=cache.getOrPut(height) { cells.filter { kotlin.math.abs((it.bottom-it.top)-height)<.5 }.mapNotNull { b ->
+                if(runCatching { grid.text(b) }.getOrNull()?.size!=3)return@mapNotNull null
+                val rows=Grid.rows(glyphs(b));if(rows.size!=3)return@mapNotNull null
+                rows.first().map { it.cy-b.top }.average()
+            } }
+            if(bands.isEmpty())return false
+            val center=own.map { it.cy-box.top }.average();val tolerance=own.map { it.height }.average()*.35
+            return bands.all { kotlin.math.abs(it-center)<=tolerance }
+        }
     }
     private fun exam(page: Page, year: Int, pageNumber: Int, times: Times): Parsed {
         val columns = if (pageNumber == 6) 2 else 3; val hs = header(page, "123456", columns); val y = hs[0].cy
@@ -123,10 +146,10 @@ object PdfSchoolParser {
         val names = labels.map { if (pageNumber == 6) "AI_${it.first.take(1)}" else it.first.replace('-', '_') }
         val days = Grid.runs(page.glyphs.filter { it.cy > y + 5 && it.cy < page.height * .7 && it.cx < hs[0].cx }).mapNotNull { r -> date(r.first, year, false)?.let { r.second to it } }.sortedBy { it.first.cy }
         if (days.size != 5 || days.map { it.second }.distinct().size != 5) fail("試験日")
-        val grid = Grid(page); val lessons = mutableListOf<Lesson>()
+        val grid = Grid(page); val calibration=SubjectBandCalibration(page); val lessons = mutableListOf<Lesson>()
         days.forEach { (r, day) -> val row = grid.box(r.cx, r.cy)
             names.forEachIndexed { col, name -> val xs = (0..5).map { hs[col * 6 + it].cx }
-                xs.forEachIndexed { i, x -> grid.subdivisions(x, row).forEach { box -> lessons += specialCell(page, box, day, name, i + 1, xs, times) } }
+                xs.forEachIndexed { i, x -> grid.subdivisions(x, row).forEach { box -> lessons += specialCell(page, box, day, name, i + 1, xs, times, calibration) } }
             }
         }
         return Parsed(days.map { it.second }, names, lessons)
@@ -138,7 +161,7 @@ object PdfSchoolParser {
         val note = key(Grid.rows(page.glyphs).joinToString("") { it.joinToString("") { g -> g.text } }).replace('〜', '~')
         val first = LocalDate.parse(days[0].second); val start = LocalDate.parse(days[1].second); val end = LocalDate.parse(days[4].second)
         if (start.monthValue != end.monthValue || !note.contains("${first.monthValue}月${first.dayOfMonth}日の時間割は以下のとおり") || !note.contains("${start.monthValue}月${start.dayOfMonth}日~${end.dayOfMonth}日は通常の授業日どおりの授業時間")) fail("返却時刻の注記")
-        val grid = Grid(page)
+        val grid = Grid(page); val calibration=SubjectBandCalibration(page)
         val classRight = minOf(hs[0].cx - step * .15, grid.box(hs[0].cx, y).left - .3)
         val runs = Grid.runs(page.glyphs.filter { it.cx < classRight && it.cy > y + 5 && it.cy < page.height * .7 })
         val grades = runs.filter { it.second.cx < hs[0].cx - step * .8 && it.first.matches(Regex("[1-5]|AI")) }
@@ -149,7 +172,7 @@ object PdfSchoolParser {
             val name = "${grade.first}_$label"; if (name in names) fail("返却クラス重複"); names += name
             val row = grid.box(r.cx, r.cy)
             days.forEachIndexed { dayIndex, (_, day) -> val xs = (0..7).map { hs[dayIndex * 8 + it].cx }; val dayTimes = if (dayIndex == 0) times else Times(Schedule.normalTimes.mapIndexed { i, t -> i + 1 to t }.toMap(), emptyMap())
-                xs.forEachIndexed { i, x -> grid.subdivisions(x, row).forEach { box -> lessons += specialCell(page, box, day, name, i + 1, xs, dayTimes) } }
+                xs.forEachIndexed { i, x -> grid.subdivisions(x, row).forEach { box -> lessons += specialCell(page, box, day, name, i + 1, xs, dayTimes, calibration) } }
             }
         }
         return Parsed(days.map { it.second }, names, lessons)

@@ -4,3 +4,5 @@
 *.sh text eol=lf
 gradlew text eol=lf
 gradlew.bat text eol=crlf
+# Preserve whitespace in the upstream runtime's complete third-party notices.
+app/src/main/assets/license-litertlm.txt whitespace=-blank-at-eol

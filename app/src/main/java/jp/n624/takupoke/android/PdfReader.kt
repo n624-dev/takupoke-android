@@ -16,16 +16,27 @@ import jp.n624.takupoke.core.*
 import java.io.File
 
 object PdfReader {
-    fun parse(file: File, kind: MaterialKind): Analysis {
-        return PdfSchoolParser.parse(readPages(file), kind)
+    fun parse(file: File, kind: MaterialKind, capture: RecoveryReadCapture? = null): Analysis {
+        return PdfSchoolParser.parse(readPages(file, capture), kind)
     }
-    internal fun readPages(file: File): List<Page> {
+    internal fun readPages(file: File, capture: RecoveryReadCapture? = null): List<Page> {
+        capture?.reset()
         require(file.length() in 1..50L * 1024 * 1024)
         val scratch = File(file.parentFile, "scratch").also { require(it.isDirectory || it.mkdirs()) }
         val memory = MemoryUsageSetting.setupMixed(8L * 1024 * 1024, 64L * 1024 * 1024).setTempDir(scratch)
         PDDocument.load(file, memory).use { document ->
             require(!document.isEncrypted && document.numberOfPages in 1..12)
-            return document.pages.mapIndexed { index, page -> try { Engine(page).read() } catch (e: ParseFailure) { throw e.located(page = index + 1) } }
+            capture?.begin(document.numberOfPages)
+            val pages = document.pages.mapIndexed { index, page ->
+                val engine = Engine(page)
+                try { engine.read().also { capture?.record(index + 1, RecoveryInputState.COMPLETE, it) } }
+                catch (e: Exception) {
+                    capture?.record(index + 1, RecoveryInputState.PARTIAL, engine.snapshot())
+                    if (e is ParseFailure) throw e.located(page = index + 1)
+                    throw e
+                }
+            }
+            capture?.finish(); return pages
         }
     }
     private class Engine(private val source: PDPage) : PDFGraphicsStreamEngine(source) {
@@ -45,6 +56,10 @@ object PdfReader {
         }
         fun read(): Page {
             processPage(source)
+            if (glyphs.isEmpty()) throw ParseFailure("raster", "画像からの文字認識")
+            return snapshot()
+        }
+        fun snapshot(): Page {
             val rotated = source.rotation % 180 != 0
             return Page((if (rotated) crop.height else crop.width).toDouble(), (if (rotated) crop.width else crop.height).toDouble(), glyphs, lines)
         }

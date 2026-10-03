@@ -38,6 +38,10 @@ dependencies {
     implementation("androidx.datastore:datastore:1.1.7")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    implementation("com.google.code.gson:gson:2.13.2")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.17.1")
+    // Bundled Japanese OCR. This is not an ML Kit GenAI API.
+    implementation("com.google.mlkit:text-recognition-japanese:16.0.1")
     // Avoid the PDF port's old transitive cryptography versions.
     implementation("org.bouncycastle:bcprov-jdk15to18:1.86")
     implementation("org.bouncycastle:bcpkix-jdk15to18:1.86")

@@ -99,7 +99,13 @@ val darkMainColors = listOf(Color(0xFF90CAF9), Color(0xFFA5D6A7), Color(0xFFFFF5
         if (state.ready && state.period == retentionPeriod()) {
             selectedLesson?.let { (date, slot) -> LessonDetailScreen(state, date, slot) { selectedLesson = null } }
 
-            source?.let { record -> PdfScreen(repository.file(record)) { source = null } }
+            source?.let { opened ->
+                state.materials.firstOrNull { it.kind == opened.kind }?.let { current ->
+                    key(current.digest) {
+                        PdfScreen(repository.file(current), updated = current.digest != opened.digest) { source = null }
+                    }
+                }
+            }
         }
     }
 }

@@ -22,20 +22,23 @@ import java.security.MessageDigest
 import java.time.LocalDate
 import java.util.UUID
 
-data class AppState(val ready: Boolean = false, val busy: Boolean = false, val settings: Settings = Settings(), val materials: List<MaterialRecord> = emptyList(), val events: List<EventsPayload> = emptyList(), val links: LinksPayload? = null, val mapping: Mapping? = null, val times: TimesPayload? = null, val updates: Set<String> = emptySet(), val message: String? = null, val retentionFailure: Boolean = false, val updateUrl: String? = null, val sourceCheckMessage: String? = null, val startupFailure: Boolean = false, val period: String = "", val accountErrors: Map<String, String> = emptyMap(), val accountFetchedAt: Map<String, Long> = emptyMap(), val accountVersions: Map<String, String> = emptyMap(), val eventsFetchedAt: Map<Int, Long> = emptyMap(), val eventsCheckedAt: Map<Int, Long> = emptyMap(), val eventsError: String? = null, val automaticRefreshSuspended: Boolean = false) {
+data class AppState(val ready: Boolean = false, val busy: Boolean = false, val settings: Settings = Settings(), val materials: List<MaterialRecord> = emptyList(), val events: List<EventsPayload> = emptyList(), val links: LinksPayload? = null, val mapping: Mapping? = null, val times: TimesPayload? = null, val updates: Set<String> = emptySet(), val message: String? = null, val retentionFailure: Boolean = false, val updateUrl: String? = null, val sourceCheckMessage: String? = null, val startupFailure: Boolean = false, val period: String = "", val accountErrors: Map<String, String> = emptyMap(), val accountFetchedAt: Map<String, Long> = emptyMap(), val accountVersions: Map<String, String> = emptyMap(), val eventsFetchedAt: Map<Int, Long> = emptyMap(), val eventsCheckedAt: Map<Int, Long> = emptyMap(), val eventsError: String? = null, val automaticRefreshSuspended: Boolean = false, val recoveryPreviews: Map<MaterialKind,RecoveryPreview> = emptyMap(), val recoveryModel: RecoveryModelStatus = RecoveryModelStatus()) {
     val analyses get() = materials.mapNotNull { it.analysis }
 }
-class AppRepository(val context: Context, private val transport: Transport = HttpTransport(), private val db: Database = Database(context), private val preferences: DataStore<Settings> = settingsStore(context)) {
+class AppRepository(val context: Context, private val transport: Transport = HttpTransport(), private val db: Database = Database(context), private val preferences: DataStore<Settings> = settingsStore(context), private val recoveryServices:RecoveryServices = DeviceRecoveryServices(context)) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val mutex = Mutex(); private val mutable = MutableStateFlow(AppState()); val state: StateFlow<AppState> = mutable.asStateFlow()
+    private val mutex = Mutex(); private val mutable = MutableStateFlow(AppState(recoveryModel=RecoveryModelStatus(offered=recoveryServices.offered))); val state: StateFlow<AppState> = mutable.asStateFlow()
     val auth = Oidc(transport)
     private val root = File(context.noBackupFilesDir, "school/materials").also { it.mkdirs(); Archives.configureTemporaryDirectory(it) }
     private var operation: Job? = null; private val operations = mutableSetOf<Job>(); private var signal: CancellationSignal? = null; private val observers = mutableListOf<ContentObserver>(); private var observerJob: Job? = null
     private var checkedSourceAtStartup = false
     private var checkedMappingAtStartup = false
-    private var foreground = false
+    @Volatile private var foreground = false
+    private var recoveryOperation: Job? = null
+    private val recoveryCaptures = mutableMapOf<MaterialKind, Pair<String,RecoveryReadCapture>>()
     private var requestedRevisions: Map<String, String>? = null
     private var automaticRefreshSuspended = false
+    private val observedRefreshQueue = ObservedRefreshQueue()
     init { scope.launch { preferences.data.catch { mutable.update { it.copy(message = "個人設定を読み取れません。保存データは削除していません。") } }.collect { value -> mutable.update { it.copy(settings = value) } } } }
     fun clearMessage() { mutable.update { it.copy(message = null) } }
     fun action(queued: Boolean = false, block: suspend () -> Unit) {
@@ -67,6 +70,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         is ParseFailure -> e.message.orEmpty()
         is XlsxFailure -> e.message.orEmpty()
         is WeekdayWarning -> e.message.orEmpty()
+        is RecoveryPreparationFailure -> e.message.orEmpty()
         is SecurityException -> "ファイルへのアクセスが必要です。ファイルを選び直してください。"
         else -> "取得または処理を完了できませんでした。保存済みの結果は保持しています。"
     }
@@ -85,7 +89,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
     private fun locked() = context.getSystemService(KeyguardManager::class.java).isDeviceLocked
     suspend fun activate(refresh: Boolean = true) {
         if (locked()) return
-        withContext(Dispatchers.IO) { mutex.withLock { retention(); Archives.cleanupTemporaryArchives(); reload() } }
+        withContext(Dispatchers.IO) { mutex.withLock { retention(); Archives.cleanupTemporaryArchives(); recoveryServices.cleanup(); if(recoveryOperation==null)db.records().filter { it.recoveryJob?.state in setOf(RecoveryJobState.PREPARING,RecoveryJobState.RUNNING) }.forEach { record -> db.save(record.copy(recoveryJob=record.recoveryJob?.copy(state=RecoveryJobState.PENDING))) }; reload() } }
         if (refresh) refresh()
         if (refresh && foreground && !checkedSourceAtStartup) { checkedSourceAtStartup = true; withContext(Dispatchers.IO) { mutex.withLock { runInterruptible { checkSource() } } } }
         observe()
@@ -93,7 +97,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
     private fun retention() {
         val current = retentionPeriod()
         if (db.value("period") == current) return
-        stopObserving(); auth.cancel(); requestedRevisions = null; checkedMappingAtStartup = false
+        stopObserving(); recoveryCaptures.clear(); auth.cancel(); requestedRevisions = null; checkedMappingAtStartup = false
         try {
             context.contentResolver.persistedUriPermissions.forEach { permission ->
                 val flags = (if (permission.isReadPermission) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or (if (permission.isWritePermission) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)
@@ -108,7 +112,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
     }
     private fun reload() {
         fun <T> decode(key: String, reader: (String) -> T): T? = db.value(key)?.let(reader)
-        mutable.update { it.copy(ready = true, startupFailure = false, period = db.value("period").orEmpty(), materials = db.records(), events = db.events(), links = decode("links") { json.decodeFromString<LinksPayload>(it).validate() }, mapping = decode("mapping") { json.decodeFromString<Mapping>(it) }, times = decode("times") { json.decodeFromString<TimesPayload>(it).validate() },
+        mutable.update { it.copy(ready = true, startupFailure = false, period = db.value("period").orEmpty(), materials = db.records(), recoveryPreviews = db.records().mapNotNull { record -> db.value("recovery-preview:${record.kind.name}")?.let { value -> runCatching { json.decodeFromString<RecoveryPreview>(value) }.getOrNull()?.takeIf { p -> p.period == db.value("period") && p.uri == record.uri && p.document.pdfHash == record.digest && record.recoveryJob?.state == RecoveryJobState.AWAITING_CONFIRMATION && record.recoveryJob.resultHash==p.resultHash && runCatching { RecoveryValidator.validate(p.document,p.result).canAdopt }.getOrDefault(false) }?.let { p -> record.kind to p } } }.toMap(), recoveryModel = it.recoveryModel.copy(installed = recoveryServices.installed(), error = recoveryServices.error), events = db.events(), links = decode("links") { json.decodeFromString<LinksPayload>(it).validate() }, mapping = decode("mapping") { json.decodeFromString<Mapping>(it) }, times = decode("times") { json.decodeFromString<TimesPayload>(it).validate() },
             accountFetchedAt = listOf("links", "mapping", "times").mapNotNull { type -> db.value("fetched:$type")?.toLongOrNull()?.let { time -> type to time } }.toMap(),
             accountVersions = listOf("links", "mapping", "times").mapNotNull { type -> db.value("version:$type")?.let { version -> type to version } }.toMap(),
             eventsFetchedAt = db.events().mapNotNull { event -> db.value("events-fetched:${event.schoolYear}")?.toLongOrNull()?.let { time -> event.schoolYear to time } }.toMap(),
@@ -150,7 +154,9 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
             if (old?.digest == hash && old.uri == uri.toString() && old.analysis != null && old.parsedDigest == hash && old.analysis.parserVersion == PARSER_VERSION && (kind != MaterialKind.CHANGES || old.year == effectiveSchoolYear())) { db.save(old.copy(checkedAt = now, failure = null)); return }
             val destination = File(root, "${kind.name}-$hash.${kind.extension}")
             if (!destination.exists()) require(staging.renameTo(destination))
-            val selected = MaterialRecord(kind, uri.toString(), name, hash, now, now, modified, old?.parsedAt, old?.parsedDigest, old?.analysis, year = effectiveSchoolYear())
+            val selected = MaterialRecord(kind, uri.toString(), name, hash, now, now, modified, old?.parsedAt, old?.parsedDigest, old?.analysis, year = effectiveSchoolYear(), recoveryMetadata=old?.recoveryMetadata, recoveryAcceptance=old?.recoveryAcceptance)
+            db.writableDatabase.execSQL("DELETE FROM value_store WHERE key=?", arrayOf("recovery-preview:${kind.name}"))
+            recoveryCaptures.remove(kind)
             db.save(selected)
             analyze(selected, destination)
             root.listFiles()?.filter { it.name.startsWith(kind.name + "-") && it != destination }?.forEach { require(it.delete()) }
@@ -162,26 +168,136 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         }
     }
     private suspend fun analyze(record: MaterialRecord, file: File, year: Int = record.year) {
+        val startedPeriod = retentionPeriod()
+        val capture = RecoveryReadCapture()
         val analysis = try {
-            runInterruptible { if (record.kind == MaterialKind.CHANGES) XlsxParser.parse(file.readBytes(), year) else PdfReader.parse(file, record.kind) }
-        } catch (e: Exception) { db.save(record.copy(failure = safeError(e))); throw e }
+            runInterruptible { if (record.kind == MaterialKind.CHANGES) XlsxParser.parse(file.readBytes(), year) else PdfReader.parse(file, record.kind, capture) }
+        } catch (e: CancellationException) { throw e }
+        catch (e: Exception) {
             currentCoroutineContext().ensureActive()
-            require(retentionPeriod() == db.value("period"))
+            require(retentionPeriod() == startedPeriod && db.value("period") == startedPeriod)
+            val job = (e as? ParseFailure)?.takeIf { RecoveryPolicy.eligible(record.kind, it.code) }?.let {
+                RecoveryJob(record.digest, requireNotNull(RecoveryPolicy.kind(record.kind)), RecoveryJobState.PENDING, System.currentTimeMillis())
+            }
+            if (job != null) recoveryCaptures[record.kind] = record.digest to capture
+            db.save(record.copy(failure = safeError(e), recoveryJob = job)); throw e
+        }
+            currentCoroutineContext().ensureActive()
+            require(retentionPeriod() == startedPeriod && db.value("period") == startedPeriod)
             val preferences = mutable.value.settings
             val changeCount = if (record.kind == MaterialKind.CHANGES) listOf(preferences.primaryClass, preferences.additionalClass).filter(String::isNotEmpty).distinct().sumOf { cls -> Schedule.changedSlots(record.analysis?.changes, analysis.changes, cls, today()) } else 0
             val examCount = if (record.kind in listOf(MaterialKind.EXAM, MaterialKind.RETURN) && record.parsedDigest != null && record.parsedDigest != record.digest) 1 else 0
             val database = db.writableDatabase; database.beginTransaction()
             try {
-                db.save(record.copy(analysis = analysis, parsedAt = System.currentTimeMillis(), parsedDigest = record.digest, failure = null, year = year))
+                db.save(record.copy(analysis = analysis, parsedAt = System.currentTimeMillis(), parsedDigest = record.digest, failure = null, year = year, recoveryJob = null, recoveryMetadata = null, recoveryAcceptance = null))
                 if (Notifications(context).allowed() && ((changeCount > 0 && preferences.changeNotifications) || (examCount > 0 && preferences.examNotifications))) {
                 val id = record.kind.name + ":" + record.digest
                 db.writableDatabase.execSQL("DELETE FROM value_store WHERE key LIKE ?", arrayOf("notification:${record.kind.name}:%"))
-                db.put("notification:$id", if (changeCount > 0) "時間割変更が${changeCount}件あります" else "${record.kind.title}が${examCount}件更新されました")
+                val classes=listOf(preferences.primaryClass,preferences.additionalClass).filter(String::isNotEmpty).map(::canonicalClass).toSet()
+                val notice=if(changeCount>0)PendingMaterialNotice.changes(record.digest,record.analysis?.changes,analysis.changes,classes,today())else PendingMaterialNotice(record.kind,record.digest)
+                db.put("notification:$id",json.encodeToString(PendingMaterialNotice.serializer(),notice))
                 }
                 database.setTransactionSuccessful()
             } finally { database.endTransaction() }
+            recoveryCaptures.remove(record.kind)
+            db.writableDatabase.execSQL("DELETE FROM value_store WHERE key=?", arrayOf("recovery-preview:${record.kind.name}"))
             dispatchPendingNotifications()
     }
+    /** Explicit user action only: the background refresh never enters this method. */
+    suspend fun startRecovery(kind: MaterialKind) = withContext(Dispatchers.IO) { mutex.withLock {
+        require(foreground && !locked() && RecoveryPolicy.kind(kind) != null)
+        retention(); val record = db.records().single { it.kind == kind }
+        require(record.recoveryJob?.pdfHash == record.digest)
+        val epoch = db.value("period").orEmpty(); val operation = currentCoroutineContext().job
+        recoveryOperation = operation
+        fun checkCurrent() {
+            operation.ensureActive()
+            if (!foreground || locked()) throw CancellationException("アプリを開いている時に復旧してください。")
+            require(epoch == retentionPeriod() && db.value("period") == epoch)
+            val current = db.records().singleOrNull { it.kind == kind }
+            require(current?.digest == record.digest && current.uri == record.uri)
+        }
+        fun stage(stage: RecoveryJobState) { checkCurrent(); db.save(record.copy(recoveryJob = record.recoveryJob!!.copy(state = stage))); reload() }
+        try {
+            stage(RecoveryJobState.PREPARING)
+            val capture = recoveryCaptures[kind]?.takeIf { it.first == record.digest }?.second ?: RecoveryReadCapture().also { fresh ->
+                try { analyze(record,file(record)); return@withLock }
+                catch (e: CancellationException) { throw e }
+                catch (e: ParseFailure) { require(RecoveryPolicy.eligible(kind,e.code)) }
+                recoveryCaptures[kind]?.takeIf { it.first == record.digest }?.second?.let { existing ->
+                    fresh.begin(existing.pages.size); existing.pages.forEach { page -> page.layout?.let { fresh.record(page.page,page.state,it) } }; if(existing.readerCompleted)fresh.finish()
+                }
+            }
+            checkCurrent(); val original = file(record)
+            require(runInterruptible { sha256(original.readBytes()) } == record.digest)
+            val document=recoveryServices.prepare(original,record.digest,kind,capture)
+            checkCurrent()
+            require(document.schoolYear == schoolYear())
+            if(kind == MaterialKind.TIMETABLE)require(document.term == if(epoch.endsWith("-1"))"前期" else "後期")
+            stage(RecoveryJobState.RUNNING)
+            val provider = recoveryServices.provider { foreground && epoch == retentionPeriod() }
+            val run = try { RecoveryEngine.run(document,"android",android.os.Build.VERSION.SDK_INT,true,listOfNotNull(provider),{ null },::checkCurrent) } finally { (provider as? AutoCloseable)?.close() }
+            checkCurrent()
+            val result = run.result
+            if(run.state == RecoveryJobState.AWAITING_CONFIRMATION && result != null) {
+                val preview = RecoveryPreview(epoch,record.uri,document,result,System.currentTimeMillis())
+                val prior = db.value("recovery-accepted:${kind.name}:${record.digest}")?.let { runCatching { json.decodeFromString<RecoveryAccepted>(it) }.getOrNull() }
+                if(prior != null && RecoveryValidator.canReuse(prior.acceptance,document,result)) {
+                    commitRecovery(record,preview,prior.acceptance,::checkCurrent); mutable.update { it.copy(message="確認済みの同じPDFの復旧結果を使用しました。") }
+                } else {
+                    val database=db.writableDatabase;database.beginTransaction()
+                    try { checkCurrent();db.put("recovery-preview:${kind.name}",json.encodeToString(RecoveryPreview.serializer(),preview));db.save(record.copy(recoveryJob=record.recoveryJob!!.copy(state=RecoveryJobState.AWAITING_CONFIRMATION,resultHash=preview.resultHash)));database.setTransactionSuccessful() } finally { database.endTransaction() }
+                    mutable.update { it.copy(message="復旧結果を元PDFと確認してから採用してください。") }
+                }
+            } else {
+                db.save(record.copy(recoveryJob=record.recoveryJob!!.copy(state=run.state)))
+                mutable.update { it.copy(message=if(run.state==RecoveryJobState.AWAITING_MODEL)"端末内AIモデルの準備が必要です。学校の資料は外部へ送信されません。" else "復旧の確認条件を満たせませんでした。前回の正常結果を保持しています。") }
+            }
+        } catch(e:CancellationException) {
+            if(epoch==retentionPeriod() && db.value("period")==epoch)db.records().firstOrNull { it.kind==kind && it.digest==record.digest && it.uri==record.uri }?.let { db.save(it.copy(recoveryJob=it.recoveryJob?.copy(state=RecoveryJobState.PENDING))) }
+            throw e
+        } catch(e:Exception) {
+            if(epoch==retentionPeriod() && db.value("period")==epoch)db.records().firstOrNull { it.kind==kind && it.digest==record.digest && it.uri==record.uri }?.let { db.save(it.copy(recoveryJob=it.recoveryJob?.copy(state=RecoveryJobState.FAILED))) }
+            throw e
+        } finally { if(recoveryOperation==operation)recoveryOperation=null;reload() }
+    } }
+    suspend fun adoptRecovery(kind: MaterialKind, resultHash: String) = withContext(Dispatchers.IO) { mutex.withLock {
+        require(foreground && !locked()); retention()
+        val record=db.records().single { it.kind==kind }
+        val preview=json.decodeFromString<RecoveryPreview>(requireNotNull(db.value("recovery-preview:${kind.name}")))
+        require(preview.resultHash==resultHash && record.recoveryJob?.resultHash==resultHash && record.recoveryJob.state==RecoveryJobState.AWAITING_CONFIRMATION)
+        currentCoroutineContext().ensureActive()
+        val acceptance=RecoveryAcceptance(record.digest,resultHash,RecoveryValidator.fingerprint(preview.document),preview.result.metadata,System.currentTimeMillis())
+        val operation=currentCoroutineContext().job
+        commitRecovery(record,preview,acceptance) { operation.ensureActive();require(foreground && !locked()) };reload()
+    } }
+    private fun commitRecovery(record:MaterialRecord,preview:RecoveryPreview,acceptance:RecoveryAcceptance,check:()->Unit) {
+        check()
+        require(foreground && !locked() && preview.period==retentionPeriod() && db.value("period")==preview.period && preview.uri==record.uri && preview.document.pdfHash==record.digest)
+        val currentSelection=db.records().single { it.kind==record.kind }
+        require(RecoveryAdoption.allowed(RecoverySelection(preview.period,preview.uri,record.kind,preview.document.pdfHash),RecoverySelection(db.value("period").orEmpty(),currentSelection.uri,currentSelection.kind,currentSelection.digest),sha256(file(record).readBytes()),preview.document,preview.result) && RecoveryValidator.canReuse(acceptance,preview.document,preview.result))
+        require(preview.document.schoolYear==schoolYear())
+        if(record.kind==MaterialKind.TIMETABLE)require(preview.document.term==if(preview.period.endsWith("-1"))"前期" else "後期")
+        val current=db.records().single { it.kind==record.kind };require(current.digest==record.digest&&current.uri==record.uri)
+        val analysis=preview.analysis;val database=db.writableDatabase;database.beginTransaction()
+        try {
+            check();require(preview.period==retentionPeriod() && foreground && !locked())
+            db.save(current.copy(analysis=analysis,parsedAt=System.currentTimeMillis(),parsedDigest=current.digest,failure=null,year=analysis.schoolYear,recoveryJob=current.recoveryJob?.copy(state=RecoveryJobState.ADOPTED),recoveryMetadata=preview.result.metadata,recoveryAcceptance=acceptance))
+            db.put("recovery-accepted:${record.kind.name}:${record.digest}",json.encodeToString(RecoveryAccepted.serializer(),RecoveryAccepted(preview,acceptance)))
+            database.execSQL("DELETE FROM value_store WHERE key=?",arrayOf("recovery-preview:${record.kind.name}"))
+            check();database.setTransactionSuccessful()
+        } finally { database.endTransaction() }
+        recoveryCaptures.remove(record.kind)
+        root.listFiles()?.filter { it.name.startsWith(record.kind.name+"-") && it!=file(record) }?.forEach { it.delete() }
+    }
+    suspend fun downloadRecoveryModel() = withContext(Dispatchers.IO) { mutex.withLock {
+        val manifest=recoveryServices.offered ?: error("検証済みモデルはまだ配信されていません。")
+        require(foreground);val job=currentCoroutineContext().job;recoveryOperation=job
+        mutable.update { it.copy(recoveryModel=it.recoveryModel.copy(downloading=true,progressBytes=0,error=null)) }
+        try { recoveryServices.download({foreground}) { bytes -> mutable.update { it.copy(recoveryModel=it.recoveryModel.copy(progressBytes=bytes)) } }; mutable.update { it.copy(recoveryModel=it.recoveryModel.copy(installed=recoveryServices.installed())) } }
+        finally { if(recoveryOperation==job)recoveryOperation=null;mutable.update { it.copy(recoveryModel=it.recoveryModel.copy(downloading=false,installed=recoveryServices.installed(),error=recoveryServices.error)) } }
+    } }
+    suspend fun deleteRecoveryModel() = withContext(Dispatchers.IO) { mutex.withLock { require(recoveryOperation==null);recoveryServices.delete();mutable.update { it.copy(recoveryModel=it.recoveryModel.copy(installed=null,progressBytes=0,error=null)) } } }
     private fun effectiveSchoolYear(): Int = mutable.value.settings.defaultSchoolYear.trim().toIntOrNull()?.takeIf { it in 1900..9998 } ?: schoolYear()
     suspend fun reparse(kind: MaterialKind, year: Int = effectiveSchoolYear()) = withContext(Dispatchers.IO) { mutex.withLock {
         automaticRefreshSuspended = false; mutable.update { it.copy(automaticRefreshSuspended = false) }; retention(); val record = db.records().single { it.kind == kind }; try { analyze(record, file(record), year) } finally { reload() }
@@ -193,19 +309,21 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         val record = db.records().single { it.kind == kind }
         try { acquire(kind, Uri.parse(record.uri), record, true) } catch (e: Exception) { db.records().firstOrNull { it.kind == kind }?.let { db.save(it.copy(failure = safeError(e))) }; throw e } finally { reload() }
     } }
-    suspend fun refresh(manual: Boolean = false) = withContext(Dispatchers.IO) {
+    suspend fun refresh(manual: Boolean = false, sourcesOnly: Boolean = false) = withContext(Dispatchers.IO) {
         if (locked()) return@withContext
         mutex.withLock {
             retention()
             Archives.cleanupTemporaryArchives()
             root.listFiles()?.filter { it.name.startsWith("staging-") }?.forEach { it.delete() }
             if (manual) { automaticRefreshSuspended = false; mutable.update { it.copy(automaticRefreshSuspended = false) } }
-            (if (!automaticRefreshSuspended) db.records() else emptyList()).forEach { record -> currentCoroutineContext().ensureActive()
+            try { (if (!automaticRefreshSuspended) db.records() else emptyList()).forEach { record -> currentCoroutineContext().ensureActive()
                 try { acquire(record.kind, Uri.parse(record.uri), record, manual) } catch (e: CancellationException) { throw e } catch (e: Exception) { db.records().firstOrNull { it.kind == record.kind }?.let { db.save(it.copy(failure = safeError(e))) } }
             }
-            reload()
-            mutable.value.events.forEach { events -> try { runInterruptible { fetchEventsLocked(events.schoolYear) } } catch (e: CancellationException) { throw e } catch (_: Exception) { mutable.update { it.copy(eventsError = "学校行事を確認できませんでした。保存済みの結果は保持しています。") } } }
-            runInterruptible { checkRevisions(if (foreground && checkedMappingAtStartup) setOf("links", "times") else revisionTypes.keys) }; if (foreground) checkedMappingAtStartup = true
+            } finally { reload() }
+            if (!sourcesOnly) {
+                mutable.value.events.forEach { events -> try { runInterruptible { fetchEventsLocked(events.schoolYear) } } catch (e: CancellationException) { throw e } catch (_: Exception) { mutable.update { it.copy(eventsError = "学校行事を確認できませんでした。保存済みの結果は保持しています。") } } }
+                runInterruptible { checkRevisions(if (foreground && checkedMappingAtStartup) setOf("links", "times") else revisionTypes.keys) }; if (foreground) checkedMappingAtStartup = true
+            }
             dispatchPendingNotifications(); reload()
         }
     }
@@ -213,9 +331,14 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         db.readableDatabase.rawQuery("SELECT key,value FROM value_store WHERE key LIKE 'notification:%'", null).use { cursor ->
             while (cursor.moveToNext()) {
                 val key = cursor.getString(0); val id = key.removePrefix("notification:")
+                val notice=runCatching { json.decodeFromString<PendingMaterialNotice>(cursor.getString(1)) }.getOrNull()
+                val record=notice?.let { value -> db.records().firstOrNull { it.kind==value.kind && it.parsedDigest==it.digest } }
+                val classes=listOf(mutable.value.settings.primaryClass,mutable.value.settings.additionalClass).filter(String::isNotEmpty).map(::canonicalClass).toSet()
+                val count=if(record?.analysis!=null && notice!=null)notice.count(record.digest,record.analysis,classes,today())else 0
+                val text=if(notice?.kind==MaterialKind.CHANGES)"時間割変更が${count}件あります" else "${notice?.kind?.title.orEmpty()}が更新されました"
                 val enabled = if (id.substringBefore(':') == MaterialKind.CHANGES.name) mutable.value.settings.changeNotifications else mutable.value.settings.examNotifications
                 val notifications = Notifications(context)
-                if (!enabled || !notifications.allowed() || notifications.send(id, cursor.getString(1))) db.writableDatabase.execSQL("DELETE FROM value_store WHERE key=?", arrayOf(key))
+                if (count==0 || !enabled || !notifications.allowed() || notifications.send(id, text)) db.writableDatabase.execSQL("DELETE FROM value_store WHERE key=?", arrayOf(key))
             }
         }
     }
@@ -309,13 +432,46 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         mutable.update { it.copy(message = "最新の配布版: $tag", updateUrl = url) }
     }
     fun observe() {
-        stopObserving()
-        if (!foreground || automaticRefreshSuspended) return
-        mutable.value.materials.map { it.uri }.distinct().forEach { value ->
-            val observer = object : ContentObserver(Handler(Looper.getMainLooper())) { override fun onChange(selfChange: Boolean) { if (!selfChange && operations.none { it.isActive }) { observerJob?.cancel(); observerJob = scope.launch { delay(1500); action { refresh() } } } } }
-            runCatching { context.contentResolver.registerContentObserver(Uri.parse(value), false, observer); observers += observer }
+        val requested = observedRefreshQueue.generation()
+        // select/retention also call from IO. Observer handles and Jobs are owned
+        // by Main; the queue invalidates stale callbacks immediately on any thread.
+        scope.launch {
+            val token = observedRefreshQueue.replace(requested) ?: return@launch
+            clearObserverHandles()
+            if (!foreground || automaticRefreshSuspended) return@launch
+            mutable.value.materials.map { it.uri }.distinct().forEach { value ->
+                val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+                    override fun onChange(selfChange: Boolean) {
+                        if (!selfChange && foreground && !automaticRefreshSuspended && observedRefreshQueue.request(token)) {
+                            scheduleObservedRefresh(token)
+                        }
+                    }
+                }
+                runCatching { context.contentResolver.registerContentObserver(Uri.parse(value), false, observer); observers += observer }
+            }
+            if (observedRefreshQueue.hasPending(token)) scheduleObservedRefresh(token)
         }
     }
-    fun foreground(active: Boolean) { if (active && !foreground) { automaticRefreshSuspended = false; mutable.update { it.copy(automaticRefreshSuspended = false) } }; foreground = active; if (!active) stopObserving() }
-    fun stopObserving() { observerJob?.cancel(); observers.forEach { context.contentResolver.unregisterContentObserver(it) }; observers.clear() }
+    private fun scheduleObservedRefresh(token: Long) {
+        observerJob?.cancel()
+        observerJob = scope.launch {
+            delay(1500)
+            if (!foreground || automaticRefreshSuspended || operations.any { it.isActive }) return@launch
+            if (observedRefreshQueue.take(token)) action {
+                fun originals() = mutable.value.materials.map { Triple(it.kind, it.uri, it.digest) }.toSet()
+                val before = originals()
+                try { refresh(sourcesOnly = true) }
+                finally { observedRefreshQueue.complete(token, changed = before != originals()) }
+            }
+        }
+    }
+    fun foreground(active: Boolean) { if (active && !foreground) { automaticRefreshSuspended = false; mutable.update { it.copy(automaticRefreshSuspended = false) } }; foreground = active; if (!active) { recoveryOperation?.cancel(); stopObserving() } }
+    fun stopObserving() {
+        val stopped = observedRefreshQueue.stop()
+        scope.launch { if (observedRefreshQueue.generation() == stopped) clearObserverHandles() }
+    }
+    private fun clearObserverHandles() {
+        observerJob?.cancel(); observerJob = null
+        observers.forEach { context.contentResolver.unregisterContentObserver(it) }; observers.clear()
+    }
 }

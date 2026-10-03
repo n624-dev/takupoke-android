@@ -6,6 +6,8 @@ import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import androidx.compose.foundation.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -39,9 +42,12 @@ import java.io.File
         TextButton(onClick = { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "https://github.com/n624-dev/takupoke-android/releases/latest"), "配布URLを共有")) }) { Text("配布URLを共有") }
         Text("ライセンス", style = MaterialTheme.typography.titleMedium)
         Text("オープンソースライセンス", style = MaterialTheme.typography.titleMedium)
-        listOf("PDFBox-Android" to "pdfbox", "AndroidX" to "androidx", "Kotlin / kotlinx.serialization" to "kotlin", "OkHttp" to "okhttp", "Okio" to "okio", "Bouncy Castle" to "bouncycastle").forEach { (label, name) -> TextButton(onClick = { document = context.assets.open("license-$name.txt").bufferedReader().use { it.readText() } }) { Text(label) } }
+        listOf("LiteRT-LM" to "litertlm", "Gson" to "gson", "ML Kit Text Recognition（日本語）" to "mlkit", "PDFBox-Android" to "pdfbox", "AndroidX" to "androidx", "Kotlin / kotlinx.serialization" to "kotlin", "OkHttp" to "okhttp", "Okio" to "okio", "Bouncy Castle" to "bouncycastle").forEach { (label, name) -> TextButton(onClick = { document = context.assets.open("license-$name.txt").bufferedReader().use { it.readText() } }) { Text(label) } }
     }
-    document?.let { text -> AlertDialog(onDismissRequest = { document = null }, text = { Text(text, Modifier.verticalScroll(rememberScrollState())) }, confirmButton = { TextButton(onClick = { document = null }) { Text("閉じる") } }) }
+    document?.let { text ->
+        val blocks = remember(text) { text.lineSequence().chunked(40).map { it.joinToString("\n") }.toList() }
+        AlertDialog(onDismissRequest = { document = null }, text = { LazyColumn(Modifier.heightIn(max = 480.dp)) { items(blocks) { Text(it) } } }, confirmButton = { TextButton(onClick = { document = null }) { Text("閉じる") } })
+    }
 }
 @Composable fun HelpScreen() {
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
@@ -58,7 +64,7 @@ import java.io.File
         }
     }
 }
-@Composable fun PdfScreen(file: File, close: () -> Unit) {
+@Composable fun PdfScreen(file: File, updated: Boolean = false, close: () -> Unit) {
     var page by remember { mutableIntStateOf(0) }; var count by remember { mutableIntStateOf(0) }; var bitmap by remember { mutableStateOf<Bitmap?>(null) }; var failed by remember { mutableStateOf(false) }
     LaunchedEffect(file, page) {
         bitmap = null; failed = false
@@ -67,12 +73,14 @@ import java.io.File
                 count = renderer.pageCount
                 renderer.openPage(page).use { p -> val width = 1600; val height = (width.toLong() * p.height / p.width).toInt().coerceIn(1, 3000); Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { it.eraseColor(android.graphics.Color.WHITE); p.render(it, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY) } }
             } }
-        } } catch (_: Exception) { failed = true }
+        } } catch (e: CancellationException) { throw e }
+        catch (_: Exception) { failed = true }
     }
     Dialog(close, properties = DialogProperties(usePlatformDefaultWidth = false)) { Surface(Modifier.fillMaxSize()) { Column {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             TextButton(onClick = { if (page > 0) page-- }, enabled = page > 0) { Text("前") }; Text("${page + 1}/$count", Modifier.padding(12.dp)); TextButton(onClick = { if (page + 1 < count) page++ }, enabled = page + 1 < count) { Text("次") }; TextButton(onClick = close) { Text("閉じる") }
         }
+        if (updated) Text("PDFが更新されたため、新しい資料を表示しています。内容を再確認してください。", Modifier.padding(12.dp))
         if (failed) Text("保存済みPDFを表示できませんでした。")
         if (bitmap != null) Image(bitmap!!.asImageBitmap(), "保存済みPDF ${page + 1}ページ", Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) else if (!failed) CircularProgressIndicator()
     } } }
