@@ -45,12 +45,12 @@ private fun materialStatus(record: MaterialRecord) = when {
 
 @Composable private fun MaterialAnalysisScreen(state: AppState, repository: AppRepository, record: MaterialRecord, close: () -> Unit, open: (MaterialRecord) -> Unit) {
     var preview by remember(record.kind, record.digest, state.settings.defaultSchoolYear) { mutableStateOf<Analysis?>(null) }
-    var warning by remember { mutableStateOf(false) }
-    var selectedLesson by remember { mutableStateOf<Lesson?>(null) }
-    var selectedChange by remember { mutableStateOf<Change?>(null) }
+    var warning by remember(record.kind,record.digest,state.settings.defaultSchoolYear) { mutableStateOf(false) }
+    var selectedLesson by remember(record.kind,record.digest,state.settings.defaultSchoolYear) { mutableStateOf<Lesson?>(null) }
+    var selectedChange by remember(record.kind,record.digest,state.settings.defaultSchoolYear) { mutableStateOf<Change?>(null) }
     val kind = record.kind
     val recovery = state.recoveryPreviews[record.kind]
-    var recoveryView by remember(record.digest) { mutableStateOf(false) }
+    var recoveryView by remember(record.kind,record.digest) { mutableStateOf(false) }
     val analysis = if(recoveryView && recovery != null) recovery.analysis else preview ?: record.analysis
     val year = state.settings.defaultSchoolYear
     val validYear = year.trim().isEmpty() || year.trim().toIntOrNull() in 1900..9998

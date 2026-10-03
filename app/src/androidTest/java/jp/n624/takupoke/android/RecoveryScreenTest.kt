@@ -160,6 +160,40 @@ class RecoveryScreenTest {
     }
     @Test fun examClockPreviewAdoptionAndRestartStayOffline()=specialPreviewAdoptionAndRestart(MaterialKind.EXAM,"recovery-exam")
     @Test fun returnClockPreviewAdoptionAndRestartStayOffline()=specialPreviewAdoptionAndRestart(MaterialKind.RETURN,"recovery-return")
+    @Test fun sourceUpdateClosesPreviousLessonDetailAndPreservesFormalResult() {
+        val seed=mount()
+        val source=java.io.File(seed.context.cacheDir,"recovery-dialog-source-${java.util.UUID.randomUUID()}.pdf")
+        try {
+            val original=seed.database.records().single()
+            source.writeBytes(seed.repository.file(original).readBytes())
+            seed.database.save(original.copy(uri=android.net.Uri.fromFile(source).toString()))
+            runBlocking { seed.repository.activate(false) }
+            compose.onNode(hasScrollAction()).performScrollToNode(hasText("架空の前回科目"))
+            compose.onNodeWithText("架空の前回科目").performClick()
+            compose.onNodeWithText("授業詳細").assertIsDisplayed()
+            compose.onNodeWithText("科目: 架空の前回科目").assertIsDisplayed()
+            android.graphics.pdf.PdfDocument().let { pdf ->
+                try {
+                    val page=pdf.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(600,300,1).create())
+                    page.canvas.drawText("Entirely synthetic updated source",30f,40f,android.graphics.Paint().apply { textSize=12f })
+                    pdf.finishPage(page)
+                    source.outputStream().use { pdf.writeTo(it) }
+                } finally { pdf.close() }
+            }
+            val updatedHash=sha256(source.readBytes())
+            assertNotEquals(original.digest,updatedHash)
+            runBlocking { seed.repository.refresh(sourcesOnly=true) }
+            compose.waitUntil(10000) { seed.repository.state.value.materials.single().digest==updatedHash }
+            compose.onNodeWithText("授業詳細").assertDoesNotExist()
+            val saved=seed.database.records().single()
+            assertEquals(updatedHash,saved.digest)
+            assertEquals(original.parsedDigest,saved.parsedDigest)
+            assertEquals(seed.oldAnalysis,saved.analysis)
+            assertNotNull(saved.failure)
+            assertEquals(RecoveryJobState.PENDING,saved.recoveryJob?.state)
+            assertEquals(0,seed.services.providerCalls)
+        } finally { compose.runOnIdle { seed.stop() };source.delete() }
+    }
     private fun specialPreviewAdoptionAndRestart(kind:MaterialKind,fixture:String) {
         val document=specialRecoveryFixture(kind)
         val service=OfflineRecoveryServices().apply { preparedDocument=document }

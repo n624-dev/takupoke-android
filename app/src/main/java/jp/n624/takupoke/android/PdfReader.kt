@@ -118,6 +118,9 @@ object PdfReader {
             ps.zipWithNext().forEach { pending += it }; current = ps[0]; start = ps[0]
         }
         override fun strokePath() {
+            // Dash paths do not paint their entire geometric segment. In
+            // particular [0 1000] with butt caps can paint no border at all.
+            if(graphicsState.lineDashPattern.dashArray.isNotEmpty())fail("未対応の描画")
             if(graphicsState.strokingColor.toRGB()!=0)fail("未対応の罫線色")
             val transform=graphicsState.currentTransformationMatrix
             val scale=maxOf(kotlin.math.hypot(transform.scaleX.toDouble(),transform.shearY.toDouble()),kotlin.math.hypot(transform.shearX.toDouble(),transform.scaleY.toDouble()))

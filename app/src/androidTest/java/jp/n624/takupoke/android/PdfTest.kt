@@ -165,6 +165,39 @@ class PdfTest {
             } finally { file.delete() }
         }
     }
+    @Test fun rendererInvisibleDashSegmentsCannotBecomeSolidGridEvidence() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        for(dashed in listOf(false,true)) {
+            val file=File.createTempFile("synthetic-dash-",".pdf",context.cacheDir)
+            try {
+                PDDocument().use { doc ->
+                    val page=PDPage(PDRectangle(200f,200f));doc.addPage(page)
+                    val fontFile=File("/system/fonts/Roboto-Regular.ttf").takeIf { it.isFile }?:File("/system/fonts/NotoSans-Regular.ttf")
+                    val font=PDType0Font.load(doc,fontFile)
+                    PDPageContentStream(doc,page).use { stream ->
+                        stream.setLineCapStyle(0)
+                        if(dashed)stream.setLineDashPattern(floatArrayOf(0f,1000f),0f)
+                        stream.addRect(10f,10f,180f,180f);stream.stroke()
+                        stream.beginText();stream.setFont(font,12f);stream.newLineAtOffset(30f,150f);stream.showText("Visible");stream.endText()
+                    };doc.save(file)
+                }
+                val bitmap=android.graphics.Bitmap.createBitmap(200,200,android.graphics.Bitmap.Config.ARGB_8888)
+                try {
+                    bitmap.eraseColor(android.graphics.Color.WHITE)
+                    android.os.ParcelFileDescriptor.open(file,android.os.ParcelFileDescriptor.MODE_READ_ONLY).use { fd -> android.graphics.pdf.PdfRenderer(fd).use { renderer -> renderer.openPage(0).use { it.render(bitmap,null,null,android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY) } } }
+                    var borderInk=0
+                    for(y in 9..191)for(x in 9..191)if((x<=11 || x>=189 || y<=11 || y>=189) && (bitmap.getPixel(x,y) and 0xffffff)!=0xffffff)borderInk++
+                    if(dashed)assertEquals("Zero-length butt-cap dashes paint no border",0,borderInk)else assertTrue("Solid control paints its border",borderInk>100)
+                } finally { bitmap.recycle() }
+                val capture=jp.n624.takupoke.core.RecoveryReadCapture()
+                if(dashed) {
+                    try { PdfReader.readPages(file,capture);fail("Invisible dash became full solid grid") }catch(_:ParseFailure) {}
+                    assertFalse(capture.complete);assertEquals(jp.n624.takupoke.core.RecoveryInputState.PARTIAL,capture.pages.single().state)
+                    assertTrue(requireNotNull(capture.pages.single().layout).lines.isEmpty())
+                }else { val page=PdfReader.readPages(file,capture).single();assertTrue(capture.complete);assertEquals(4,page.lines.size) }
+            } finally { file.delete() }
+        }
+    }
     @Test(timeout=90000) fun nonoverlappingPaintComparisonsAreBoundedBeforeRecovery() {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         val file=File.createTempFile("synthetic-paint-budget-",".pdf",context.cacheDir)
