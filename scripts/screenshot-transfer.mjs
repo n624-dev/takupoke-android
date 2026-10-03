@@ -37,7 +37,7 @@ if (mode === 'encode') {
       pending.set(record.name, { ...record, data: '' });
     } else if (record.type === 'chunk') {
       const current = pending.get(record.name);
-      if (!current || record.offset !== current.data.length || typeof record.data !== 'string' || !/^[A-Za-z0-9+/]{1,2048}={0,2}$/.test(record.data) || current.data.length + record.data.length > Math.ceil(limit / 3) * 4) throw Error('Invalid screenshot chunk');
+      if (!current || record.offset !== current.data.length || typeof record.data !== 'string' || !/^[A-Za-z0-9+/]{1,2048}={0,2}$/.test(record.data) || current.data.length + record.data.length > Math.ceil(limit / 3) * 4) throw Error(`Invalid screenshot chunk: ${record.name}, expected offset ${current?.data.length ?? 'no header'}, received ${record.offset}, chunk length ${typeof record.data === 'string' ? record.data.length : 'non-string'}`);
       current.data += record.data;
     } else if (record.type === 'end') {
       const current = pending.get(record.name);

@@ -1,0 +1,56 @@
+name: Android synthetic LiteRT runtime evaluation
+on:
+  workflow_call:
+    inputs:
+      evaluatePinnedCandidate:
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      evaluatePinnedCandidate:
+        description: Download the pinned 329 MiB public model and evaluate invented data only (no model approval)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: android-runtime-evaluation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  evaluate:
+    if: ${{ inputs.evaluatePinnedCandidate }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Use disposable Gradle home
+        run: echo "GRADLE_USER_HOME=$RUNNER_TEMP/takupoke-gradle" >> "$GITHUB_ENV"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Check public files and cache policy
+        run: bash scripts/check-public.sh
+      - name: Build optimized test APK, verify JNI names and fetch the pinned public model
+        run: bash scripts/evaluate-litert-model.sh prepare
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: CPU 4096 native inference, schema, Validator, cancellation and release
+        uses: ReactiveCircus/android-emulator-runner@4c44018e59b437e86cdfc41da381398f93ed8808 # v2
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect -memory 6144 -cores 2
+          script: bash scripts/evaluate-litert-model.sh run
+      - name: Remove disposable model, APKs and build data
+        if: always()
+        run: |
+          ./gradlew --stop || true
+          rm -rf -- "$RUNNER_TEMP/takupoke-gradle" "$RUNNER_TEMP/takupoke-runtime-evaluation" app/build core/build .gradle

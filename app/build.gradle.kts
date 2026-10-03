@@ -23,6 +23,14 @@ android {
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_21; targetCompatibility = JavaVersion.VERSION_21 }
     packaging { resources.excludes += setOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*") }
+    // Manual, synthetic candidate evaluation only. Default tests keep their
+    // offline runner and do not compile or discover this separate suite.
+    if (providers.gradleProperty("takupoke.runtimeEvaluation").orNull == "true") {
+        testBuildType = "release"
+        sourceSets.getByName("androidTest").java.srcDir("src/runtimeEvaluationAndroidTest/java")
+        sourceSets.getByName("androidTest").assets.srcDir("src/runtimeEvaluationAndroidTest/assets")
+        buildTypes.getByName("release").signingConfig = signingConfigs.getByName("debug")
+    }
 }
 kotlin { jvmToolchain(21) }
 dependencies {
@@ -49,6 +57,13 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
+    if (providers.gradleProperty("takupoke.runtimeEvaluation").orNull == "true") {
+        // androidx.test.core ViewCapture's Kotlin adapter is optional in debug
+        // but must exist when R8 resolves the optimized test dependency graph.
+        // AGP resolves instrumentation dependencies consistently with the
+        // target variant, so the evaluation-only target also needs this pin.
+        implementation("androidx.concurrent:concurrent-futures-ktx:1.3.0")
+    }
     androidTestImplementation(platform("androidx.compose:compose-bom:2025.10.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

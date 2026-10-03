@@ -3,12 +3,22 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      evaluatePinnedCandidate:
+        description: Also run the pinned local AI candidate on invented data (manual only, no approval)
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
   group: android-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  runtime-evaluation:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.evaluatePinnedCandidate }}
+    uses: ./.github/workflows/runtime-evaluation.yml
+    with:
+      evaluatePinnedCandidate: true
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 35

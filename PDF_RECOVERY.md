@@ -37,3 +37,11 @@ OfflineRunnerのRecoveryScreenTestは実Compose・SQLite・PdfRendererで開始�
 Kotlin 2.4のmetadataを扱うため、[Androidの公式互換表](https://developer.android.com/build/kotlin-support)の最低R8 9.1.29を満たす9.1.31を固定する。[R8の公式override手順](https://r8.googlesource.com/r8/+/refs/heads/main/README.md#replacing-r8-in-agp)に従い、AGP 8.13.2 / Gradle 8.13を維持する。LiteRT 0.17.1 AARにはconsumer keep rulesがなく、JNIはDTO・例外・callbackの名前を参照するため、そのRuntimeパッケージを明示保持する。最適化APKでの端末内Runtime smokeは、モデル配信の合格判定までに別途必要である。
 
 最重要指標は誤採用数。少数の架空fixtureやLinux CPU候補評価を、学校資料での誤採用率・実端末動作確認とみなさない。自動採用は初期版へ追加しない。
+
+## Android native candidate評価（manualのみ）
+
+既存[android.yml](.github/workflows/android.yml)の手動入力`evaluatePinnedCandidate=true`で、同じfeature commitの[runtime-evaluation.yml](.github/workflows/runtime-evaluation.yml)を呼び出せる。通常pushの実行対象、OfflineRunnerのsuiteとネット拒否は変更せず、`-Ptakupoke.runtimeEvaluation=true`の時だけ独立の`src/runtimeEvaluationAndroidTest`を組み込む。この評価用optimized releaseはdebug鍵で署名し、配布物として公開しない。hostが固定Qwen3-0.6B INT4の344671744 bytesだけをHTTPS取得し、size/SHAを検証して端末へコピーする。アプリ側でもsize/SHAを確認する。学校URL、実在資料、学校入力の送信は使わない。
+
+実LiteRT-LM 0.17.1 / CPU / context4096でinitialize、smoke、Structured Outputのdecode、既存Validator、native cancel、Provider cancel、終了後closeを検証する。16ケースは役割順序、ラベルalias、教員/教室の明示空欄、並記2、同じ文字列の別ID、1/I・0/Oの原文、指示を装った本文、欠落とpartial pageを含む。欠落/partialは前処理やValidatorで安全に失敗するかを記録する。原文atomと独立scopeからRulesで一意に解けるセルについて、**モデル単体の評価**としてProviderを直接呼び、製品のRules優先経路を変更しない。原文再構築後の完全一致、raw完全一致、Validator採否、誤採用、危険な役割混入出力の拒否を別々に記録する。
+
+PSS、private footprint、native PSS、native heap、Java heap、初期化/各推論/取消の時間をActionsログへJSON行で出力する。R8後のJNI class名保持も確認する。モデル、APK、入力、ログをActions artifact/cacheへ永続保存しない。比較候補の`validated=false`はこの評価でも維持する。16架空ケースやx86_64 emulator CPUの成功は、学校資料の誤採用率、ARM端末メモリ、GPU/NPU性能や配信合格の証明にはしない。manual評価はコードを追加した段階と実行済みの結果を区別する。
