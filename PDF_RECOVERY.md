@@ -50,6 +50,8 @@ OfflineRunnerのRecoveryScreenTestは実Compose・SQLite・PdfRendererで開始�
 
 Kotlin 2.4のmetadataを扱うため、[Androidの公式互換表](https://developer.android.com/build/kotlin-support)の最低R8 9.1.29を満たす9.1.31を固定する。[R8の公式override手順](https://r8.googlesource.com/r8/+/refs/heads/main/README.md#replacing-r8-in-agp)に従い、AGP 8.13.2 / Gradle 8.13を維持する。LiteRT 0.17.1 AARにはconsumer keep rulesがなく、JNIはDTO・例外・callbackの名前を参照するため、そのRuntimeパッケージを明示保持する。最適化APKでの端末内Runtime smokeは、モデル配信の合格判定までに別途必要である。
 
+検証・Rules・原文変換は原Source順を維持した共通ID/セル索引を使う。セル間の原文混入と領域重複は実測boxの空間索引で確認し、不一致を含む候補比較・原文連結に20Mの処理量上限と取消チェックを適用する。同期preflight/Rules/Validator/正式変換はrunInterruptibleで実行し、上限超過をモデルFallbackへ流さない。公開Builderで680セル・各役割24原文group（49,140 Sources）を生成し、Rules→Validator→680正式授業への変換を回帰検査する。Job取消時は未採用プレビューを返さず、実Repository/SQLite境界のnativeテストでも前回正式結果の保持を検査する。架空host性能とAndroid実端末性能を区別する。
+
 最重要指標は誤採用数。少数の架空fixtureやLinux CPU候補評価を、学校資料での誤採用率・実端末動作確認とみなさない。自動採用は初期版へ追加しない。
 
 2026-10-03の[manual評価37131519065](https://github.com/n624-dev/takupoke-android/actions/runs/37131519065)はParser8・Schema2・Validator4・Prompt3・Recovery2、LiteRT-LM 0.17.1 / x86_64 API36 emulator CPU / context4096で完了した。固定モデル344671744 bytesのsize/SHA、R8 9.1.31のJNI実名6とRunner参照閉包524class/3517member、initialize 15.0秒、smoke、実行中cancel→join、Provider cancel→join、close後の再実行拒否を確認した。peak PSS 2513548 KiB/private footprint 2510684 KiB（約2.40 GiB）から解放後PSS 170451 KiBへ下がった。

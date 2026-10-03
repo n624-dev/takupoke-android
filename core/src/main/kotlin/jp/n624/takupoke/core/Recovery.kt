@@ -2,6 +2,7 @@ package jp.n624.takupoke.core
 
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.runInterruptible
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import java.time.LocalDate
@@ -62,53 +63,77 @@ object RecoveryValidator {
         return listOf(day, "${parts[0]}/${parts[1]}/${parts[2]}", "${parts[1]}/${parts[2]}", "${parts[1]}月${parts[2]}日")
     }
     fun validate(doc: RecoveryDocument, result: RecoveryResult): RecoveryValidation = validate(doc,result,emptySet())
-    private fun validate(doc: RecoveryDocument, result: RecoveryResult, deferredBindings:Set<String>): RecoveryValidation {
+    private fun validate(doc:RecoveryDocument,result:RecoveryResult,deferredBindings:Set<String>):RecoveryValidation = try {
+        validateBounded(doc,result,deferredBindings)
+    }catch(_:RecoveryWorkLimit){RecoveryValidation(listOf("validationWorkLimit"))}
+    private fun validateBounded(doc: RecoveryDocument, result: RecoveryResult, deferredBindings:Set<String>): RecoveryValidation {
+        val work=RecoveryWork()
+        fun step()=work.step()
+        fun canonical(value:String)=text(work.read(value))
         if (doc.schoolYear !in 1900..9998 || doc.classes.size !in 1..64 || doc.days.size !in 1..31 || doc.cells.size !in 1..20000 || doc.sources.size > 100000 || result.cells.size > 20000) return RecoveryValidation(listOf("inputLimit"))
+        // Spend collection sizes before flattening; invalid nested lists must
+        // not allocate or scan beyond the same bounded comparison allowance.
+        fun refs(values:Collection<*>)=work.spend(values.size.toLong())
+        listOf(doc.requiredSlots,doc.yearEvidence,doc.termEvidence,doc.timeEvidence,doc.normalTimeNoteEvidence,doc.titleEvidence).forEach(::refs)
+        listOf(doc.classEvidence,doc.dayEvidence,doc.periodEvidence,doc.clockEvidence).forEach { map -> map.values.forEach(::refs) }
+        refs(doc.normalTimeNoteGroups);doc.normalTimeNoteGroups.forEach(::refs)
+        doc.cells.forEach { c ->
+            step();listOf(c.slots,c.sourceIds,c.blankFields,c.classHeaderIds,c.dayHeaderIds,c.periodHeaderIds,c.separatorIds).forEach(::refs)
+            refs(c.lessonBindings);refs(c.roleScopes)
+            c.lessonBindings.forEach { b -> listOf(b.subject,b.teacher,b.room).forEach(::refs) }
+            c.roleScopes.forEach { refs(it.labelSourceIds) }
+        }
+        result.cells.forEach { c -> step();refs(c.lessons);c.lessons.forEach { l -> listOf(l.subject.evidence,l.teacher.evidence,l.room.evidence,l.dateEvidence,l.periodEvidence).forEach(::refs) } }
         val errors = linkedSetOf<String>()
-        fun check(ok: Boolean, code: String) { if (!ok) errors += code }
+        fun check(ok: Boolean, code: String) { step();if (!ok) errors += code }
         check(doc.pdfHash.matches(Regex("[a-f0-9]{64}")) && result.pdfHash == doc.pdfHash, "sourceHash")
         check(doc.complete && doc.cells.size in 1..20000 && doc.sources.size <= 100000, "incompleteDocument")
         check(result.kind == doc.kind && result.schoolYear == doc.schoolYear && result.term == doc.term, "documentIdentity")
         check(doc.schoolYear in 1900..9998 && (doc.kind != RecoveryDocumentKind.TIMETABLE || doc.term in listOf("前期", "後期")), "yearTerm")
         check(doc.structureMetadata == null || doc.structureMetadata == result.metadata, "structureMetadata")
-        check(result.metadata.recoverySchemaVersion == SCHEMA_VERSION && result.metadata.validatorVersion == VERSION && listOf(result.metadata.provider, result.metadata.modelId, result.metadata.modelVersion, result.metadata.runtimeVersion, result.metadata.promptVersion, result.metadata.osVersion, result.metadata.recoveryVersion).all { it.isNotBlank() }, "versions")
-        check(doc.classes.isNotEmpty() && doc.classes.distinct().size == doc.classes.size && doc.classes.all { it in knownClasses } && doc.days.isNotEmpty() && doc.days.distinct().size == doc.days.size, "scope")
+        check(result.metadata.recoverySchemaVersion == SCHEMA_VERSION && result.metadata.validatorVersion == VERSION && listOf(result.metadata.provider, result.metadata.modelId, result.metadata.modelVersion, result.metadata.runtimeVersion, result.metadata.promptVersion, result.metadata.osVersion, result.metadata.recoveryVersion).all { step(); it.isNotBlank() }, "versions")
+        check(doc.classes.isNotEmpty() && doc.classes.distinct().size == doc.classes.size && doc.classes.all { step(); it in knownClasses } && doc.days.isNotEmpty() && doc.days.distinct().size == doc.days.size, "scope")
         if (doc.kind != RecoveryDocumentKind.TIMETABLE) check(doc.classes.toSet() == specialClasses.toSet() && doc.days.size == 5, "specialScope")
         val maxPeriod = if (doc.kind == RecoveryDocumentKind.EXAM) 6 else 8
         if (doc.kind == RecoveryDocumentKind.TIMETABLE) check(doc.days.sorted() == listOf("1", "2", "3", "4", "5"), "weekdays")
-        else doc.days.forEach { day -> check(runCatching { val date = LocalDate.parse(day); date.toString() == day && date >= LocalDate.of(doc.schoolYear, 4, 1) && date < LocalDate.of(doc.schoolYear + 1, 4, 1) }.getOrDefault(false), "dates") }
-        val required = doc.classes.flatMap { cls -> doc.days.flatMap { day -> (1..maxPeriod).map { RecoverySlot(cls, day, it) } } }.toSet()
+        else doc.days.forEach { day -> step(); check(runCatching { val date = LocalDate.parse(day); date.toString() == day && date >= LocalDate.of(doc.schoolYear, 4, 1) && date < LocalDate.of(doc.schoolYear + 1, 4, 1) }.getOrDefault(false), "dates") }
+        val required = doc.classes.flatMap { cls -> step(); doc.days.flatMap { day -> step(); (1..maxPeriod).map { step(); RecoverySlot(cls, day, it) } } }.toSet()
         check(doc.requiredSlots.size == required.size && doc.requiredSlots.toSet() == required, "requiredScope")
-        val slots = doc.cells.flatMap { it.slots }
+        val slots = doc.cells.flatMap { step(); it.slots }
         check(slots.size == required.size && slots.toSet() == required, "coverage")
-        check(doc.cells.map { it.id }.distinct().size == doc.cells.size && doc.sources.map { it.id }.distinct().size == doc.sources.size, "duplicateIds")
-        val sources = doc.sources.associateBy { it.id }; val cells = result.cells.associateBy { it.cellId }
+        check(doc.cells.map { step(); it.id }.distinct().size == doc.cells.size && doc.sources.map { step(); it.id }.distinct().size == doc.sources.size, "duplicateIds")
+        val indexed=RecoverySources(doc,work);val sources=indexed.byId; val cells = result.cells.associateBy { step();it.cellId }
         check(cells.size == result.cells.size, "duplicateCells")
-        check(cells.keys == doc.cells.map { it.id }.toSet(), "resultCoverage")
-        fun evidence(ids: List<String>, allowed: List<String>, value: String? = null): Boolean = ids.isNotEmpty() && ids.distinct().size == ids.size && ids.all { it in allowed && it in sources } && (value == null || text(value).isNotEmpty() && text(ids.joinToString("") { sources[it]?.text.orEmpty() }) == text(value))
-        val order = doc.sources.mapIndexed { i, source -> source.id to i }.toMap()
-        fun ordered(ids: List<String>) = ids.all { it in order } && ids.map { order.getValue(it) }.zipWithNext().all { (a, b) -> a < b }
-        fun header(ids: List<String>, allowed: List<String>, labels: List<String>, cell: RecoveryCell? = null, region: RecoveryHeaderRegion? = null): Boolean {
+        check(cells.keys == doc.cells.map { step(); it.id }.toSet(), "resultCoverage")
+        val allowedSets=java.util.IdentityHashMap<Collection<String>,Set<String>>()
+        fun allowed(values:Collection<String>):Set<String> = if(values is Set<String>)values else allowedSets.getOrPut(values) { values.map { step();it }.toSet() }
+        fun evidence(ids:List<String>,accepted:Collection<String>,value:String?=null):Boolean {
+            val permitted=allowed(accepted)
+            return ids.isNotEmpty() && ids.map { step();it }.distinct().size==ids.size && ids.all { step();it in permitted && it in sources } && (value==null || canonical(value).isNotEmpty() && canonical(ids.joinToString("") { step();work.read(sources[it]?.text.orEmpty()) })==canonical(value))
+        }
+        val order=indexed.order
+        fun ordered(ids: List<String>) = ids.all { step(); it in order } && ids.map { step(); order.getValue(it) }.zipWithNext().all { (a, b) -> step(); a < b }
+        fun header(ids: List<String>, allowed: Collection<String>, labels: List<String>, cell: RecoveryCell? = null, region: RecoveryHeaderRegion? = null): Boolean {
             if (!evidence(ids, allowed) || !ordered(ids)) return false
-            val joinedMatches = text(ids.joinToString("") { sources[it]?.text.orEmpty() }) in labels.map(::text)
-            if (cell == null) return joinedMatches || ids.all { text(sources[it]?.text.orEmpty()) in labels.map(::text) }
+            val joinedMatches = canonical(ids.joinToString("") { step(); work.read(sources[it]?.text.orEmpty()) }) in labels.map(::canonical)
+            if (cell == null) return joinedMatches || ids.all { step(); canonical(work.read(sources[it]?.text.orEmpty())) in labels.map(::canonical) }
             if (region == null || region.page != cell.page || !region.box.valid) return false
             val aligned = if (region.axis == RecoveryHeaderAxis.ABOVE) region.box.y + region.box.height <= cell.box.y && minOf(region.box.x + region.box.width, cell.box.x + cell.box.width) > maxOf(region.box.x, cell.box.x) else region.box.x + region.box.width <= cell.box.x && minOf(region.box.y + region.box.height, cell.box.y + cell.box.height) > maxOf(region.box.y, cell.box.y)
-            return joinedMatches && aligned && ids.all { id -> sources[id]?.let { it.page == region.page && region.box.contains(it.box) } == true }
+            return joinedMatches && aligned && ids.all { id -> step(); sources[id]?.let { it.page == region.page && region.box.contains(it.box) } == true }
         }
-        check(doc.sources.all { it.page > 0 && it.box.valid && it.text.length <= 4096 }, "sourceLimit")
+        check(doc.sources.all { step(); it.page > 0 && it.box.valid && it.text.length <= 4096 }, "sourceLimit")
         check(evidence(doc.yearEvidence, doc.yearEvidence), "yearEvidence")
-        val yearText = text(doc.yearEvidence.joinToString("") { sources[it]?.text.orEmpty() })
+        val yearText = canonical(doc.yearEvidence.joinToString("") { step(); work.read(sources[it]?.text.orEmpty()) })
         val yearLabels = listOf("${doc.schoolYear}年度", "令和${doc.schoolYear - 2018}年度")
-        check(yearText in yearLabels || doc.yearEvidence.all { text(sources[it]?.text.orEmpty()) in yearLabels }, "yearEvidenceText")
-        doc.term?.let { check(evidence(doc.termEvidence, doc.termEvidence) && (text(doc.termEvidence.joinToString("") { id -> sources[id]?.text.orEmpty() }) == text(it) || doc.termEvidence.all { id -> text(sources[id]?.text.orEmpty()) == text(it) }), "termEvidence") }
-        doc.classes.forEach { check(doc.classEvidence[it]?.let { ids -> header(ids, ids, listOf(it, it.replace('_', '-'), it.replace("_", ""))) } == true, "classEvidence") }
-        doc.days.forEach { check(doc.dayEvidence[it]?.let { ids -> header(ids, ids, dayLabels(it, doc.kind)) } == true, "dayEvidence") }
-        (1..maxPeriod).forEach { check(doc.periodEvidence[it.toString()]?.let { ids -> header(ids, ids, listOf(it.toString(), "${it}限", "${it}時限", "第${it}時限")) } == true, "periodEvidence") }
+        check(yearText in yearLabels || doc.yearEvidence.all { step(); canonical(work.read(sources[it]?.text.orEmpty())) in yearLabels }, "yearEvidenceText")
+        doc.term?.let { check(evidence(doc.termEvidence, doc.termEvidence) && (canonical(doc.termEvidence.joinToString("") { id -> step(); work.read(sources[id]?.text.orEmpty()) }) == canonical(it) || doc.termEvidence.all { id -> step(); canonical(work.read(sources[id]?.text.orEmpty())) == canonical(it) }), "termEvidence") }
+        doc.classes.forEach { step(); check(doc.classEvidence[it]?.let { ids -> header(ids, ids, listOf(it, it.replace('_', '-'), it.replace("_", ""))) } == true, "classEvidence") }
+        doc.days.forEach { step(); check(doc.dayEvidence[it]?.let { ids -> header(ids, ids, dayLabels(it, doc.kind)) } == true, "dayEvidence") }
+        (1..maxPeriod).forEach { step(); check(doc.periodEvidence[it.toString()]?.let { ids -> header(ids, ids, listOf(it.toString(), "${it}限", "${it}時限", "第${it}時限")) } == true, "periodEvidence") }
         fun clockBound(day: String, start: Int, end: Int, clock: String): Boolean {
             val suffix = if (start == end) "$start" else "$start-$end"; val key = "$day:$suffix"; val ids = doc.clockEvidence[key].orEmpty()
             val binding = doc.clockBindings[key] ?: return false
-            if (binding.day != day || binding.spanStart != start || binding.spanEnd != end || binding.page < 1 || !binding.box.valid || !evidence(ids, doc.timeEvidence, clock) || ids.any { id -> sources[id]?.let { it.page == binding.page && binding.box.contains(it.box) } != true }) return false
+            if (binding.day != day || binding.spanStart != start || binding.spanEnd != end || binding.page < 1 || !binding.box.valid || !evidence(ids, doc.timeEvidence, clock) || ids.any { id -> step(); sources[id]?.let { it.page == binding.page && binding.box.contains(it.box) } != true }) return false
             val parts = clock.split('〜'); if (parts.size != 2 || parts[0] >= parts[1]) return false
             val virtual = RecoveryCell("clock", binding.page, binding.box, RecoveryInputState.COMPLETE, emptyList(), ids, emptyList())
             val labels = if (start == end) listOf("$start", "${start}限", "${start}時限", "第${start}時限") else listOf("${start}・${end}時限連続", "${start}〜${end}時限連続", "${start}〜${end}限", "$start-${end}限")
@@ -117,50 +142,62 @@ object RecoveryValidator {
 
             return header(binding.dayHeaderIds, doc.dayEvidence[day].orEmpty(), dayLabels(day, doc.kind), virtual, binding.dayRegion)
         }
-        val validClocks = doc.clockBindings.filter { (key, binding) ->
+        val validClocks = doc.clockBindings.filter { (key, binding) -> step();
             val clock = if (binding.spanStart == binding.spanEnd) doc.times[key] else doc.spanTimes[key]
             clock != null && clockBound(binding.day, binding.spanStart, binding.spanEnd, clock)
         }.values
-        doc.classes.forEach { cls -> check(doc.classEvidence[cls].orEmpty().toSet() == doc.cells.filter { it.slots.firstOrNull()?.className == cls }.flatMap { it.classHeaderIds }.toSet(), "classHeaderCoverage") }
-        doc.days.forEach { day -> check(doc.dayEvidence[day].orEmpty().toSet() == (doc.cells.filter { it.slots.firstOrNull()?.day == day }.flatMap { it.dayHeaderIds } + validClocks.filter { it.day == day }.flatMap { it.dayHeaderIds }).toSet(), "dayHeaderCoverage") }
-        (1..maxPeriod).forEach { period ->
-            val allowed = doc.periodEvidence[period.toString()].orEmpty()
-            val bound = doc.cells.filter { c -> c.slots.any { it.period == period } }.flatMap { it.periodHeaderIds }.filter { it in allowed } + validClocks.filter { it.spanStart == period && it.spanEnd == period }.flatMap { it.periodHeaderIds }
-            check(allowed.toSet() == bound.toSet(), "periodHeaderCoverage")
+        val classHeaders=linkedMapOf<String,MutableSet<String>>();val dayHeaders=linkedMapOf<String,MutableSet<String>>();val periodHeaders=linkedMapOf<String,MutableSet<String>>()
+        val topByPage=linkedMapOf<Int,Double>()
+        doc.cells.forEach { c ->
+            step();topByPage[c.page]=minOf(topByPage[c.page]?:c.box.y,c.box.y)
+            c.slots.firstOrNull()?.let { slot ->
+                classHeaders.getOrPut(slot.className){linkedSetOf()}.addAll(c.classHeaderIds.map { step();it })
+                dayHeaders.getOrPut(slot.day){linkedSetOf()}.addAll(c.dayHeaderIds.map { step();it })
+            }
+            c.slots.forEach { slot -> step();val ids=allowed(doc.periodEvidence[slot.period.toString()].orEmpty());periodHeaders.getOrPut(slot.period.toString()){linkedSetOf()}.addAll(c.periodHeaderIds.filter { step();it in ids }) }
         }
-        doc.cells.groupBy { it.page }.values.forEach { page ->
-            val active = mutableListOf<RecoveryCell>()
-            page.sortedBy { it.box.x }.forEach { cell ->
-                active.removeAll { it.box.x + it.box.width <= cell.box.x }
-                check(active.none { minOf(it.box.y + it.box.height, cell.box.y + cell.box.height) > maxOf(it.box.y, cell.box.y) }, "cellOverlap")
-                active += cell
+        validClocks.forEach { clock ->
+            step();dayHeaders.getOrPut(clock.day){linkedSetOf()}.addAll(clock.dayHeaderIds.map { step();it })
+            if(clock.spanStart==clock.spanEnd)periodHeaders.getOrPut(clock.spanStart.toString()){linkedSetOf()}.addAll(clock.periodHeaderIds.map { step();it })
+        }
+        doc.classes.forEach { cls -> step();check(allowed(doc.classEvidence[cls].orEmpty())==classHeaders[cls].orEmpty(),"classHeaderCoverage") }
+        doc.days.forEach { day -> step();check(allowed(doc.dayEvidence[day].orEmpty())==dayHeaders[day].orEmpty(),"dayHeaderCoverage") }
+        (1..maxPeriod).forEach { p -> step();check(allowed(doc.periodEvidence[p.toString()].orEmpty())==periodHeaders[p.toString()].orEmpty(),"periodHeaderCoverage") }
+        val geometry=RecoveryCellIndex(doc.cells,work)
+        val unassigned=mutableSetOf<String>()
+        doc.sources.forEach { source ->
+            step();geometry.overlaps(source.page,source.box) { _,cell ->
+                step();if(source.cellId!=cell.id || source.id !in allowed(cell.sourceIds))unassigned+=cell.id
             }
         }
-        check(doc.titleEvidence.distinct().size == doc.titleEvidence.size && doc.titleEvidence.all { id -> sources[id]?.let { s -> text(s.text) in listOf("時間割", "通常時間割", "試験時間割", "試験返却時間割", "クラス", "曜日", "日付", "時限", "授業時間", "学年") && doc.cells.filter { it.page == s.page }.minOfOrNull { it.box.y }?.let { s.box.y + s.box.height <= it } == true } == true }, "titleEvidence")
-        val classified = (doc.titleEvidence + doc.cells.flatMap { c -> c.sourceIds + c.roleScopes.flatMap { it.labelSourceIds } } + doc.yearEvidence + if (doc.term != null) doc.termEvidence else emptyList()).toMutableSet()
-        doc.classes.forEach { classified += doc.classEvidence[it].orEmpty() }
-        doc.days.forEach { classified += doc.dayEvidence[it].orEmpty() }
-        (1..maxPeriod).forEach { classified += doc.periodEvidence[it.toString()].orEmpty() }
+        doc.cells.forEachIndexed { index,cell ->
+            step();geometry.overlaps(cell.page,cell.box) { other,_ -> step();check(index==other,"cellOverlap") }
+        }
+        check(doc.titleEvidence.map { step();it }.distinct().size==doc.titleEvidence.size && doc.titleEvidence.all { id -> step();sources[id]?.let { s -> canonical(s.text) in listOf("時間割","通常時間割","試験時間割","試験返却時間割","クラス","曜日","日付","時限","授業時間","学年") && topByPage[s.page]?.let { s.box.y+s.box.height<=it }==true }==true },"titleEvidence")
+        val classified = (doc.titleEvidence + doc.cells.flatMap { c -> step(); c.sourceIds + c.roleScopes.flatMap { step(); it.labelSourceIds } } + doc.yearEvidence + if (doc.term != null) doc.termEvidence else emptyList()).toMutableSet()
+        doc.classes.forEach { step(); classified += doc.classEvidence[it].orEmpty() }
+        doc.days.forEach { step(); classified += doc.dayEvidence[it].orEmpty() }
+        (1..maxPeriod).forEach { step(); classified += doc.periodEvidence[it.toString()].orEmpty() }
         if (doc.kind != RecoveryDocumentKind.TIMETABLE) {
-            (doc.times.keys + doc.spanTimes.keys).forEach { classified += doc.clockEvidence[it].orEmpty(); classified += doc.clockBindings[it]?.periodHeaderIds.orEmpty() }
+            (doc.times.keys + doc.spanTimes.keys).forEach { step(); classified += doc.clockEvidence[it].orEmpty(); classified += doc.clockBindings[it]?.periodHeaderIds.orEmpty() }
             if (doc.kind == RecoveryDocumentKind.RETURN) classified += doc.normalTimeNoteEvidence
         }
-        check(doc.sources.map { it.id }.toSet() == classified, "unclassifiedSource")
-        val noteText = RecoveryNotes.text(doc.normalTimeNoteEvidence.joinToString("") { sources[it]?.text.orEmpty() })
-        val dates = doc.days.sorted().map { it.split('-').mapNotNull(String::toIntOrNull) }
-        val expectedNote = if(dates.size==5 && dates.all { it.size==3 }) "${dates[0][1]}月${dates[0][2]}日の時間割は以下のとおり${dates[1][1]}月${dates[1][2]}日〜${dates[4][2]}日は通常の授業日どおりの授業時間" else ""
-        val noteGrouping = doc.normalTimeNoteGroups.isEmpty() || doc.normalTimeNoteGroups.flatten()==doc.normalTimeNoteEvidence && doc.normalTimeNoteGroups.all { ids -> evidence(ids,doc.normalTimeNoteEvidence) && RecoveryNotes.text(ids.joinToString("") { sources[it]?.text.orEmpty() })==expectedNote }
-        val noteValid = noteGrouping && doc.kind == RecoveryDocumentKind.RETURN && evidence(doc.normalTimeNoteEvidence, doc.normalTimeNoteEvidence) && dates.size == 5 && dates.all { it.size == 3 } && dates[1][1] == dates[4][1] && (!doc.normalTimeNoteGroups.isEmpty() || noteText.replace("。", "") == expectedNote || doc.normalTimeNoteEvidence.all { RecoveryNotes.text(sources[it]?.text.orEmpty()) == expectedNote })
+        check(doc.sources.map { step(); it.id }.toSet() == classified, "unclassifiedSource")
+        val noteText = RecoveryNotes.text(doc.normalTimeNoteEvidence.joinToString("") { step(); work.read(sources[it]?.text.orEmpty()) })
+        val dates = doc.days.sorted().map { step(); it.split('-').mapNotNull(String::toIntOrNull) }
+        val expectedNote = if(dates.size==5 && dates.all { step(); it.size==3 }) "${dates[0][1]}月${dates[0][2]}日の時間割は以下のとおり${dates[1][1]}月${dates[1][2]}日〜${dates[4][2]}日は通常の授業日どおりの授業時間" else ""
+        val noteGrouping = doc.normalTimeNoteGroups.isEmpty() || doc.normalTimeNoteGroups.flatten()==doc.normalTimeNoteEvidence && doc.normalTimeNoteGroups.all { ids -> step(); evidence(ids,doc.normalTimeNoteEvidence) && RecoveryNotes.text(ids.joinToString("") { step(); work.read(sources[it]?.text.orEmpty()) })==expectedNote }
+        val noteValid = noteGrouping && doc.kind == RecoveryDocumentKind.RETURN && evidence(doc.normalTimeNoteEvidence, doc.normalTimeNoteEvidence) && dates.size == 5 && dates.all { step(); it.size == 3 } && dates[1][1] == dates[4][1] && (!doc.normalTimeNoteGroups.isEmpty() || noteText.replace("。", "") == expectedNote || doc.normalTimeNoteEvidence.all { step(); RecoveryNotes.text(work.read(sources[it]?.text.orEmpty())) == expectedNote })
         if (doc.kind != RecoveryDocumentKind.TIMETABLE) {
-            val spanKeys = doc.cells.filter { it.slots.size > 1 }.mapNotNull { c -> c.slots.firstOrNull()?.let { "${it.day}:${c.slots.minOf { s -> s.period }}-${c.slots.maxOf { s -> s.period }}" } }.toSet()
+            val spanKeys = doc.cells.filter { step(); it.slots.size > 1 }.mapNotNull { c -> step(); c.slots.firstOrNull()?.let { "${it.day}:${c.slots.minOf { s -> step();s.period }}-${c.slots.maxOf { s -> step();s.period }}" } }.toSet()
             val clockKeys = doc.times.keys + spanKeys
-            check(doc.spanTimes.keys == spanKeys && doc.clockEvidence.keys == clockKeys && doc.clockBindings.keys.all { it in clockKeys }, "clockScope")
+            check(doc.spanTimes.keys == spanKeys && doc.clockEvidence.keys == clockKeys && doc.clockBindings.keys.all { step(); it in clockKeys }, "clockScope")
             val allClockIds = doc.clockEvidence.values.flatten().toSet()
-            check(doc.timeEvidence.all { it in allClockIds }, "clockCoverage")
+            check(doc.timeEvidence.all { step(); it in allClockIds }, "clockCoverage")
             check(doc.times.size == doc.days.size * maxPeriod && evidence(doc.timeEvidence, doc.timeEvidence), "times")
-            doc.days.forEach { day ->
+            doc.days.forEach { day -> step();
                 var previous = "00:00"
-                (1..maxPeriod).forEach { p ->
+                (1..maxPeriod).forEach { p -> step();
                     val clock = doc.times["$day:$p"]
                     val valid = clock?.matches(Regex("(?:[01]\\d|2[0-3]):[0-5]\\d〜(?:[01]\\d|2[0-3]):[0-5]\\d")) == true
                     check(valid, "clock")
@@ -175,17 +212,17 @@ object RecoveryValidator {
             }
             if (doc.kind == RecoveryDocumentKind.RETURN) check(noteValid, "normalTimeNote")
         }
-        doc.cells.forEach { cell ->
-            check(doc.sources.filter { it.cellId == cell.id }.map { it.id }.toSet() == cell.sourceIds.toSet(), "sourceInventory")
-            check(doc.sources.filter { it.page == cell.page && minOf(it.box.x + it.box.width, cell.box.x + cell.box.width) > maxOf(it.box.x, cell.box.x) && minOf(it.box.y + it.box.height, cell.box.y + cell.box.height) > maxOf(it.box.y, cell.box.y) }.all { it.cellId == cell.id && it.id in cell.sourceIds }, "unassignedCellText")
+        doc.cells.forEach { cell -> step();
+            check(indexed.byCell[cell.id].orEmpty().map { step();it.id }.toSet() == allowed(cell.sourceIds), "sourceInventory")
+            check(cell.id !in unassigned, "unassignedCellText")
             check(cell.inputState == RecoveryInputState.COMPLETE && cell.box.valid && cell.page > 0, "incompleteCell")
-            check(cell.sourceIds.distinct().size == cell.sourceIds.size && cell.sourceIds.all { id -> sources[id]?.let { it.cellId == cell.id && it.page == cell.page && cell.box.contains(it.box) } == true }, "sourcePosition")
+            check(cell.sourceIds.distinct().size == cell.sourceIds.size && cell.sourceIds.all { id -> step(); sources[id]?.let { it.cellId == cell.id && it.page == cell.page && cell.box.contains(it.box) } == true }, "sourcePosition")
             cell.slots.firstOrNull()?.let { slot ->
                 check(header(cell.classHeaderIds, doc.classEvidence[slot.className].orEmpty(), listOf(slot.className, slot.className.replace('_', '-'), slot.className.replace("_", "")), cell, cell.classRegion), "classBinding")
                 check(header(cell.dayHeaderIds, doc.dayEvidence[slot.day].orEmpty(), dayLabels(slot.day, doc.kind), cell, cell.dayRegion), "dayBinding")
-                check(cell.slots.all { s -> val ids = cell.periodHeaderIds.filter { it in doc.periodEvidence[s.period.toString()].orEmpty() }; header(ids, doc.periodEvidence[s.period.toString()].orEmpty(), listOf(s.period.toString(), "${s.period}限", "${s.period}時限", "第${s.period}時限"), cell, cell.periodRegions[s.period.toString()]) }, "periodBinding")
+                check(cell.slots.all { s -> step(); val ids = cell.periodHeaderIds.filter { step(); it in allowed(doc.periodEvidence[s.period.toString()].orEmpty()) }; header(ids, doc.periodEvidence[s.period.toString()].orEmpty(), listOf(s.period.toString(), "${s.period}限", "${s.period}時限", "第${s.period}時限"), cell, cell.periodRegions[s.period.toString()]) }, "periodBinding")
             }
-            val periods = cell.slots.map { it.period }.sorted()
+            val periods = cell.slots.map { step(); it.period }.sorted()
             if (doc.kind != RecoveryDocumentKind.TIMETABLE && periods.size > 1) {
                 val day=cell.slots.first().day;val key = "$day:${periods.first()}-${periods.last()}";val clock=doc.spanTimes[key]
                 val explicit=clock!=null && clockBound(day, periods.first(), periods.last(), clock)
@@ -194,60 +231,61 @@ object RecoveryValidator {
                 check(doc.clockBindings[key]==null || explicit,"spanClockBinding")
                 if(doc.kind==RecoveryDocumentKind.RETURN && day!=doc.days.sorted().firstOrNull())check(noteValid && clock==RecoveryNotes.span(periods.first(),periods.last()),"normalSpanTimeCondition")
             }
-            val bindingIds = cell.lessonBindings.flatMap { it.subject + it.teacher + it.room }
+            val bindingIds = cell.lessonBindings.flatMap { step(); it.subject + it.teacher + it.room }
             val proposal = cell.bindingMode == "roleProposal"
             check(cell.bindingMode in listOf("fixed", "roleProposal"), "bindingMode")
-            if(cell.id !in deferredBindings)check(proposal || cell.sourceIds.none { RecoveryRoles.explicitLabel(sources[it]?.text.orEmpty()) }, "unboundRoleLabel")
+            if(cell.id !in deferredBindings)check(proposal || cell.sourceIds.none { step(); RecoveryRoles.explicitLabel(work.read(sources[it]?.text.orEmpty())) }, "unboundRoleLabel")
             if(cell.id !in deferredBindings)check(if (cell.confirmedEmpty) cell.lessonBindings.isEmpty() && cell.roleScopes.isEmpty() else if (proposal) cell.lessonBindings.isEmpty() else cell.roleScopes.isEmpty() && cell.lessonBindings.size == cell.parallelCount && bindingIds.distinct().size == bindingIds.size && bindingIds.toSet() == (cell.sourceIds - cell.separatorIds.toSet()).toSet(), "lessonBinding")
-            check(cell.separatorIds.distinct().size == cell.separatorIds.size && (cell.separatorIds.isEmpty() || !proposal && cell.parallelCount==2 && cell.separatorIds.size==3 && cell.separatorIds.all { it in cell.sourceIds && sources[it]?.text in listOf("・","･") }), "parallelSeparator")
+            check(cell.separatorIds.distinct().size == cell.separatorIds.size && (cell.separatorIds.isEmpty() || !proposal && cell.parallelCount==2 && cell.separatorIds.size==3 && cell.separatorIds.all { step(); it in cell.sourceIds && sources[it]?.text in listOf("・","･") }), "parallelSeparator")
             if(cell.separatorIds.isNotEmpty()) {
                 val left=cell.lessonBindings.getOrNull(0);val right=cell.lessonBindings.getOrNull(1)
-                if(left!=null && right!=null)listOf(left.subject to right.subject,left.teacher to right.teacher,left.room to right.room).forEach { (a,b) ->
-                    check(a.isNotEmpty() && b.isNotEmpty() && cell.separatorIds.count { id -> val separator=sources[id] ?: return@count false;val la=a.mapNotNull { sources[it] };val rb=b.mapNotNull { sources[it] }; la.size==a.size && rb.size==b.size && la.all { it.box.x+it.box.width<=separator.box.x && minOf(it.box.y+it.box.height,separator.box.y+separator.box.height)>maxOf(it.box.y,separator.box.y) } && rb.all { it.box.x>=separator.box.x+separator.box.width && minOf(it.box.y+it.box.height,separator.box.y+separator.box.height)>maxOf(it.box.y,separator.box.y) } }==1,"parallelSeparatorPosition")
+                if(left!=null && right!=null)listOf(left.subject to right.subject,left.teacher to right.teacher,left.room to right.room).forEach { (a,b) -> step();
+                    check(a.isNotEmpty() && b.isNotEmpty() && cell.separatorIds.count { id -> step(); val separator=sources[id] ?: return@count false;val la=a.mapNotNull { step(); sources[it] };val rb=b.mapNotNull { step(); sources[it] }; la.size==a.size && rb.size==b.size && la.all { step(); it.box.x+it.box.width<=separator.box.x && minOf(it.box.y+it.box.height,separator.box.y+separator.box.height)>maxOf(it.box.y,separator.box.y) } && rb.all { step(); it.box.x>=separator.box.x+separator.box.width && minOf(it.box.y+it.box.height,separator.box.y+separator.box.height)>maxOf(it.box.y,separator.box.y) } }==1,"parallelSeparatorPosition")
                 }
             }
-            val labels = cell.roleScopes.flatMap { it.labelSourceIds }.toSet()
-            val body = cell.sourceIds.filter { it !in labels }
+            val labels = cell.roleScopes.flatMap { step(); it.labelSourceIds }.toSet()
+            val body = cell.sourceIds.filter { step(); it !in labels }
             if (proposal) {
                 val roles = setOf("subject", "teacher", "room")
-                check(cell.parallelCount in 1..4 && cell.roleScopes.size == 3 * cell.parallelCount && cell.roleScopes.map { it.lessonIndex to it.role }.toSet() == (0 until cell.parallelCount).flatMap { i -> roles.map { i to it } }.toSet(), "roleScope")
-                cell.roleScopes.forEach { scope ->
+                check(cell.parallelCount in 1..4 && cell.roleScopes.size == 3 * cell.parallelCount && cell.roleScopes.map { step(); it.lessonIndex to it.role }.toSet() == (0 until cell.parallelCount).flatMap { i -> step(); roles.map { step(); i to it } }.toSet(), "roleScope")
+                cell.roleScopes.forEach { scope -> step();
                     val roleLabels = RecoveryRoles.labels[scope.role].orEmpty()
-                    val allowedLabels = roleLabels.flatMap { listOf(it, "$it:", "$it：") }
+                    val allowedLabels = roleLabels.flatMap { step(); listOf(it, "$it:", "$it：") }
                     val virtual = cell.copy(box = scope.box)
                     val within = scope.page == cell.page && cell.box.contains(scope.box)
-                    check(within && scope.proof in listOf("inlineLabel", "columnHeader") && (scope.proof != "inlineLabel" || scope.labelSourceIds.all { it in cell.sourceIds }) && header(scope.labelSourceIds, if (scope.proof == "columnHeader") sources.keys.toList() else cell.sourceIds, allowedLabels, virtual, scope.labelRegion), "roleLabel")
-                    val atoms = body.filter { sources[it]?.let { s -> s.page == scope.page && scope.box.contains(s.box) } == true }
+                    check(within && scope.proof in listOf("inlineLabel", "columnHeader") && (scope.proof != "inlineLabel" || scope.labelSourceIds.all { step(); it in cell.sourceIds }) && header(scope.labelSourceIds, if (scope.proof == "columnHeader") sources.keys else cell.sourceIds, allowedLabels, virtual, scope.labelRegion), "roleLabel")
+                    val atoms = body.filter { step(); sources[it]?.let { s -> s.page == scope.page && scope.box.contains(s.box) } == true }
                     check(!scope.emptyVerified || atoms.isEmpty() && scope.role != "subject", "roleEmpty")
                 }
-                check(cell.roleScopes.indices.all { i -> cell.roleScopes.drop(i + 1).none { s -> val a = cell.roleScopes[i]; minOf(a.box.x + a.box.width, s.box.x + s.box.width) > maxOf(a.box.x, s.box.x) && minOf(a.box.y + a.box.height, s.box.y + s.box.height) > maxOf(a.box.y, s.box.y) } }, "roleOverlap")
-                check(body.all { id -> cell.roleScopes.count { it.box.contains(sources[id]?.box ?: RecoveryBox(-1.0, -1.0, 0.0, 0.0)) } == 1 }, "roleBodyCoverage")
+                check(cell.roleScopes.indices.all { i -> step(); cell.roleScopes.drop(i + 1).none { s -> step(); val a = cell.roleScopes[i]; minOf(a.box.x + a.box.width, s.box.x + s.box.width) > maxOf(a.box.x, s.box.x) && minOf(a.box.y + a.box.height, s.box.y + s.box.height) > maxOf(a.box.y, s.box.y) } }, "roleOverlap")
+                check(body.all { id -> step(); cell.roleScopes.count { step(); it.box.contains(sources[id]?.box ?: RecoveryBox(-1.0, -1.0, 0.0, 0.0)) } == 1 }, "roleBodyCoverage")
             }
-            check(cell.slots.isNotEmpty() && cell.slots.map { it.className to it.day }.distinct().size == 1 && cell.slots.map { it.period }.sorted().zipWithNext().all { (a, b) -> b == a + 1 }, "span")
+            check(cell.slots.isNotEmpty() && cell.slots.map { step(); it.className to it.day }.distinct().size == 1 && cell.slots.map { step(); it.period }.sorted().zipWithNext().all { (a, b) -> step(); b == a + 1 }, "span")
             val recovered = cells[cell.id] ?: return@forEach
             if (recovered.state == RecoveryValueState.EMPTY) { check(cell.confirmedEmpty && cell.sourceIds.isEmpty() && recovered.lessons.isEmpty(), "falseEmpty"); return@forEach }
             check(!cell.confirmedEmpty && recovered.state == RecoveryValueState.PRESENT && cell.parallelCount in 1..4 && recovered.lessons.size == cell.parallelCount, "cellState")
             recovered.lessons.forEachIndexed { lessonIndex, lesson ->
                 val binding = cell.lessonBindings.getOrNull(lessonIndex) ?: RecoveryLessonBinding(emptyList(), emptyList(), emptyList())
-                listOf("subject" to lesson.subject, "teacher" to lesson.teacher, "room" to lesson.room).forEach { (name, field) ->
+                listOf("subject" to lesson.subject, "teacher" to lesson.teacher, "room" to lesson.room).forEach { (name, field) -> step();
                     check(field.value.length <= 1024, "fieldLimit")
-                    val scope = cell.roleScopes.singleOrNull { it.lessonIndex == lessonIndex && it.role == name }
-                    val ids = if (proposal) body.filter { id -> scope?.box?.contains(sources.getValue(id).box) == true } else when (name) { "subject" -> binding.subject; "teacher" -> binding.teacher; else -> binding.room }
+                    val scope = cell.roleScopes.singleOrNull { step();it.lessonIndex == lessonIndex && it.role == name }
+                    val ids = if (proposal) body.filter { id -> step(); scope?.box?.contains(sources.getValue(id).box) == true } else when (name) { "subject" -> binding.subject; "teacher" -> binding.teacher; else -> binding.room }
                     if (field.state == RecoveryValueState.EMPTY) check(ids.isEmpty() && name != "subject" && field.value.isEmpty() && field.evidence.isEmpty() && (if (proposal) scope?.emptyVerified == true else name in cell.blankFields), "falseBlankField")
                     else { check(field.state == RecoveryValueState.PRESENT && field.evidence.toSet() == ids.toSet() && field.evidence.size == ids.size && ordered(field.evidence) && evidence(field.evidence, ids, field.value), "fieldEvidence") }
                 }
                 check(cell.slots.firstOrNull()?.day?.let { doc.dayEvidence[it]?.let { _ -> evidence(lesson.dateEvidence, cell.dayHeaderIds) } } == true, "lessonDateEvidence")
                 val periodIds = cell.periodHeaderIds
-                check(evidence(lesson.periodEvidence, periodIds) && cell.slots.all { slot -> lesson.periodEvidence.any { it in doc.periodEvidence[slot.period.toString()].orEmpty() } }, "lessonPeriodEvidence")
+                check(evidence(lesson.periodEvidence, periodIds) && cell.slots.all { slot -> step(); lesson.periodEvidence.any { step(); it in allowed(doc.periodEvidence[slot.period.toString()].orEmpty()) } }, "lessonPeriodEvidence")
             }
-            if (proposal && recovered.state == RecoveryValueState.PRESENT) { val assigned = recovered.lessons.flatMap { it.subject.evidence + it.teacher.evidence + it.room.evidence }; check(assigned.distinct().size == assigned.size && assigned.toSet() == body.toSet(), "rolePartition") }
+            if (proposal && recovered.state == RecoveryValueState.PRESENT) { val assigned = recovered.lessons.flatMap { step(); it.subject.evidence + it.teacher.evidence + it.room.evidence }; check(assigned.distinct().size == assigned.size && assigned.toSet() == body.toSet(), "rolePartition") }
             check(recovered.lessons.distinct().size == recovered.lessons.size, "parallelDuplicate")
         }
         return RecoveryValidation(errors.toList())
     }
     fun inputErrors(doc: RecoveryDocument): List<String> = preparationErrors(doc,emptySet())
     internal fun preparationErrors(doc: RecoveryDocument,pending:Set<String>):List<String> {
-        require(pending.all { id->doc.cells.count { it.id==id }==1 })
+        val counts=doc.cells.groupingBy { interrupted();it.id }.eachCount()
+        require(pending.all { interrupted();counts[it]==1 })
         return validate(doc, RecoveryResult(doc.pdfHash, doc.kind, doc.schoolYear, doc.term, doc.cells.map { RecoveredCell(it.id, RecoveryValueState.MISSING, emptyList()) }, doc.structureMetadata ?: RecoveryMetadata("rule", "rules", "1", "1", "1", SCHEMA_VERSION, VERSION, "preflight")),pending).errors.filter { it != "cellState" }
     }
     fun canReuse(acceptance: RecoveryAcceptance, doc: RecoveryDocument, result: RecoveryResult) = acceptance.pdfHash == doc.pdfHash && acceptance.resultHash == fingerprint(result) && acceptance.scopeHash == fingerprint(doc) && acceptance.metadata == result.metadata && validate(doc, result).canAdopt
@@ -282,18 +320,26 @@ interface LocalRecoveryProvider {
 data class RecoveryRun(val state: RecoveryJobState, val result: RecoveryResult?, val errors: List<String>)
 class InvalidRecoveryOutput(cause: Throwable? = null) : Exception("復旧出力を確認できません。", cause)
 object RecoveryRules {
-    fun recover(doc: RecoveryDocument, cell: RecoveryCell): RecoveredCell? {
+    fun recover(doc:RecoveryDocument,cell:RecoveryCell):RecoveredCell? = prepare(doc)(cell)
+    internal fun prepare(doc:RecoveryDocument):(RecoveryCell)->RecoveredCell? {
+        val work=RecoveryWork();return prepare(RecoverySources(doc,work),work)
+    }
+    internal fun prepare(indexed:RecoverySources,work:RecoveryWork):(RecoveryCell)->RecoveredCell? = { recover(it,indexed,work) }
+    private fun recover(cell:RecoveryCell,indexed:RecoverySources,work:RecoveryWork):RecoveredCell? {
+        fun step()=work.step()
+        step()
         if (cell.inputState != RecoveryInputState.COMPLETE || cell.confirmedEmpty) return null
-        val sources = doc.sources.associateBy { it.id }
+        val sources=indexed.byId
         if(cell.bindingMode=="roleProposal") {
-            val labels=cell.roleScopes.flatMap { it.labelSourceIds }.toSet()
-            val body=doc.sources.filter { it.id in cell.sourceIds && it.id !in labels }
-            val lessons=(0 until cell.parallelCount).map { index ->
+            val labels=cell.roleScopes.flatMap { step(); it.labelSourceIds }.toSet()
+            val accepted=cell.sourceIds.toSet()
+            val body=indexed.byCell[cell.id].orEmpty().filter { step();it.id in accepted && it.id !in labels }
+            val lessons=(0 until cell.parallelCount).map { index -> step();
                 fun role(name:String):RecoveryField? {
-                    val scope=cell.roleScopes.singleOrNull { it.lessonIndex==index && it.role==name } ?: return null
-                    val ids=body.filter { it.page==scope.page && scope.box.contains(it.box) }.map { it.id }
+                    val scope=cell.roleScopes.singleOrNull { step(); it.lessonIndex==index && it.role==name } ?: return null
+                    val ids=body.filter { step(); it.page==scope.page && scope.box.contains(it.box) }.map { step(); it.id }
                     if(ids.isEmpty())return if(name!="subject" && scope.emptyVerified)RecoveryField(RecoveryValueState.EMPTY,"",emptyList())else null
-                    return RecoveryField(RecoveryValueState.PRESENT,ids.joinToString("") { sources.getValue(it).text },ids)
+                    return RecoveryField(RecoveryValueState.PRESENT,ids.joinToString("") { work.read(sources.getValue(it).text) },ids)
                 }
                 RecoveryLesson(role("subject") ?: return null,role("teacher") ?: return null,role("room") ?: return null,cell.dayHeaderIds,cell.periodHeaderIds)
             }
@@ -302,10 +348,10 @@ object RecoveryRules {
         if (cell.bindingMode != "fixed" || cell.lessonBindings.size != cell.parallelCount) return null
         fun field(ids: List<String>, name: String): RecoveryField? {
             if (ids.isEmpty()) return if (name != "subject" && name in cell.blankFields) RecoveryField(RecoveryValueState.EMPTY, "", emptyList()) else null
-            if (ids.any { sources[it]?.cellId != cell.id }) return null
-            return RecoveryField(RecoveryValueState.PRESENT, ids.joinToString("") { sources.getValue(it).text }, ids)
+            if (ids.any { step(); sources[it]?.cellId != cell.id }) return null
+            return RecoveryField(RecoveryValueState.PRESENT, ids.joinToString("") { work.read(sources.getValue(it).text) }, ids)
         }
-        val lessons = cell.lessonBindings.map { binding ->
+        val lessons = cell.lessonBindings.map { binding -> step();
             val subject = field(binding.subject, "subject") ?: return null
             val teacher = field(binding.teacher, "teacher") ?: return null
             val room = field(binding.room, "room") ?: return null
@@ -320,12 +366,15 @@ object RecoveryEngine {
         alive()
         if (os in listOf("ios", "android") && !foreground) return RecoveryRun(RecoveryJobState.PENDING, null, emptyList())
         if (!doc.complete || doc.cells.any { it.inputState != RecoveryInputState.COMPLETE }) return RecoveryRun(RecoveryJobState.FAILED, null, listOf("incompleteDocument"))
-        val inputErrors = RecoveryValidator.inputErrors(doc)
+        val inputErrors = runInterruptible { RecoveryValidator.inputErrors(doc) }
         if (inputErrors.isNotEmpty()) return RecoveryRun(RecoveryJobState.FAILED, null, inputErrors)
-        val recovered = doc.cells.map { alive(); if (it.confirmedEmpty && it.sourceIds.isEmpty()) RecoveredCell(it.id, RecoveryValueState.EMPTY, emptyList()) else RecoveryRules.recover(doc, it) ?: rule(it) }.toMutableList()
+        val sourceWork=RecoveryWork()
+        val sourceIndex=runInterruptible { RecoverySources(doc,sourceWork) }
+        val resolver=RecoveryRules.prepare(sourceIndex,sourceWork)
+        val recovered = doc.cells.map { alive();runInterruptible { if (it.confirmedEmpty && it.sourceIds.isEmpty()) RecoveredCell(it.id, RecoveryValueState.EMPTY, emptyList()) else resolver(it) ?: rule(it) } }.toMutableList()
         val missing = doc.cells.indices.filter { recovered[it] == null }
         fun result(metadata: RecoveryMetadata) = RecoveryResult(doc.pdfHash, doc.kind, doc.schoolYear, doc.term, recovered.map { requireNotNull(it) }, metadata)
-        suspend fun validated(value: RecoveryResult): RecoveryRun { alive(); val validation = RecoveryValidator.validate(doc, value); alive(); return RecoveryRun(if (validation.canAdopt) RecoveryJobState.AWAITING_CONFIRMATION else RecoveryJobState.FAILED, value.takeIf { validation.canAdopt }, validation.errors) }
+        suspend fun validated(value: RecoveryResult): RecoveryRun { alive(); val validation = runInterruptible { RecoveryValidator.validate(doc, value) }; alive(); return RecoveryRun(if (validation.canAdopt) RecoveryJobState.AWAITING_CONFIRMATION else RecoveryJobState.FAILED, value.takeIf { validation.canAdopt }, validation.errors) }
         if (missing.isEmpty()) return validated(result(doc.structureMetadata ?: RecoveryMetadata("rule", "rules", "2", "2", "2", RecoveryValidator.SCHEMA_VERSION, RecoveryValidator.VERSION, "$os:$osMajor")))
         var runtimeFailed = false
         for (id in RecoveryPolicy.providers(os, osMajor)) {
@@ -335,6 +384,7 @@ object RecoveryEngine {
             val availability = try { provider.availability().also { alive() } }
                 catch (e: java.util.concurrent.CancellationException) { throw e }
                 catch (e: InterruptedException) { throw e }
+                catch (_: RecoveryWorkLimit) { return RecoveryRun(RecoveryJobState.FAILED,null,listOf("validationWorkLimit")) }
                 catch (_: Exception) { runtimeFailed = true; continue }
             if (availability != LocalProviderState.READY) {
                 if (RecoveryPolicy.mayTryNext(availability) || os == "windows" && availability == LocalProviderState.NOT_READY) continue
@@ -343,17 +393,18 @@ object RecoveryEngine {
             try {
                 for (i in missing) {
                     alive(); val cell = doc.cells[i]; val ids = cell.sourceIds.toSet()
-                    val prompt = RecoveryPromptCell(cell.id, cell.slots, doc.sources.filter { it.id in ids }.map { RecoveryPromptSource(it.id, it.text, it.box, it.sourceLine, it.sourceOrder) }, (cell.blankFields + cell.roleScopes.filter { it.emptyVerified }.map { it.role }).distinct(), cell.parallelCount, cell.lessonBindings, cell.roleScopes)
+                    val prompt = RecoveryPromptCell(cell.id, cell.slots, sourceIndex.byCell[cell.id].orEmpty().filter { it.id in ids }.map { RecoveryPromptSource(it.id, it.text, it.box, it.sourceLine, it.sourceOrder) }, (cell.blankFields + cell.roleScopes.filter { it.emptyVerified }.map { it.role }).distinct(), cell.parallelCount, cell.lessonBindings, cell.roleScopes)
                     if (json.encodeToString(prompt).toByteArray(Charsets.UTF_8).size > 8192) return RecoveryRun(RecoveryJobState.FAILED, null, listOf("promptLimit"))
                     val generated = provider.recoverCell(prompt); alive()
-                    fun grounded(field: RecoveryField) = if (field.state == RecoveryValueState.PRESENT) field.copy(value = field.evidence.joinToString("") { id -> doc.sources.singleOrNull { it.id == id && it.cellId == cell.id }?.text ?: throw InvalidRecoveryOutput() }) else field
-                    val lessons = generated.map { it.copy(subject = grounded(it.subject), teacher = grounded(it.teacher), room = grounded(it.room), dateEvidence = cell.dayHeaderIds, periodEvidence = cell.periodHeaderIds) }
+                    fun grounded(field: RecoveryField) = if (field.state == RecoveryValueState.PRESENT) field.copy(value = field.evidence.joinToString("") { id -> sourceWork.step();sourceWork.read(sourceIndex.byId[id]?.takeIf { it.cellId==cell.id }?.text ?: throw InvalidRecoveryOutput()) }) else field
+                    val lessons = runInterruptible { generated.map { sourceWork.step();it.copy(subject = grounded(it.subject), teacher = grounded(it.teacher), room = grounded(it.room), dateEvidence = cell.dayHeaderIds, periodEvidence = cell.periodHeaderIds) } }
                     recovered[i] = RecoveredCell(cell.id, RecoveryValueState.PRESENT, lessons)
                 }
                 return validated(result(provider.metadata))
             } catch (e: java.util.concurrent.CancellationException) { throw e }
             catch (e: InterruptedException) { throw e }
             catch (_: InvalidRecoveryOutput) { return RecoveryRun(RecoveryJobState.FAILED, null, listOf("invalidOutput")) }
+            catch (_: RecoveryWorkLimit) { return RecoveryRun(RecoveryJobState.FAILED,null,listOf("validationWorkLimit")) }
             catch (_: Exception) { runtimeFailed = true }
         }
         alive()

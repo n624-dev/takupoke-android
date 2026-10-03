@@ -110,9 +110,21 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
             mutable.update { it.copy(message = if (it.ready) "保存期間が切り替わりました。ファイルの再選択とデータの再取得が必要です。" else it.message, retentionFailure = false, updates = emptySet(), accountErrors = emptyMap(), accountFetchedAt = emptyMap(), accountVersions = emptyMap()) }
         } catch (e: Exception) { mutable.update { it.copy(ready = false, retentionFailure = true, materials = emptyList(), mapping = null, links = null, times = null) }; throw e }
     }
-    private fun reload() {
+    private suspend fun reload() {
+        // A cancelled operation still publishes its persisted pending/previous
+        // result in finally; ordinary CPU validation remains interruptible.
+        if(currentCoroutineContext().isActive)runInterruptible { reloadSnapshot() }
+        else withContext(NonCancellable) { runInterruptible { reloadSnapshot() } }
+    }
+    private fun reloadSnapshot() {
+        fun valid(preview:RecoveryPreview):Boolean = try { RecoveryValidator.validate(preview.document,preview.result).canAdopt }
+            catch(e:CancellationException){throw e}
+            catch(e:InterruptedException){throw e}
+            catch(_:Exception){false}
         fun <T> decode(key: String, reader: (String) -> T): T? = db.value(key)?.let(reader)
-        mutable.update { it.copy(ready = true, startupFailure = false, period = db.value("period").orEmpty(), materials = db.records(), recoveryPreviews = db.records().mapNotNull { record -> db.value("recovery-preview:${record.kind.name}")?.let { value -> runCatching { json.decodeFromString<RecoveryPreview>(value) }.getOrNull()?.takeIf { p -> p.strictParserVersion == PARSER_VERSION && RecoveryAdoption.matchesPeriod(p.document,p.period) && p.period == retentionPeriod() && p.period == db.value("period") && p.uri == record.uri && p.document.pdfHash == record.digest && record.recoveryJob?.state == RecoveryJobState.AWAITING_CONFIRMATION && record.recoveryJob.resultHash==p.resultHash && runCatching { RecoveryValidator.validate(p.document,p.result).canAdopt }.getOrDefault(false) }?.let { p -> record.kind to p } } }.toMap(), recoveryModel = it.recoveryModel.copy(installed = recoveryServices.installed(), error = recoveryServices.error), events = db.events(), links = decode("links") { json.decodeFromString<LinksPayload>(it).validate() }, mapping = decode("mapping") { json.decodeFromString<Mapping>(it) }, times = decode("times") { json.decodeFromString<TimesPayload>(it).validate() },
+        val records=db.records()
+        val previews=records.mapNotNull { record -> db.value("recovery-preview:${record.kind.name}")?.let { value -> runCatching { json.decodeFromString<RecoveryPreview>(value) }.getOrNull()?.takeIf { p -> p.strictParserVersion == PARSER_VERSION && RecoveryAdoption.matchesPeriod(p.document,p.period) && p.period == retentionPeriod() && p.period == db.value("period") && p.uri == record.uri && p.document.pdfHash == record.digest && record.recoveryJob?.state == RecoveryJobState.AWAITING_CONFIRMATION && record.recoveryJob.resultHash==p.resultHash && valid(p) }?.let { p -> p.analysis;record.kind to p } } }.toMap()
+        mutable.update { it.copy(ready = true, startupFailure = false, period = db.value("period").orEmpty(), materials = records, recoveryPreviews = previews, recoveryModel = it.recoveryModel.copy(installed = recoveryServices.installed(), error = recoveryServices.error), events = db.events(), links = decode("links") { json.decodeFromString<LinksPayload>(it).validate() }, mapping = decode("mapping") { json.decodeFromString<Mapping>(it) }, times = decode("times") { json.decodeFromString<TimesPayload>(it).validate() },
             accountFetchedAt = listOf("links", "mapping", "times").mapNotNull { type -> db.value("fetched:$type")?.toLongOrNull()?.let { time -> type to time } }.toMap(),
             accountVersions = listOf("links", "mapping", "times").mapNotNull { type -> db.value("version:$type")?.let { version -> type to version } }.toMap(),
             eventsFetchedAt = db.events().mapNotNull { event -> db.value("events-fetched:${event.schoolYear}")?.toLongOrNull()?.let { time -> event.schoolYear to time } }.toMap(),
@@ -217,7 +229,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
             val current = db.records().singleOrNull { it.kind == kind }
             require(current?.digest == record.digest && current.uri == record.uri)
         }
-        fun stage(stage: RecoveryJobState) { checkCurrent(); db.save(record.copy(recoveryJob = record.recoveryJob!!.copy(state = stage))); reload() }
+        suspend fun stage(stage: RecoveryJobState) { checkCurrent(); db.save(record.copy(recoveryJob = record.recoveryJob!!.copy(state = stage))); reload() }
         var recoveryProvider:LocalRecoveryProvider?=null
         try {
             stage(RecoveryJobState.PREPARING)
@@ -255,9 +267,10 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
             val result = run.result
             if(run.state == RecoveryJobState.AWAITING_CONFIRMATION && result != null) {
                 val preview = RecoveryPreview(epoch,record.uri,document,result,System.currentTimeMillis(),strictParserVersion=PARSER_VERSION)
+                runInterruptible { preview.analysis }
                 val prior = db.value("recovery-accepted:${kind.name}:${record.digest}")?.let { runCatching { json.decodeFromString<RecoveryAccepted>(it) }.getOrNull() }
-                if(prior != null && RecoveryValidator.canReuse(prior.acceptance,document,result)) {
-                    commitRecovery(record,preview,prior.acceptance,::checkCurrent); mutable.update { it.copy(message="確認済みの同じPDFの復旧結果を使用しました。") }
+                if(prior != null && runInterruptible { RecoveryValidator.canReuse(prior.acceptance,document,result) }) {
+                    runInterruptible { commitRecovery(record,preview,prior.acceptance,::checkCurrent) }; mutable.update { it.copy(message="確認済みの同じPDFの復旧結果を使用しました。") }
                 } else {
                     val database=db.writableDatabase;database.beginTransaction()
                     try { checkCurrent();db.put("recovery-preview:${kind.name}",json.encodeToString(RecoveryPreview.serializer(),preview));db.save(record.copy(recoveryJob=record.recoveryJob!!.copy(state=RecoveryJobState.AWAITING_CONFIRMATION,resultHash=preview.resultHash)));database.setTransactionSuccessful() } finally { database.endTransaction() }
@@ -283,7 +296,7 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
         currentCoroutineContext().ensureActive()
         val acceptance=RecoveryAcceptance(record.digest,resultHash,RecoveryValidator.fingerprint(preview.document),preview.result.metadata,System.currentTimeMillis())
         val operation=currentCoroutineContext().job
-        commitRecovery(record,preview,acceptance) { operation.ensureActive();require(foreground && !locked()) };reload()
+        runInterruptible { commitRecovery(record,preview,acceptance) { operation.ensureActive();require(foreground && !locked()) } };reload()
     } }
     private fun commitRecovery(record:MaterialRecord,preview:RecoveryPreview,acceptance:RecoveryAcceptance,check:()->Unit) {
         check()

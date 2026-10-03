@@ -31,6 +31,22 @@ class RecoveryTest {
     @Test fun groundedRulesDoNotLoadLanguageModel() = runBlocking { val (d, r) = fixture(); val p = ProbeProvider("liteRtLm", r.metadata); val run = RecoveryEngine.run(d, "android", 36, true, listOf(p), { null }); assertEquals(RecoveryJobState.AWAITING_CONFIRMATION, run.state); assertEquals("rule", run.result?.metadata?.provider); assertEquals(0, p.availabilityCalls) }
     @Test fun modelNotReadyWaitsWithoutDownloadingFallback() = runBlocking { val (_, r) = fixture(); val p = ProbeProvider("systemLanguageModel", r.metadata).apply { state = LocalProviderState.NOT_READY }; val fallback = ProbeProvider("coreAI", r.metadata); val run = RecoveryEngine.run(uncertain(), "ios", 27, true, listOf(p, fallback), { null }); assertEquals(RecoveryJobState.AWAITING_MODEL, run.state); assertEquals(0, fallback.availabilityCalls) }
     @Test fun malformedOutputIsTerminalBeforeNextProvider() = runBlocking { val (_, r) = fixture(); val p = ProbeProvider("windowsLanguageModel", r.metadata); val fallback = ProbeProvider("foundryLocal", r.metadata); val run = RecoveryEngine.run(uncertain(), "windows", 10, true, listOf(p, fallback), { null }); assertEquals(listOf("invalidOutput"), run.errors); assertNull(run.result); assertEquals(0, fallback.availabilityCalls) }
+    @Test fun cpuWorkLimitIsTerminalBeforeAnotherProviderCanLoad() = runBlocking {
+        val (_,result)=fixture()
+        for(availabilityLimit in listOf(true,false)) {
+            val fallback=ProbeProvider("foundryLocal",result.metadata)
+            val provider=object:LocalRecoveryProvider {
+                override val id="windowsLanguageModel"
+                override val localOnly=true
+                override val metadata=result.metadata.copy(provider=id)
+                override suspend fun availability():LocalProviderState { if(availabilityLimit)throw RecoveryWorkLimit();return LocalProviderState.READY }
+                override suspend fun recoverCell(cell:RecoveryPromptCell):List<RecoveryLesson> = throw RecoveryWorkLimit()
+            }
+            val run=RecoveryEngine.run(uncertain(),"windows",10,true,listOf(provider,fallback),{null})
+            assertEquals(RecoveryJobState.FAILED,run.state);assertNull(run.result)
+            assertEquals(listOf("validationWorkLimit"),run.errors);assertEquals(0,fallback.availabilityCalls)
+        }
+    }
     @Test fun completeGroundedResultCanBePreviewed() { val (d, r) = fixture(); assertEquals(emptyList(), RecoveryValidator.validate(d, r).errors) }
     @Test fun unknownIsNeverFreePeriod() { val (d, r) = fixture(); listOf(RecoveryValueState.UNREADABLE, RecoveryValueState.MISSING, RecoveryValueState.AMBIGUOUS).forEach { state -> assertContains(RecoveryValidator.validate(d, r.copy(cells = r.cells.mapIndexed { i, c -> if (i == 0) c.copy(state = state) else c })).errors, "cellState") } }
     @Test fun incompleteReaderIsRejected() { val (d, r) = fixture(); assertContains(RecoveryValidator.validate(d.copy(complete = false), r).errors, "incompleteDocument") }

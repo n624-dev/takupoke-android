@@ -2,6 +2,11 @@ package jp.n624.takupoke.core
 
 import kotlin.test.*
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 
 class RecoveryLayoutTest {
     private fun page(proposal: Boolean = false): Page {
@@ -102,6 +107,58 @@ class RecoveryLayoutTest {
             lines+=Line(0.0,460.0,0.0,480.0);lines+=Line(100.0,460.0,100.0,480.0);lines+=Line(200.0,460.0,200.0,480.0);lines+=Line(0.0,480.0,200.0,480.0)
         }
         RecoveryLayoutPage(day,Page(920.0,490.0,glyphs,lines))
+    }
+    private fun denseSpecialDocument():RecoveryDocument {
+        val pages=specialPages(MaterialKind.RETURN).map { input ->
+            val glyphs=mutableListOf<Glyph>()
+            input.layout.glyphs.forEach { g ->
+                if(g.text.startsWith("架空")) {
+                    val left=kotlin.math.floor(g.x/100)*100
+                    repeat(24) { i -> glyphs+=Glyph("架",left+2+i*3,g.y,.2,3.0,glyphs.size) }
+                }else glyphs+=g.copy(order=glyphs.size)
+            }
+            input.copy(layout=input.layout.copy(glyphs=glyphs))
+        }
+        return RecoveryLayout.prepare(pages,"a".repeat(64),MaterialKind.RETURN)
+    }
+    @Test fun actualBuilderDenseAtomGroupsReachRulesValidatorAndFormalConversionWithLinearSourceVisits() = runBlocking {
+        val doc=denseSpecialDocument();assertEquals(680,doc.cells.size);assertEquals(49140,doc.sources.size)
+        var visits=0L
+        val measured=doc.copy(sources=object:AbstractList<RecoverySource>() {
+            override val size get()=doc.sources.size
+            override fun get(index:Int):RecoverySource { visits++;return doc.sources[index] }
+        })
+        val run=RecoveryEngine.run(measured,"android",36,true,emptyList(),{null})
+        assertEquals(RecoveryJobState.AWAITING_CONFIRMATION,run.state)
+        val result=requireNotNull(run.result);assertTrue(RecoveryValidator.validate(measured,result).canAdopt)
+        val analysis=RecoveryAnalysis.convert(measured,result)
+        assertEquals(680,analysis.lessons.size)
+        assertTrue(analysis.lessons.all { it.names==Names("架".repeat(24),"架".repeat(24),"架".repeat(24)) })
+        assertEquals(doc.cells.first().sourceIds.joinToString("\n") { "架" },analysis.lessons.first().sourceText)
+        assertTrue(visits<doc.sources.size.toLong()*30,"All validation, Rules and conversion source visits=$visits")
+    }
+    @Test fun cancellationInsideRealDenseValidatorStopsBeforeAnyPreviewOrProvider() = runBlocking {
+        val doc=denseSpecialDocument();var visits=0L;var cancelledAt=0L;var returned:RecoveryRun?=null
+        lateinit var operation:Job
+        val measured=doc.copy(sources=object:AbstractList<RecoverySource>() {
+            override val size get()=doc.sources.size
+            override fun get(index:Int):RecoverySource {
+                visits++
+                if(visits==6000L) { cancelledAt=visits;operation.cancel() }
+                return doc.sources[index]
+            }
+        })
+        val pending=async(Dispatchers.Default,start=CoroutineStart.LAZY) { returned=RecoveryEngine.run(measured,"android",36,true,emptyList(),{error("No rule/provider after cancellation")}) }
+        operation=pending;pending.start()
+        assertFailsWith<CancellationException> { pending.await() }
+        assertNull(returned);assertEquals(6000L,cancelledAt)
+        assertTrue(visits-cancelledAt<=256,"Cancellation did not stop inner validation: visits=$visits")
+    }
+    @Test fun overlappingLargeCandidateDomainFailsTheSharedValidationBudgetSafely() {
+        val original=RecoveryLayout.prepare(specialPages(MaterialKind.RETURN),"a".repeat(64),MaterialKind.RETURN)
+        val template=original.cells.first()
+        val doc=original.copy(cells=(0 until 20_000).map { template.copy(id="overlap-$it") })
+        assertEquals(listOf("validationWorkLimit"),RecoveryValidator.inputErrors(doc))
     }
     @Test fun fullSeventeenClassExamAndReturnUseNativeRecoveryAndFormalAnalysis() = runBlocking {
         for(kind in listOf(MaterialKind.EXAM,MaterialKind.RETURN)) {
