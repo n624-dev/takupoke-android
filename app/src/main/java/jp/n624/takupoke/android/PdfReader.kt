@@ -42,7 +42,11 @@ object PdfReader {
     private class Engine(private val source: PDPage) : PDFGraphicsStreamEngine(source) {
         private val glyphs = mutableListOf<Glyph>(); private val lines = mutableListOf<Line>(); private val pending = mutableListOf<Pair<PointF, PointF>>()
         private val paintedStrokes = mutableListOf<Box>()
-        private fun overlaps(a: Box, b: Box) = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+        private var paintComparisons=0
+        private fun overlaps(a: Box, b: Box):Boolean {
+            interrupted();require(++paintComparisons<=20000000) { "文字と描画の比較上限" }
+            return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+        }
         private var current = PointF(); private var start = PointF(); private var operations = 0
         private var sourceLine = 0
         private val crop = source.cropBox

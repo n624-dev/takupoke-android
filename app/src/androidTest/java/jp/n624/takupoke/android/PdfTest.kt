@@ -165,6 +165,28 @@ class PdfTest {
             } finally { file.delete() }
         }
     }
+    @Test(timeout=90000) fun nonoverlappingPaintComparisonsAreBoundedBeforeRecovery() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val file=File.createTempFile("synthetic-paint-budget-",".pdf",context.cacheDir)
+        try {
+            PDDocument().use { doc ->
+                val page=PDPage(PDRectangle(200f,200f));doc.addPage(page)
+                val fontFile=File("/system/fonts/Roboto-Regular.ttf").takeIf { it.isFile }?:File("/system/fonts/NotoSans-Regular.ttf")
+                val font=PDType0Font.load(doc,fontFile)
+                PDPageContentStream(doc,page).use { stream ->
+                    stream.beginText();stream.setFont(font,.1f);stream.newLineAtOffset(20f,120f);stream.showText("X".repeat(1000));stream.endText()
+                    // A valid but excessive path forces >20M disjoint comparisons
+                    // without exceeding the PDF operator, glyph or line limits.
+                    repeat(22000) { stream.moveTo(10f,40f);stream.lineTo(190f,40f) };stream.stroke()
+                };doc.save(file)
+            }
+            val capture=jp.n624.takupoke.core.RecoveryReadCapture()
+            try { PdfReader.readPages(file,capture);fail("Unbounded paint comparison path accepted") }
+            catch(error:IllegalArgumentException) { assertEquals("文字と描画の比較上限",error.message) }
+            assertFalse(capture.complete);assertEquals(jp.n624.takupoke.core.RecoveryInputState.PARTIAL,capture.pages.single().state)
+            assertEquals(1000,requireNotNull(capture.pages.single().layout).glyphs.size)
+        } finally { file.delete() }
+    }
     @Test fun rendererCropOutsideGlyphsAndLinesCannotBecomeCompleteInventory() {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         for(mode in listOf("within","outsideText","outsideLine")) {
