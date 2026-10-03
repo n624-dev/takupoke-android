@@ -14,6 +14,9 @@ internal fun offlineScreenshot(compose:ComposeContentTestRule,name:String) {
     if(InstrumentationRegistry.getArguments().getString("takupokeScreenshots")!="true")return
     compose.waitForIdle()
     val instrumentation=InstrumentationRegistry.getInstrumentation();instrumentation.waitForIdleSync()
+    // Semantics can publish a rendered PDF before its final draw reaches the
+    // display. Wait for accessibility quiescence before copying that display.
+    instrumentation.uiAutomation.waitForIdle(250,5000)
     val bitmap=requireNotNull(instrumentation.uiAutomation.takeScreenshot())
     try {
         val output=ByteArrayOutputStream();check(bitmap.compress(Bitmap.CompressFormat.PNG,100,output))

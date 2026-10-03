@@ -181,6 +181,27 @@ class PlatformTest {
     private fun replaceDocument(bytes: ByteArray, grant: Boolean = false) {
         context.contentResolver.call(SyntheticControl.AUTHORITY, "replaceSynthetic", null, Bundle().apply { putByteArray("bytes", bytes); putBoolean("grant", grant) })
     }
+    @Test fun oldOrLegacyRecoveryPreviewCannotSkipCurrentStrictParserAfterUpgrade() = runBlocking {
+        val seed=OfflineRecoverySeed(context)
+        try {
+            seed.install();seed.repository.startRecovery(MaterialKind.TIMETABLE)
+            val current=requireNotNull(seed.repository.state.value.recoveryPreviews[MaterialKind.TIMETABLE])
+            assertEquals(PARSER_VERSION,current.strictParserVersion)
+            val formal=seed.database.records().single()
+            val encoded=json.encodeToString(RecoveryPreview.serializer(),current.copy(strictParserVersion=PARSER_VERSION-1))
+            val legacy=kotlinx.serialization.json.JsonObject((json.parseToJsonElement(encoded) as kotlinx.serialization.json.JsonObject).filterKeys { it!="strictParserVersion" }).toString()
+            for(stored in listOf(encoded,legacy)) {
+                seed.database.put("recovery-preview:TIMETABLE",stored)
+                seed.repository.activate(false)
+                assertTrue(seed.repository.state.value.recoveryPreviews.isEmpty())
+                try { seed.repository.adoptRecovery(MaterialKind.TIMETABLE,current.resultHash);fail("Obsolete strict-parser preview was adopted") } catch(_:IllegalArgumentException) {}
+                assertEquals(formal,seed.database.records().single())
+                assertEquals(seed.oldAnalysis,seed.database.records().single().analysis)
+                assertNull(seed.database.value("recovery-accepted:TIMETABLE:${current.document.pdfHash}"))
+                assertEquals(stored,seed.database.value("recovery-preview:TIMETABLE"))
+            }
+        } finally { seed.stop() }
+    }
     @Test fun unchangedDigestUpdatesSafNameAndSourceTimeWithoutReparsing() = runBlocking {
         val c=isolated();val db=Database(c);val repository=AppRepository(c,RejectNetwork,db,MemorySettings())
         val uri=DocumentsContract.buildDocumentUri(SyntheticDocuments.AUTHORITY,"changes")
