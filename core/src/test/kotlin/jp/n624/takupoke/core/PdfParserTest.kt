@@ -15,6 +15,24 @@ class PdfParserTest {
         val page = returned()
         assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(page.copy(glyphs = page.glyphs.filter { it.y != 650.0 })), MaterialKind.RETURN) }
     }
+    @Test fun returnDateColumnsMustPreserveSpecialFirstDayAndNormalRange() {
+        fun withDays(days:List<Int>):Page {
+            val page=returned();var order=page.glyphs.maxOf { it.order }+1
+            fun text(value:String,x:Double,y:Double)=value.mapIndexed { i,c -> Glyph(c.toString(),x+i*2.5,y,2.0,4.0,order++) }
+            val glyphs=page.glyphs.filterNot { it.y in setOf(65.0,625.0,650.0) } +
+                days.flatMapIndexed { i,day -> text("10/$day",70.0+i*80,65.0) } +
+                text("10月${days.first()}日の時間割は以下のとおり",0.0,625.0) +
+                text("10月${days[1]}日~${days.last()}日は通常の授業日どおりの授業時間",0.0,650.0)
+            return page.copy(glyphs=glyphs)
+        }
+        val valid=PdfSchoolParser.parse(listOf(withDays(listOf(8,9,10,11,12))),MaterialKind.RETURN)
+        assertEquals("08:00",valid.specialTimes.first().periods.first().start)
+        assertEquals("2026-10-08",valid.specialTimes.first().date)
+        for(days in listOf(listOf(8,9,7,10,12),listOf(9,8,10,11,12))) {
+            val error=assertFailsWith<ParseFailure> { PdfSchoolParser.parse(listOf(withDays(days)),MaterialKind.RETURN) }
+            assertEquals("日付順",error.stage)
+        }
+    }
     @Test fun ordinaryGridThreeFieldsAndFortyPeriods() {
         val a = PdfSchoolParser.parse(listOf(ordinary()), MaterialKind.TIMETABLE)
         assertEquals(2026, a.schoolYear); assertEquals(2, a.term)
