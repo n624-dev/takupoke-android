@@ -133,6 +133,38 @@ class PdfTest {
             } finally { file.delete() }
         }
     }
+    @Test fun thickStrokedTextCannotUseFillOnlyGlyphBounds() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        var fillInk=0
+        for(mode in listOf(com.tom_roush.pdfbox.pdmodel.graphics.state.RenderingMode.FILL,com.tom_roush.pdfbox.pdmodel.graphics.state.RenderingMode.STROKE,com.tom_roush.pdfbox.pdmodel.graphics.state.RenderingMode.FILL_STROKE)) {
+            val file=File.createTempFile("synthetic-text-stroke-",".pdf",context.cacheDir)
+            try {
+                PDDocument().use { doc ->
+                    val page=PDPage(PDRectangle(200f,200f));doc.addPage(page)
+                    val fontFile=File("/system/fonts/Roboto-Regular.ttf").takeIf { it.isFile }?:File("/system/fonts/NotoSans-Regular.ttf")
+                    val font=PDType0Font.load(doc,fontFile)
+                    PDPageContentStream(doc,page).use { stream ->
+                        stream.beginText();stream.setFont(font,12f);stream.newLineAtOffset(20f,170f);stream.showText("Visible");stream.endText()
+                        stream.setLineWidth(25f);stream.setRenderingMode(mode)
+                        stream.beginText();stream.setFont(font,12f);stream.newLineAtOffset(20f,120f);stream.showText("Hidden");stream.endText()
+                    };doc.save(file)
+                }
+                val bitmap=android.graphics.Bitmap.createBitmap(200,200,android.graphics.Bitmap.Config.ARGB_8888)
+                try {
+                    bitmap.eraseColor(android.graphics.Color.WHITE)
+                    android.os.ParcelFileDescriptor.open(file,android.os.ParcelFileDescriptor.MODE_READ_ONLY).use { fd -> android.graphics.pdf.PdfRenderer(fd).use { renderer -> renderer.openPage(0).use { it.render(bitmap,null,null,android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY) } } }
+                    var ink=0;for(y in 50..105)for(x in 0..150)if((bitmap.getPixel(x,y) and 0xffffff)!=0xffffff)ink++
+                    if(mode==com.tom_roush.pdfbox.pdmodel.graphics.state.RenderingMode.FILL){fillInk=ink;assertTrue(fillInk>10)}else assertTrue("Thick text paint exceeds ordinary glyph ink",ink>fillInk*2)
+                } finally { bitmap.recycle() }
+                val capture=jp.n624.takupoke.core.RecoveryReadCapture()
+                if(mode==com.tom_roush.pdfbox.pdmodel.graphics.state.RenderingMode.FILL){PdfReader.readPages(file,capture);assertTrue(capture.complete)}else {
+                    try { PdfReader.readPages(file,capture);fail("Stroked text marked complete") }catch(_:ParseFailure) {}
+                    assertFalse(capture.complete);assertEquals(jp.n624.takupoke.core.RecoveryInputState.PARTIAL,capture.pages.single().state)
+                    assertEquals("Visible",requireNotNull(capture.pages.single().layout).glyphs.joinToString("") { it.text })
+                }
+            } finally { file.delete() }
+        }
+    }
     @Test fun rendererCropOutsideGlyphsAndLinesCannotBecomeCompleteInventory() {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         for(mode in listOf("within","outsideText","outsideLine")) {

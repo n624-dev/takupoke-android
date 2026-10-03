@@ -35,7 +35,15 @@ mkdir -p "$RUNNER_TEMP/takupoke-screenshots"
 adb logcat -v raw -s TakupokeScreenshots:I '*:S' > "$RUNNER_TEMP/takupoke-screenshots/capture.log" &
 capture_log_pid=$!
 trap 'kill "$capture_log_pid" 2>/dev/null || true' EXIT
-./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Dorg.gradle.jvmargs=-Xmx3g -Pandroid.testInstrumentationRunnerArguments.class=jp.n624.takupoke.android.ScreenTest,jp.n624.takupoke.android.RecoveryScreenTest -Ptakupoke.captureScreenshots=true
+if ./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Dorg.gradle.jvmargs=-Xmx3g -Pandroid.testInstrumentationRunnerArguments.class=jp.n624.takupoke.android.ScreenTest,jp.n624.takupoke.android.RecoveryScreenTest -Ptakupoke.captureScreenshots=true; then
+  :
+else
+  capture_test_status=$?
+  # This emulator contains only invented offline fixtures. A crashed test process
+  # can leave an empty JUnit failure; collect only its runtime error channel.
+  adb logcat -d -v brief -s AndroidRuntime:E '*:S' | tail -n 160 || true
+  exit "$capture_test_status"
+fi
 kill "$capture_log_pid"
 wait "$capture_log_pid" || true
 trap - EXIT

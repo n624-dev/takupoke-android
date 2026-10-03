@@ -6,7 +6,7 @@
 
 資料詳細から復旧を開始し、原文から決定できる部分をRulesで処理する。Strict途中成果のページ状態complete / partial / rasterOnlyを区別し、完全に取得した文字・座標・罫線・原文順序を再利用する。部分・未取得ページだけPdfRendererとバンドル日本語OCRで取得する。OCR boxの外に未認識のインクがあるページは完全として扱わない。Rasterの空欄はピクセルで確認する。薄い灰色や色付きの未読印も空欄と区別し、背景ノイズが残るページも推測せず失敗する。罫線は両端が直交する線へ接続する線のみ認め、未認識の「一」「I」を罫線へ変えない。
 
-Vector Readerは可視性を証明できるsubsetだけをcompleteにする。黒以外の文字、透明度・blend・clip、文字と重なるstroke、描画後のfill/image、回転後CropBox外の文字/線はpartialへ落とす。partialに残った文字を原文として再利用せず、実PdfRendererで表示されるページをOCRする。Raster罫線のmaskは実際の連続strokeだけに限定し、セル全域の薄い灰色・色付き画素も確認する。
+Vector Readerは可視性を証明できるsubsetだけをcompleteにする。黒以外やstrokeを含む文字、透明度・blend・clip、文字と重なるstroke、描画後のfill/image、回転後CropBox外の文字/線はpartialへ落とす。partialに残った文字を原文として再利用せず、実PdfRendererで表示されるページをOCRする。Raster罫線のmaskは実際の連続strokeだけに限定し、セル全域の薄い灰色・色付き画素も確認する。
 
 RecoveryLayoutは年度・学期・クラス・曜日/日付・時限・時刻の原文と位置を結び付ける。ページ数・フォント・固定列幅を正しさの条件にしない。未分類Sourceを捨てずに失敗する。既知の三行セル、独立した原文役割ラベル、明示的な三行並記区切り、結合時限と専用時計、返却の適用日が一致するPDF注記を扱う。初日の専用時刻だけがある返却PDFは、注記に明記された残り4日に限って通常時刻をコードで生成する。AIの知識から時刻を補わない。時刻・役割・クラスを独立証明できないレイアウトは安全に失敗する。
 
@@ -49,6 +49,10 @@ OfflineRunnerのRecoveryScreenTestは実Compose・SQLite・PdfRendererで開始�
 Kotlin 2.4のmetadataを扱うため、[Androidの公式互換表](https://developer.android.com/build/kotlin-support)の最低R8 9.1.29を満たす9.1.31を固定する。[R8の公式override手順](https://r8.googlesource.com/r8/+/refs/heads/main/README.md#replacing-r8-in-agp)に従い、AGP 8.13.2 / Gradle 8.13を維持する。LiteRT 0.17.1 AARにはconsumer keep rulesがなく、JNIはDTO・例外・callbackの名前を参照するため、そのRuntimeパッケージを明示保持する。最適化APKでの端末内Runtime smokeは、モデル配信の合格判定までに別途必要である。
 
 最重要指標は誤採用数。少数の架空fixtureやLinux CPU候補評価を、学校資料での誤採用率・実端末動作確認とみなさない。自動採用は初期版へ追加しない。
+
+2026-10-03の[manual評価37131519065](https://github.com/n624-dev/takupoke-android/actions/runs/37131519065)はParser8・Schema2・Validator4・Prompt3・Recovery2、LiteRT-LM 0.17.1 / x86_64 API36 emulator CPU / context4096で完了した。固定モデル344671744 bytesのsize/SHA、R8 9.1.31のJNI実名6とRunner参照閉包524class/3517member、initialize 15.0秒、smoke、実行中cancel→join、Provider cancel→join、close後の再実行拒否を確認した。peak PSS 2513548 KiB/private footprint 2510684 KiB（約2.40 GiB）から解放後PSS 170451 KiBへ下がった。
+
+16架空ケース中14件でnative構造化出力をdecodeできたが、原文完全一致・Validator採用は0件だった。残り2件は前処理で安全に拒否した。別の本文挟み込み型structure proposal 1件もcertificateで拒否し、誤採用は0件、危険な出力control 13件を拒否した。これはRuntime接続・安全な失敗の実証であり、復旧品質の合格ではない。candidateのvalidated=falseを維持する。今回の実行はParser8であり、後続のParser9 stroke文字対策のnative回帰とは区別する。通常API29/36はそれぞれ54 native testsを通過した。実バンドル日本語OCRは原文「架空科目」と独立空欄を取得したが、一部confidenceが0.8未満のため両APIでPARTIALに保持した。OCRのcomplete復旧成功を証明した結果として扱わない。
 
 ## Android native candidate評価（manualのみ）
 

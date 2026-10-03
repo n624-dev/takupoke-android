@@ -81,6 +81,9 @@ object PdfReader {
             if (font.isVertical || font.cosObject.getDictionaryObject(COSName.TO_UNICODE) == null || font.fontDescriptor == null) fail("未対応のPDFフォント")
             if (graphicsState.textState.renderingMode.isClip || !graphicsState.textState.renderingMode.isFill && !graphicsState.textState.renderingMode.isStroke) fail("不可視文字")
             val mode=graphicsState.textState.renderingMode
+            // Stroked glyph outlines can extend beyond the font advance/ascent
+            // box and cover neighboring text or rules. Their paint is not proven.
+            if(mode.isStroke)fail("未対応の描画")
             if(mode.isFill && graphicsState.nonStrokingColor.toRGB()!=0 || mode.isStroke && graphicsState.strokingColor.toRGB()!=0)fail("未対応の文字色")
             val text = font.toUnicode(code) ?: fail("文字コード")
             require(text.toByteArray().size <= 64 && glyphs.size < 100000)

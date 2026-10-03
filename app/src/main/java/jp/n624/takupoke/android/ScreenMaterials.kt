@@ -92,7 +92,7 @@ private fun materialStatus(record: MaterialRecord) = when {
                 }
                 Text("学校年度: ${analysis.schoolYear}年度\n件数: ${analysis.lessons.size + analysis.changes.size}件")
                 if (kind == MaterialKind.TIMETABLE) Text("学期: ${when (analysis.term) { 1 -> "前期"; 2 -> "後期"; else -> "未確認" }}")
-                Text("最終解析成功: ${record.parsedAt?.let(::dateTime) ?: "未解析"}")
+                Text("${if (recoveryView) "前回正式結果の解析日時" else "最終解析成功"}: ${record.parsedAt?.let(::dateTime) ?: "未解析"}")
                 if (preview == null && !recoveryView && (record.parsedDigest != record.digest || analysis.parserVersion != PARSER_VERSION)) Text("前回の解析結果です。現在のファイルを解析してください。", color = MaterialTheme.colorScheme.error)
             }
             if (kind == MaterialKind.TIMETABLE || kind == MaterialKind.CHANGES) item {
