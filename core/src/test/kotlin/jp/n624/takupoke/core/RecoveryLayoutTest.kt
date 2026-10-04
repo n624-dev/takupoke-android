@@ -108,6 +108,27 @@ class RecoveryLayoutTest {
         }
         RecoveryLayoutPage(day,Page(920.0,490.0,glyphs,lines))
     }
+    @Test fun footerClockEvidenceUsesOriginalSourceOrder() = runBlocking {
+        val pages = specialPages(MaterialKind.EXAM).map { input ->
+            val page = input.layout
+            val glyphs = page.glyphs.filterNot { it.x == 205.0 && it.y == 105.0 }.toMutableList()
+            glyphs += Glyph("2", 105.0, 465.0, 40.0, 3.0, page.glyphs.size)
+            glyphs += Glyph("09:00〜09:45", 110.0, 485.0, 85.0, 3.0, page.glyphs.size + 1)
+            val lines = page.lines + listOf(
+                Line(0.0, 460.0, 0.0, 500.0), Line(100.0, 460.0, 100.0, 500.0),
+                Line(200.0, 460.0, 200.0, 500.0), Line(0.0, 480.0, 200.0, 480.0),
+                Line(0.0, 500.0, 200.0, 500.0)
+            )
+            input.copy(layout = page.copy(height = 510.0, glyphs = glyphs, lines = lines))
+        }
+        val doc = RecoveryLayout.prepare(pages, "f".repeat(64), MaterialKind.EXAM)
+        assertEquals(doc.sources.filter { it.text == "2" }.map { it.id }, doc.periodEvidence["2"])
+        assertEquals(emptyList(), RecoveryValidator.inputErrors(doc))
+        val run = RecoveryEngine.run(doc, "android", 36, true, emptyList(), { null })
+        assertEquals(RecoveryJobState.AWAITING_CONFIRMATION, run.state, run.errors.toString())
+        assertTrue(RecoveryValidator.validate(doc, requireNotNull(run.result)).canAdopt)
+        assertEquals(510, RecoveryAnalysis.convert(doc, requireNotNull(run.result)).lessons.size)
+    }
     @Test fun interleavedFoldedLabelsUseRulesAcrossCompleteExamAndReturnDocuments()=runBlocking {
         for(kind in listOf(MaterialKind.EXAM,MaterialKind.RETURN)) {
             val pages=specialPages(kind).map { input ->

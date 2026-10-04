@@ -160,7 +160,15 @@ object RecoveryLayout {
                 cells.filter { step();it.slots.size>1 && it.slots.first().day==day }.forEach { cell -> val start=cell.slots.minOf { it.period };val end=cell.slots.maxOf { it.period };val clockKey="$day:$start-$end";if(clockKey !in spans){spans[clockKey]=requireNotNull(RecoveryNotes.span(start,end));clockEvidence[clockKey]=notes.toList()} }
             }
         }
-        val doc = RecoveryDocument(hash,documentKind,yearValue,if(kind==MaterialKind.TIMETABLE)term else null,classesList,daysList,classesList.flatMap { cls -> daysList.flatMap { day -> (1..maxPeriod).map { RecoverySlot(cls,day,it) } } },cells,sources,true,yearIds,if(kind==MaterialKind.TIMETABLE)termIds else emptyList(),days.mapValues { it.value.distinct() },classes.mapValues { it.value.distinct() },periods.mapValues { it.value.distinct() },times,clockEvidence.values.flatten().distinct(),notes,clockEvidence,spans,clockBindings,titleIds,noteGroups)
+        // Region traversal order can differ from the original source inventory.
+        // Aggregate header evidence must use that inventory order, including clocks.
+        fun orderedHeaders(headers: Map<String, List<String>>) = headers.mapValues { (_, ids) ->
+            step(); step(ids.size)
+            ids.distinct().sortedWith { a, b ->
+                step(); sourceIndices.getValue(a).compareTo(sourceIndices.getValue(b))
+            }
+        }
+        val doc = RecoveryDocument(hash,documentKind,yearValue,if(kind==MaterialKind.TIMETABLE)term else null,classesList,daysList,classesList.flatMap { cls -> daysList.flatMap { day -> (1..maxPeriod).map { RecoverySlot(cls,day,it) } } },cells,sources,true,yearIds,if(kind==MaterialKind.TIMETABLE)termIds else emptyList(),orderedHeaders(days),orderedHeaders(classes),orderedHeaders(periods),times,clockEvidence.values.flatten().distinct(),notes,clockEvidence,spans,clockBindings,titleIds,noteGroups)
         requireSource(usedProposals==structureProposals.keys,"未使用の表構造候補")
         val errors = RecoveryValidator.preparationErrors(doc,requests.map { it.id }.toSet())
         if(requests.isNotEmpty()) {
