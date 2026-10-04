@@ -1,7 +1,7 @@
 {
   "README.md": {
-    "bytes": 5297,
-    "sha256": "f333ec51e22f750764a14cb2ad3047cba70dd900ce3dd42aaab97b8976be8e98"
+    "bytes": 5589,
+    "sha256": "fcce389463f159d0a8e10c30f46959e2d437f07737a7f56e6590d35441d5c995"
   },
   "causes.json": {
     "bytes": 102604,
@@ -26,6 +26,50 @@
   "instruction.txt": {
     "bytes": 449,
     "sha256": "c6d1410ebe5de98ad1934627b3f5115ae396087d758814dbc538daafc750998c"
+  },
+  "local-four-control-reproduction/README.md": {
+    "bytes": 1909,
+    "sha256": "f4ae8ccf832524d6408ef8acf3f3cf18a218de7b5384bba176d0f47bba997f4f"
+  },
+  "local-four-control-reproduction/ci-native.json": {
+    "bytes": 23356,
+    "sha256": "76ddcad983f387b50ebb431438fc0947011045cc2ece58d79b9ea19773d94f56"
+  },
+  "local-four-control-reproduction/comparison.json": {
+    "bytes": 4585,
+    "sha256": "b54f989c10cbc30298b37f1b02daa39cee9ca3b2cf618c8148cfd13f7be24fc5"
+  },
+  "local-four-control-reproduction/corpus.json": {
+    "bytes": 5630,
+    "sha256": "c18b6d24cddf5cbc0c9a0fe3a425452b5826cf6c74c03e741fc6bcc0dba1d921"
+  },
+  "local-four-control-reproduction/independent-android.json": {
+    "bytes": 3436,
+    "sha256": "db222db599f5c534f7cfcb0bb6db3ca0784eee289d4fe38d8bd95b9f8c856367"
+  },
+  "local-four-control-reproduction/independent-referee.json": {
+    "bytes": 5046,
+    "sha256": "0481553e0a0076351879d8f79cd13e64b1abe094a62ead9910352626dfbf6f60"
+  },
+  "local-four-control-reproduction/independent-third.json": {
+    "bytes": 1059,
+    "sha256": "764a806675e18ec62a04b9454d108ffdb5d76b3349d31c810afd9ab479aa77f0"
+  },
+  "local-four-control-reproduction/native-log.json": {
+    "bytes": 6793,
+    "sha256": "c02066530c403de510200aac4c8e65c9a538a6be0df39c630cddbbaaf7e7af31"
+  },
+  "local-four-control-reproduction/native.json": {
+    "bytes": 4168,
+    "sha256": "ae07bfb2046fd561c7de78c3be3cf661418c6fb5aeef44b469f20da9cf9f9631"
+  },
+  "local-four-control-reproduction/resource.json": {
+    "bytes": 263,
+    "sha256": "caa06f5b6cf6bad5fae267d8039a20f29c46265821690c4374dc9e9eabe15d58"
+  },
+  "local-four-control-reproduction/run.py": {
+    "bytes": 1246,
+    "sha256": "3ef2026389680e0a93fcb2600b0b803e40a0d129184c5841797d907de8b4337c"
   },
   "raw/gemma4-e2b.json": {
     "bytes": 105019,

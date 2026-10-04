@@ -1,0 +1,164 @@
+{
+  "scope": "Four selected already-consumed deterministic COPY tasks; no new model inference performed by referee. No full-cohort/backend/OS/semantic quality extrapolation.",
+  "comparisonSHA256": "b54f989c10cbc30298b37f1b02daa39cee9ca3b2cf618c8148cfd13f7be24fc5",
+  "actualArtifactHashChecks": {
+    "native.json": "ae07bfb2046fd561c7de78c3be3cf661418c6fb5aeef44b469f20da9cf9f9631",
+    "ci-native.json": "76ddcad983f387b50ebb431438fc0947011045cc2ece58d79b9ea19773d94f56",
+    "corpus.json": "c18b6d24cddf5cbc0c9a0fe3a425452b5826cf6c74c03e741fc6bcc0dba1d921",
+    "resource.json": "caa06f5b6cf6bad5fae267d8039a20f29c46265821690c4374dc9e9eabe15d58",
+    "native.log": "2b3eca1eb30a402e20af8afd454f041fedf9980b8e7634d685acf7a9240588dc",
+    "run.py": "3ef2026389680e0a93fcb2600b0b803e40a0d129184c5841797d907de8b4337c"
+  },
+  "sourceCommit": "74b2c06e7142017716f62cefc6bbcd91e34314b2",
+  "selectedCases": 4,
+  "sameRawUTF8Outputs": 4,
+  "exactCOPIES": 3,
+  "returnedComplianceFailures": 1,
+  "executionErrors": 0,
+  "nativePins": {
+    "model": {
+      "id": "qwen25-15b",
+      "repo": "litert-community/Qwen2.5-1.5B-Instruct",
+      "revision": "19edb84c69a0212f29a6ef17ba0d6f278b6a1614",
+      "file": "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm",
+      "bytes": 1597931520,
+      "sha256": "faa60663b333290c1496c499828b21d3e3254a788cacd8cce917ce0f761a2dc9",
+      "license": "apache-2.0",
+      "gated": false,
+      "qualityApproved": false
+    },
+    "nativeSHA256": "f202ca2351db108105fed241cd731266255c2471f3ed850c265d0c29d27fd841",
+    "configuration": {
+      "runtime": "litert-lm-api==0.17.1",
+      "backend": "CPU",
+      "threads": 2,
+      "contextTokens": 4096,
+      "maxOutputTokens": 1024,
+      "topK": 1,
+      "topP": 0.95,
+      "temperature": 0,
+      "seed": 42,
+      "thinking": false,
+      "instructionProfile": "micro_field_v1",
+      "chatTemplate": "unmodified bundle default",
+      "automaticToolCalling": false
+    },
+    "providerFingerprint": "09c725ac34c91079f2b031d64f538cdcd85e58789e2224618b59c17dff8ccae3"
+  },
+  "rows": [
+    {
+      "name": "baseline/0/subject",
+      "rawUTF8ByteEqualToCI": true,
+      "inputExactlyEqualsOriginalCI": true,
+      "exact": true,
+      "expectedIds": [
+        "p1-a10"
+      ],
+      "actualIds": [
+        "p1-a10"
+      ],
+      "confirmedCause": "exact_original_candidate_ID_copy"
+    },
+    {
+      "name": "baseline/0/teacher",
+      "rawUTF8ByteEqualToCI": true,
+      "inputExactlyEqualsOriginalCI": true,
+      "exact": true,
+      "expectedIds": [
+        "p1-a12"
+      ],
+      "actualIds": [
+        "p1-a12"
+      ],
+      "confirmedCause": "exact_original_candidate_ID_copy"
+    },
+    {
+      "name": "baseline/0/room",
+      "rawUTF8ByteEqualToCI": true,
+      "inputExactlyEqualsOriginalCI": true,
+      "exact": true,
+      "expectedIds": [
+        "p1-a14"
+      ],
+      "actualIds": [
+        "p1-a14"
+      ],
+      "confirmedCause": "exact_original_candidate_ID_copy"
+    },
+    {
+      "name": "empty_room/0/room",
+      "rawUTF8ByteEqualToCI": true,
+      "inputExactlyEqualsOriginalCI": true,
+      "exact": false,
+      "expectedIds": [],
+      "actualIds": [
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13"
+      ],
+      "confirmedCause": "duplicate_id"
+    }
+  ],
+  "resource": {
+    "exitCode": 0,
+    "timedOut": false,
+    "seconds": 36.85475494500133,
+    "peakChildRSSBytes": 2447044608,
+    "weightsDownloaded": false,
+    "scope": "four existing COPY obligations; local Linux CPU, cached exact pinned LiteRT weights, not full model/PDF quality"
+  },
+  "resourceScope": "run.py Linux RUSAGE_CHILDREN.ru_maxrss: largest child high-water RSS, not whole concurrent process tree. The local180s subprocess timeout differs from CI900s owned-child guard; model settings and output contract remain unchanged.",
+  "hostVerifiedCurrentMachine": {
+    "arch": "x86_64",
+    "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+    "cpuQuota": "400000 100000",
+    "memoryLimit": "17179869184"
+  },
+  "causeConfidence": "Confirmed duplicate-ID violation for empty candidates repeated byte-for-byte; root cause attribution to weights versus native decoder/model-template remains undetermined.",
+  "qualityApproved": false
+}

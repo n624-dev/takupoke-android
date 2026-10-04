@@ -1,0 +1,8 @@
+{
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 36.85475494500133,
+  "peakChildRSSBytes": 2447044608,
+  "weightsDownloaded": false,
+  "scope": "four existing COPY obligations; local Linux CPU, cached exact pinned LiteRT weights, not full model/PDF quality"
+}

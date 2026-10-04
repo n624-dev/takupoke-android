@@ -1,0 +1,131 @@
+{
+  "reviewer": "Android owner GPT6.1 Sol High",
+  "comparisonSHA256": "b54f989c10cbc30298b37f1b02daa39cee9ca3b2cf618c8148cfd13f7be24fc5",
+  "inputSHA256": "c18b6d24cddf5cbc0c9a0fe3a425452b5826cf6c74c03e741fc6bcc0dba1d921",
+  "localNativeSHA256": "ae07bfb2046fd561c7de78c3be3cf661418c6fb5aeef44b469f20da9cf9f9631",
+  "ciNativeSHA256": "76ddcad983f387b50ebb431438fc0947011045cc2ece58d79b9ea19773d94f56",
+  "scope": "Four selected consumed controls only; not full cohort, native OS parity, semantic recovery or model qualification",
+  "samePinnedModelRuntimeAndSampler": true,
+  "observations": [
+    {
+      "name": "baseline/0/subject",
+      "sameInput": true,
+      "sameInstruction": true,
+      "rawUTF8ByteEqual": true,
+      "returnedIds": [
+        "p1-a10"
+      ],
+      "originalCandidateIds": [
+        "p1-a10"
+      ],
+      "uniqueIds": true,
+      "copyExact": true,
+      "strictDecoderAccepts": true,
+      "cause": "exact copy"
+    },
+    {
+      "name": "baseline/0/teacher",
+      "sameInput": true,
+      "sameInstruction": true,
+      "rawUTF8ByteEqual": true,
+      "returnedIds": [
+        "p1-a12"
+      ],
+      "originalCandidateIds": [
+        "p1-a12"
+      ],
+      "uniqueIds": true,
+      "copyExact": true,
+      "strictDecoderAccepts": true,
+      "cause": "exact copy"
+    },
+    {
+      "name": "baseline/0/room",
+      "sameInput": true,
+      "sameInstruction": true,
+      "rawUTF8ByteEqual": true,
+      "returnedIds": [
+        "p1-a14"
+      ],
+      "originalCandidateIds": [
+        "p1-a14"
+      ],
+      "uniqueIds": true,
+      "copyExact": true,
+      "strictDecoderAccepts": true,
+      "cause": "exact copy"
+    },
+    {
+      "name": "empty_room/0/room",
+      "sameInput": true,
+      "sameInstruction": true,
+      "rawUTF8ByteEqual": true,
+      "returnedIds": [
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13",
+        "p1-a10",
+        "p1-a11",
+        "p1-a12",
+        "p1-a13"
+      ],
+      "originalCandidateIds": [],
+      "uniqueIds": false,
+      "copyExact": false,
+      "strictDecoderAccepts": false,
+      "cause": "48 repeated IDs for empty candidates; strict duplicate rejection"
+    }
+  ],
+  "resource": {
+    "exitCode": 0,
+    "timedOut": false,
+    "seconds": 36.85475494500133,
+    "peakChildRSSBytes": 2447044608,
+    "weightsDownloaded": false,
+    "scope": "four existing COPY obligations; local Linux CPU, cached exact pinned LiteRT weights, not full model/PDF quality"
+  },
+  "memoryMeasurementScope": "Local runner uses resource.getrusage(RUSAGE_CHILDREN).ru_maxrss high-water measurement for its sole spawned native child, distinct from CI sampled RSS",
+  "blockingFindings": [],
+  "qualityApproved": false
+}

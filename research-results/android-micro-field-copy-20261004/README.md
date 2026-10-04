@@ -27,3 +27,5 @@ RSSは100ms間隔で監督対象の子だけを観測した値です。GemmaはA
 [モデルpin・設定・分母・実行資源・原文SHA](results.json)、[固定45行入力](corpus.json)、[実際のCOPY指示](instruction.txt)、[未変更回答raw](raw/)、[全フィールド/セルの独立原因レビュー](causes.json)、[Gemma独立採点](independent-gemma.json)、[Qwen独立採点](independent-qwen.json)、[第三レビュー](independent-third-review.json)、[通常CI](required-ci.json)、[全ファイルSHA](checksums.json)を公開しています。既存参照条件の回答は[以前の公開比較](../android-model-comparison-20261004/README.md)を再利用し、追加推論していません。
 
 [小分け2モデルCI](https://github.com/n624-dev/takupoke-android/actions/runs/37197351755)、[同source通常検証](https://github.com/n624-dev/takupoke-android/actions/runs/37197351809)。実行sourceは `74b2c06e7142017716f62cefc6bbcd91e34314b2`、元入力SHAは `d15657770607fbc1910c11bdc7a185b296b683905c5823427e05c39bf128ee5a`、COPY指示SHAは `c6d1410ebe5de98ad1934627b3f5115ae396087d758814dbc538daafc750998c` です。架空の消費済み開発資料だけを使い、学校資料・実アカウント・production credentialsは含みません。
+
+[ローカルCPUで選んだ4項目の再現確認](local-four-control-reproduction/README.md)も追加しました。4/4回答がCIと同じbytesで、3正解と同じ空候補の重複失敗1件を再現しました。元の42項目の分母には加算せず、別scopeの記録です。

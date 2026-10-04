@@ -1,0 +1,100 @@
+{
+  "scope": "Four selected existing deterministic BODY-ID COPY obligations; local CPU reproducibility only, NOT full PDF or useful AI model quality",
+  "sourceCommit": "74b2c06e7142017716f62cefc6bbcd91e34314b2",
+  "ciRun": 37197351755,
+  "ciExportSHA256": "59ae9c4ac66b26d27fcd2afb61547a14ba51ccdbb3a67250f0509ae2fc3ea9e2",
+  "identicalPinnedConfiguration": {
+    "model": true,
+    "nativeSHA256": true,
+    "providerFingerprint": true,
+    "configuration": true
+  },
+  "sameRawOutputs": 4,
+  "total": 4,
+  "localHost": {
+    "system": "Linux",
+    "architecture": "x86_64",
+    "cpu": "Intel Xeon Platinum 8573C",
+    "cpuQuota": "4 CPU equivalents",
+    "cgroupMemoryLimitBytes": 17179869184
+  },
+  "modelBytes": 1597931520,
+  "resource": {
+    "exitCode": 0,
+    "timedOut": false,
+    "seconds": 36.85475494500133,
+    "peakChildRSSBytes": 2447044608,
+    "weightsDownloaded": false,
+    "scope": "four existing COPY obligations; local Linux CPU, cached exact pinned LiteRT weights, not full model/PDF quality"
+  },
+  "observations": [
+    {
+      "name": "baseline/0/subject",
+      "sameOriginalInput": true,
+      "sameInstructionHash": true,
+      "sameRawOutput": true,
+      "localReturned": true,
+      "ciReturned": true,
+      "expectedIds": [
+        "p1-a10"
+      ],
+      "localRawOutput": "{\"ids\":[\"p1-a10\"]}",
+      "ciRawOutput": "{\"ids\":[\"p1-a10\"]}",
+      "localSeconds": 2.7535042470044573,
+      "ciSeconds": 3.2636017039999956
+    },
+    {
+      "name": "baseline/0/teacher",
+      "sameOriginalInput": true,
+      "sameInstructionHash": true,
+      "sameRawOutput": true,
+      "localReturned": true,
+      "ciReturned": true,
+      "expectedIds": [
+        "p1-a12"
+      ],
+      "localRawOutput": "{\"ids\":[\"p1-a12\"]}",
+      "ciRawOutput": "{\"ids\":[\"p1-a12\"]}",
+      "localSeconds": 3.084682844004419,
+      "ciSeconds": 2.817446014000012
+    },
+    {
+      "name": "baseline/0/room",
+      "sameOriginalInput": true,
+      "sameInstructionHash": true,
+      "sameRawOutput": true,
+      "localReturned": true,
+      "ciReturned": true,
+      "expectedIds": [
+        "p1-a14"
+      ],
+      "localRawOutput": "{\"ids\":[\"p1-a14\"]}",
+      "ciRawOutput": "{\"ids\":[\"p1-a14\"]}",
+      "localSeconds": 2.5809901430038735,
+      "ciSeconds": 2.7893539920000023
+    },
+    {
+      "name": "empty_room/0/room",
+      "sameOriginalInput": true,
+      "sameInstructionHash": true,
+      "sameRawOutput": true,
+      "localReturned": true,
+      "ciReturned": true,
+      "expectedIds": [],
+      "localRawOutput": "{\"ids\":[\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\"]}",
+      "ciRawOutput": "{\"ids\":[\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\",\"p1-a10\",\"p1-a11\",\"p1-a12\",\"p1-a13\"]}",
+      "localSeconds": 21.704439533001278,
+      "ciSeconds": 25.964709801999987
+    }
+  ],
+  "causeAssessment": "Three successful ID copies and the same duplicate-ID empty-list failure reproduced byte-for-byte. Supported reproducibility for these four controls only; no inference about native OS APIs or different backends. No outputs repaired.",
+  "artifacts": {
+    "native.json": "ae07bfb2046fd561c7de78c3be3cf661418c6fb5aeef44b469f20da9cf9f9631",
+    "ci-native.json": "76ddcad983f387b50ebb431438fc0947011045cc2ece58d79b9ea19773d94f56",
+    "corpus.json": "c18b6d24cddf5cbc0c9a0fe3a425452b5826cf6c74c03e741fc6bcc0dba1d921",
+    "resource.json": "caa06f5b6cf6bad5fae267d8039a20f29c46265821690c4374dc9e9eabe15d58",
+    "native.log": "2b3eca1eb30a402e20af8afd454f041fedf9980b8e7634d685acf7a9240588dc",
+    "run.py": "3ef2026389680e0a93fcb2600b0b803e40a0d129184c5841797d907de8b4337c"
+  },
+  "qualityApproved": false
+}

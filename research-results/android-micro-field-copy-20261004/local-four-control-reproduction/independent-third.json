@@ -1,0 +1,20 @@
+{
+  "reviewer": "qualify_ios_high",
+  "reviewType": "independent four-row actual output and minimum driver/input/provenance context",
+  "comparisonSha256": "b54f989c10cbc30298b37f1b02daa39cee9ca3b2cf618c8148cfd13f7be24fc5",
+  "checks": {
+    "sixArtifactHashesVerified": true,
+    "actualLocalAndOriginalCiModelNativeProviderSamplerMatch": true,
+    "fourSelectedInputsEqualOriginalFrozenCorpusRows": true,
+    "fourActualRawStringsByteEqualCi": true,
+    "threeOriginalBaselineFieldCopiesExact": true,
+    "emptyRoomRepeated48IdsDuplicateFailureReproduced": true,
+    "rowsStartedAndReturned": 4,
+    "noOutputRepair": true,
+    "cachedPinnedWeightsNoDownload": true
+  },
+  "scope": "Only four existing deterministic BODY-ID COPY controls on local Linux CPU; not entire42field run, new holdout, originalPDF/nativeOS or useful AI qualification",
+  "resourceScope": "Driver RUSAGE_CHILDREN.ru_maxrss largest-child highwater; one owned native subprocess, not simultaneous complete process-tree peak or phone RAM",
+  "qualityApproved": false,
+  "findings": []
+}
