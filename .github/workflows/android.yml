@@ -42,6 +42,10 @@ jobs:
           # Deliberately no cache input: nothing is saved to Actions cache storage.
       - name: Check public files and cache policy
         run: bash scripts/check-public.sh
+      - name: Check shared prompt bytes and strict task protocol
+        run: |
+          python3 tools/recovery-prompt-contracts/check_shared_prompts.py
+          python3 tools/recovery-prompt-contracts/test_shared_prompts.py
       - name: Check screenshot log transport and corruption defenses
         run: node scripts/test-screenshot-transfer.mjs
       - name: Unit tests, Android lint, debug and optimized release builds

@@ -9,7 +9,7 @@ EXPECTED = "09c725ac34c91079f2b031d64f538cdcd85e58789e2224618b59c17dff8ccae3"
 source_path = pathlib.Path(sys.argv[1])
 source = source_path.read_bytes()
 assert hashlib.sha256(source).hexdigest() == EXPECTED, "Provider changed; review the extraction before running a new batch"
-fixtures = source_path.parents[6] / "runtimeEvaluation/java/jp/n624/takupoke/android/LiteRtEvaluationFixtures.kt"
+fixtures = pathlib.Path(sys.argv[3]) if len(sys.argv) == 4 else source_path.parents[6] / "runtimeEvaluation/java/jp/n624/takupoke/android/LiteRtEvaluationFixtures.kt"
 # The shared corpus is frozen alongside the private Provider contract.
 assert hashlib.sha256(fixtures.read_bytes()).hexdigest() == "64a6abcc0d3789170a3b6a59b6247b0787127c391b4188fd133c322f11c21c4f", "Fixture changed; review the common corpus"
 text = source.decode()

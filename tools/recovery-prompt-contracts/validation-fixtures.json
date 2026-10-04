@@ -1,0 +1,366 @@
+{
+  "contractVersion": 1,
+  "fixtures": [
+    {
+      "name": "single_header_role/ordered",
+      "task": "single_header_role",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[\"fake-a\",\"fake-b\"]}",
+      "expectedStrict": true,
+      "emptyProvesState": false
+    },
+    {
+      "name": "single_header_role/empty",
+      "task": "single_header_role",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[]}",
+      "expectedStrict": true,
+      "emptyProvesState": false
+    },
+    {
+      "name": "single_header_role/wrong-role-still-syntactically-eligible",
+      "task": "single_header_role",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[\"fake-label\"]}",
+      "expectedStrict": true,
+      "emptyProvesState": false
+    },
+    {
+      "name": "single_header_role/reverse",
+      "task": "single_header_role",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[\"fake-b\",\"fake-a\"]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "single_header_role/duplicate-id",
+      "task": "single_header_role",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[\"fake-a\",\"fake-a\"]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "single_header_role/foreign",
+      "task": "single_header_role",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[\"not-in-cell\"]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "single_header_role/duplicate-key",
+      "task": "single_header_role",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[],\"ids\":[\"fake-a\"]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "single_header_role/extra-state",
+      "task": "single_header_role",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[],\"state\":\"EMPTY\"}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "single_header_role/null",
+      "task": "single_header_role",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":null}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "single_header_role/number",
+      "task": "single_header_role",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[1]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "single_header_role/nonfinite",
+      "task": "single_header_role",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[NaN]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "single_header_role/nested",
+      "task": "single_header_role",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[[\"fake-a\"]]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "single_header_role/trailing",
+      "task": "single_header_role",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[]} {}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "single_header_role/fenced",
+      "task": "single_header_role",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "```json\n{\"ids\":[]}\n```",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "single_header_role/unquoted",
+      "task": "single_header_role",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{ids:[]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "deterministic_body_id_copy_control/ordered",
+      "task": "deterministic_body_id_copy_control",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[\"fake-a\",\"fake-b\"]}",
+      "expectedStrict": true,
+      "emptyProvesState": false
+    },
+    {
+      "name": "deterministic_body_id_copy_control/empty",
+      "task": "deterministic_body_id_copy_control",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[]}",
+      "expectedStrict": true,
+      "emptyProvesState": false
+    },
+    {
+      "name": "deterministic_body_id_copy_control/wrong-role-still-syntactically-eligible",
+      "task": "deterministic_body_id_copy_control",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[\"fake-label\"]}",
+      "expectedStrict": true,
+      "emptyProvesState": false
+    },
+    {
+      "name": "deterministic_body_id_copy_control/reverse",
+      "task": "deterministic_body_id_copy_control",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[\"fake-b\",\"fake-a\"]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "deterministic_body_id_copy_control/duplicate-id",
+      "task": "deterministic_body_id_copy_control",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[\"fake-a\",\"fake-a\"]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "deterministic_body_id_copy_control/foreign",
+      "task": "deterministic_body_id_copy_control",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[\"not-in-cell\"]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "deterministic_body_id_copy_control/duplicate-key",
+      "task": "deterministic_body_id_copy_control",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[],\"ids\":[\"fake-a\"]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "deterministic_body_id_copy_control/extra-state",
+      "task": "deterministic_body_id_copy_control",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[],\"state\":\"EMPTY\"}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "deterministic_body_id_copy_control/null",
+      "task": "deterministic_body_id_copy_control",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":null}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "deterministic_body_id_copy_control/number",
+      "task": "deterministic_body_id_copy_control",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[1]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "deterministic_body_id_copy_control/nonfinite",
+      "task": "deterministic_body_id_copy_control",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[NaN]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "deterministic_body_id_copy_control/nested",
+      "task": "deterministic_body_id_copy_control",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[[\"fake-a\"]]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "deterministic_body_id_copy_control/trailing",
+      "task": "deterministic_body_id_copy_control",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{\"ids\":[]} {}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "deterministic_body_id_copy_control/fenced",
+      "task": "deterministic_body_id_copy_control",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "```json\n{\"ids\":[]}\n```",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    },
+    {
+      "name": "deterministic_body_id_copy_control/unquoted",
+      "task": "deterministic_body_id_copy_control",
+      "allSourceIds": [
+        "fake-a",
+        "fake-b",
+        "fake-label"
+      ],
+      "raw": "{ids:[]}",
+      "expectedStrict": false,
+      "emptyProvesState": false
+    }
+  ],
+  "scope": "Invented decoder boundaries only; no outputs or gold constraints supplied to any model"
+}

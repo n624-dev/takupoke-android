@@ -1,0 +1,3 @@
+This exact provider snapshot preserves the consumed promptVersion 3 comparison contract from commit e46df5174de66a2e2649498db3ac8766c46fdf89. SHA256: 09c725ac34c91079f2b031d64f538cdcd85e58789e2224618b59c17dff8ccae3.
+
+The research extractor compiles only the historically tested instruction/schema/strict parser from these immutable bytes. This snapshot is excluded from Android source sets and is not the production provider. Production fieldExtraction prompt changes must not silently rename a new contract as the old baseline. Existing receipts and cohort fingerprints remain unchanged; no old-prompt inference rerun is scheduled.

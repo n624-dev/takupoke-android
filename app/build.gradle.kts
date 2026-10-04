@@ -1,4 +1,18 @@
+import java.security.MessageDigest
+
 plugins { id("com.android.application"); kotlin("android"); kotlin("plugin.serialization"); id("org.jetbrains.kotlin.plugin.compose") }
+val recoveryPromptAssets = layout.buildDirectory.dir("generated/recoveryPromptAssets")
+val canonicalFieldPrompt = rootProject.file("tools/recovery-prompt-contracts/prompts/field-extraction-v4.txt")
+val packageRecoveryPrompts by tasks.registering(Sync::class) {
+    inputs.file(canonicalFieldPrompt)
+    from(canonicalFieldPrompt) { into("recovery-prompts") }
+    into(recoveryPromptAssets)
+    doFirst {
+        val bytes = canonicalFieldPrompt.readBytes()
+        val sha = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+        require(bytes.size == 2939 && sha == "c24039ae4317a433a14f01697d77813424a3a1c20a70327189964b2fc60bb188") { "Shared field instruction changed" }
+    }
+}
 android {
     namespace = "jp.n624.takupoke.android"
     compileSdk = 36
@@ -21,6 +35,7 @@ android {
     }
     buildTypes { release { isMinifyEnabled = true; isShrinkResources = true; proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"); if (providers.environmentVariable("TKPK_KEYSTORE").isPresent) signingConfig = signingConfigs.getByName("distribution") } }
     buildFeatures { compose = true; buildConfig = true }
+    sourceSets.getByName("main").assets.srcDir(recoveryPromptAssets)
     compileOptions { sourceCompatibility = JavaVersion.VERSION_21; targetCompatibility = JavaVersion.VERSION_21 }
     packaging { resources.excludes += setOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*") }
     // Manual, synthetic candidate evaluation only. Default tests keep their
@@ -34,6 +49,7 @@ android {
         buildTypes.getByName("release").proguardFiles("runtime-evaluation.pro")
     }
 }
+tasks.named("preBuild") { dependsOn(packageRecoveryPrompts) }
 kotlin { jvmToolchain(21) }
 dependencies {
     implementation(project(":core"))

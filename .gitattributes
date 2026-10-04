@@ -4,5 +4,7 @@
 *.sh text eol=lf
 gradlew text eol=lf
 gradlew.bat text eol=crlf
+tools/recovery-prompt-contracts/prompts/*.txt text eol=lf
+model-evaluation/src/legacyProvider/*.kt.txt text eol=lf
 # Preserve whitespace in the upstream runtime's complete third-party notices.
 app/src/main/assets/license-litertlm.txt whitespace=-blank-at-eol

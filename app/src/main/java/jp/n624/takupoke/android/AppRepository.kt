@@ -248,7 +248,8 @@ class AppRepository(val context: Context, private val transport: Transport = Htt
                 checkCurrent();require(RecoveryAdoption.matchesPeriod(input.document,epoch))
                 stage(RecoveryJobState.RUNNING)
                 recoveryProvider=recoveryServices.provider { foreground && epoch==retentionPeriod() }
-                val resolved=RecoveryStructure.resolve(input.requests,listOfNotNull(recoveryProvider),"android",android.os.Build.VERSION.SDK_INT,::checkCurrent)
+                val structureProvider=(recoveryProvider as? LiteRtRecoveryProvider)?.forStructureProposal() ?: recoveryProvider
+                val resolved=RecoveryStructure.resolve(input.requests,listOfNotNull(structureProvider),"android",android.os.Build.VERSION.SDK_INT,::checkCurrent)
                 checkCurrent()
                 val proposals=resolved.proposals
                 if(proposals==null) {
