@@ -27,6 +27,9 @@ data class WeekBounds(val first: LocalDate, val last: LocalDate) {
 }
 
 class ScheduleProjection(val analyses: List<Analysis>, val events: List<EventsPayload>, val mapping: Mapping?, val times: TimesPayload?, val includesChanges: Boolean, val international: Boolean) {
+    fun eventsLoaded(day: LocalDate): Boolean = events.any { it.schoolYear == schoolYear(day) }
+    fun weekEventsLoaded(monday: LocalDate): Boolean = (0..6).all { eventsLoaded(monday.plusDays(it.toLong())) }
+
     fun slots(day: LocalDate, cls: String) = Schedule.slots(day, cls, analyses, events, mapping, times, includesChanges, international)
 
     fun blocks(day: LocalDate, cls: String): List<PositionedSlot> {

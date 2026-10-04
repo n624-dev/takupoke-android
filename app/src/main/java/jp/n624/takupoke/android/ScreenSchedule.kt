@@ -50,12 +50,12 @@ private fun accessibility(day: LocalDate, slot: Slot): String = listOf(day.toStr
         if (state.settings.primaryClass.isEmpty()) TextButton(onClick = classes) { Text("クラスを選択") }
         else {
             if (state.analyses.none { it.kind == MaterialKind.CHANGES }) Text("時間割変更の解析結果がありません。")
-            if (state.events.isEmpty()) Text("学校行事は未取得です。")
+            if (!projection.eventsLoaded(date)) Text("学校行事は未取得です。")
             state.classes().forEach { cls ->
                 Text(displayClass(cls), fontWeight = FontWeight.SemiBold)
                 val missing = projection.missing(date, cls); missing.forEach { Text(it) }
                 val blocks = projection.blocks(date, cls)
-                if (blocks.isEmpty() && missing.isEmpty() && state.events.isNotEmpty() && state.analyses.any { it.kind == MaterialKind.CHANGES }) Text("授業はありません。")
+                if (blocks.isEmpty() && missing.isEmpty() && projection.eventsLoaded(date) && state.analyses.any { it.kind == MaterialKind.CHANGES }) Text("授業はありません。")
                 blocks.forEach { (slot, _) ->
                     val active = projection.inProgress(date, slot, now)
                     OutlinedCard(onClick = { select(date to slot) }, modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = accessibility(date, slot) + if (active) "、授業中" else "" }) {
@@ -117,6 +117,7 @@ private fun accessibility(day: LocalDate, slot: Slot): String = listOf(day.toStr
             TextButton(onClick = { mondayText = monday.plusWeeks(1).toString() }, enabled = monday.plusWeeks(1) in bounds) { Text("翌週") }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { FilterChip(!changes, { changes = false; change { it.copy(includesChanges = false) } }, label = { Text("通常") }); FilterChip(changes, { changes = true; change { it.copy(includesChanges = true) } }, label = { Text("変更込み") }) }
+        if (!projection.weekEventsLoaded(monday)) Text("学校行事は未取得です。")
         if (selectedClasses.isEmpty()) TextButton(onClick = classes) { Text("クラスを選択") }
         else WeekGrid(state, projection, days, selectedClasses, currentDay, select)
         Text("週の行事", style = MaterialTheme.typography.titleMedium)
