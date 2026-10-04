@@ -29,6 +29,7 @@ internal class OfflineRecoveryServices(var offer:Boolean=true,var hasModel:Boole
     var preparedDocument:RecoveryDocument?=null
     var structurePages:List<RecoveryLayoutPage>?=null
     var structureAnswer:((RecoveryPromptCell)->List<RecoveryLesson>)?=null
+    var forceStructureComponent=false
     var holdStructure=false;val structureEntered=CompletableDeferred<Unit>();var providerClosures=0
     private val manifest=RecoveryModelManifest("synthetic-offline","1","https://models.example.invalid/synthetic",1024,"a".repeat(64),"liteRtLm","29",4L*1024*1024*1024,"CPU","test-only",true)
     override val offered get()=manifest.takeIf { offer }
@@ -54,7 +55,17 @@ internal class OfflineRecoveryServices(var offer:Boolean=true,var hasModel:Boole
     } }
     override suspend fun prepare(file:File,hash:String,kind:MaterialKind,capture:RecoveryReadCapture):RecoveryDocument {
         preparationEntered.complete(Unit);if(holdPreparation)awaitCancellation()
-        structurePages?.let { return RecoveryLayout.prepare(it,hash,kind) }
+        structurePages?.let { pages ->
+            val doc=RecoveryLayout.prepare(pages,hash,kind)
+            if(forceStructureComponent) {
+                // Explicit component/lifecycle injection, never a claim that this Builder needs AI.
+                val cell=doc.cells.single { !it.confirmedEmpty }
+                val request=RecoveryStructure.request(cell.id,cell.page,cell.box,cell.slots,doc.sources.filter { it.id in cell.sourceIds })
+                val pending=doc.copy(cells=doc.cells.map { c->if(c.id==cell.id)c.copy(bindingMode="fixed",roleScopes=emptyList(),lessonBindings=emptyList())else c })
+                throw RecoveryStructurePreparation(pending,listOf(request),pages)
+            }
+            return doc
+        }
         preparedDocument?.let { doc -> check(RecoveryPolicy.kind(kind)==doc.kind);return doc.copy(pdfHash=hash) }
         return RecoveryLayout.prepare(listOf(RecoveryLayoutPage(1,layout())),hash,kind)
     }

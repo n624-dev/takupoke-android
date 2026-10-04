@@ -6,7 +6,7 @@ import kotlinx.coroutines.*
 import org.junit.Assert.*
 import org.junit.Test
 
-/** Injected raw invented layout and bounded mock proposal, not an OCR/model accuracy test. */
+/** Real Rules preview/adoption, plus explicitly injected request lifecycle controls; no model accuracy claim. */
 class RecoveryStructureNativeTest {
     private val context=InstrumentationRegistry.getInstrumentation().targetContext
     private fun page():Page {
@@ -37,30 +37,30 @@ class RecoveryStructureNativeTest {
             }
         }
     }
-    @Test fun originalRebuildPreviewExplicitAdoptionAndSqliteReload():Unit=runBlocking {
+    @Test fun foldedRulesPreviewExplicitAdoptionAndSqliteReload():Unit=runBlocking {
         val service=services();val seed=OfflineRecoverySeed(context,service)
         try {
             seed.install();seed.repository.startRecovery(MaterialKind.TIMETABLE)
-            assertEquals(1,service.providerCalls);assertEquals(1,service.providerClosures)
+            assertEquals(0,service.providerCalls);assertEquals(1,service.providerClosures)
             val preview=requireNotNull(seed.repository.state.value.recoveryPreviews[MaterialKind.TIMETABLE])
-            assertEquals("liteRtLm",preview.result.metadata.provider);assertEquals(preview.result.metadata,preview.document.structureMetadata)
+            assertEquals("rule",preview.result.metadata.provider);assertNull(preview.document.structureMetadata)
             assertEquals(seed.oldAnalysis,seed.database.records().single().analysis)
             val actual=preview.analysis.lessons.single();assertEquals(Names("架空科目A","架空担当B","架空室C"),actual.names)
             seed.repository.adoptRecovery(MaterialKind.TIMETABLE,preview.resultHash)
             val rebuilt=AppRepository(seed.context,RejectNetwork,preferences=MemorySettings());rebuilt.activate(false)
             assertEquals(preview.analysis,rebuilt.state.value.materials.single().analysis)
-            assertEquals("liteRtLm",rebuilt.state.value.materials.single().recoveryMetadata?.provider)
+            assertEquals("rule",rebuilt.state.value.materials.single().recoveryMetadata?.provider)
             rebuilt.foreground(false);rebuilt.stopObserving()
         } finally { seed.stop() }
     }
-    @Test fun wrongSemesterAndCancellationRetainFormalAndCloseProvider():Unit=runBlocking {
+    @Test fun wrongSemesterAndInjectedStructureCancellationRetainFormalAndCloseProvider():Unit=runBlocking {
         val wrong=page().let { p->p.copy(glyphs=p.glyphs.map { if(it.text in listOf("前期","後期"))it.copy(text=if(it.text=="前期")"後期"else "前期")else it }) }
         val service=services(wrong);val seed=OfflineRecoverySeed(context,service)
         try {
             seed.install()
             try { seed.repository.startRecovery(MaterialKind.TIMETABLE);fail("Wrong semester loaded a model") }catch(_:IllegalArgumentException) {}
             assertEquals(0,service.providerConstructions);assertEquals(0,service.providerCalls);assertEquals(seed.oldAnalysis,seed.database.records().single().analysis)
-            service.structurePages=listOf(RecoveryLayoutPage(1,page()));service.holdStructure=true
+            service.structurePages=listOf(RecoveryLayoutPage(1,page()));service.forceStructureComponent=true;service.holdStructure=true
             val pending=async(Dispatchers.IO) { seed.repository.startRecovery(MaterialKind.TIMETABLE) }
             withTimeout(5000){service.structureEntered.await()};seed.repository.cancel()
             try { withTimeout(5000){pending.await()};fail("Cancellation was ignored") }catch(_:CancellationException) {}

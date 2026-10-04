@@ -81,31 +81,54 @@ object RecoveryStructure {
         valid(result.single { it.role=="subject" }.body.isNotEmpty())
         return result.sortedBy { it.scope.y }
     }
-    /** Cheap same-row / adjacent-row labels stay deterministic; an interleaved body row needs a proposal. */
-    fun cheap(request:RecoveryStructureRequest):List<RecoveryLesson>? {
-        val glyphs=request.units.mapIndexed { i,u->Glyph(u.text,u.box.x,u.box.y,u.box.width,u.box.height,i) }
-        val rows=Grid.rows(glyphs);val rowByUnit=rows.flatMapIndexed { i,row->row.map { it.order to i } }.toMap()
-        val fields=mutableMapOf<String,RecoveryField>()
-        for(role in listOf("subject","teacher","room")) {
-            for((index,first) in request.units.withIndex().filter { (_,u)->RecoveryRoles.labels.getValue(role).any { key("$it:").startsWith(key(u.text)) } }) {
-                val row=rowByUnit.getValue(index)
-                for(length in 1..3) {
-                    if(row+length>rows.size)continue
-                    val labels=request.units.filterIndexed { i,u->u.box.x-request.box.x<=u.box.height && rowByUnit.getValue(i) in row until row+length }
-                    if((row until row+length).any { r->labels.none { rowByUnit.getValue(request.units.indexOf(it))==r } })continue
-                    if(key(labels.joinToString("") { it.text }) !in RecoveryRoles.labels.getValue(role).map { key("$it:") })continue
-                    val box=union(labels.map { it.box })
-                    val left=request.cuts.firstOrNull { it.axis=="vertical" && it.position>=box.x+box.width } ?: continue
-                    val top=request.cuts.lastOrNull { it.axis=="horizontal" && it.position<=box.y } ?: continue
-                    val bottom=request.cuts.firstOrNull { it.axis=="horizontal" && it.position>=box.y+box.height } ?: continue
-                    fields[role]=RecoveryField(RecoveryValueState.PRESENT,"",labels.map { it.id }+listOf(top.id,bottom.id,left.id));break
-                }
-                if(role in fields)break
+    /** Enumerate only the bounded measured label rail; every answer still needs the full certificate. */
+    fun cheap(request:RecoveryStructureRequest):List<RecoveryLesson>? = cheap(request,{})
+    internal fun cheap(request:RecoveryStructureRequest,charge:(Int)->Unit):List<RecoveryLesson>? {
+        val work=RecoveryWork(100_000)
+        fun step() { work.step();charge(1) }
+        fun read(text:String):String { charge(text.length);return work.read(text) }
+        if(request.units.size !in 1..64 || request.cuts.size>130)return null
+        val required=request.units.filter { step();it.box.x-request.box.x<=it.box.height }
+        if(required.size !in 3..9)return null
+        val roles=listOf("subject","teacher","room")
+        val aliases=roles.associateWith { role->RecoveryRoles.labels.getValue(role).map { key("$it:") } }
+        val allAliases=aliases.values.flatten()
+        val texts=request.units.associate { unit->step();unit.id to key(read(unit.text)) }
+        val fragments=request.units.filter { unit->step();val text=texts.getValue(unit.id);text.isNotEmpty() && allAliases.any { step();it.contains(text) } }
+        val maxHeight=fragments.maxOfOrNull { step();it.box.height } ?: return null
+        // Optional short fragments may align with a taller label; body-like fragments remain certificate inputs.
+        val pool=fragments.filter { step();it.box.x-request.box.x<=maxHeight }
+            .sortedWith { a,b -> step();compareValuesBy(a,b,{it.box.y},{it.box.x}) }
+        val candidates=roles.associateWith { mutableListOf<RecoveryField>() }
+        fun consider(role:String,labels:List<RecoveryStructureUnit>) {
+            step()
+            val box=union(labels.map { step();it.box })
+            // Canonical nearest cuts avoid treating equivalent empty margins as different partitions.
+            val top=request.cuts.filter { step();it.axis=="horizontal" && it.position<=box.y }.maxByOrNull { step();it.position } ?: return
+            val bottom=request.cuts.filter { step();it.axis=="horizontal" && it.position>=box.y+box.height }.minByOrNull { step();it.position } ?: return
+            val left=request.cuts.filter { step();it.axis=="vertical" && it.position>=box.x+box.width }.minByOrNull { step();it.position } ?: return
+            candidates.getValue(role)+=RecoveryField(RecoveryValueState.PRESENT,"",labels.map { it.id }+listOf(top.id,bottom.id,left.id))
+        }
+        fun chains(role:String,start:Int,labels:List<RecoveryStructureUnit>,text:String) {
+            if(labels.isNotEmpty() && text in aliases.getValue(role))consider(role,labels)
+            if(labels.size==3)return
+            for(i in start until pool.size) {
+                step();val next=text+texts.getValue(pool[i].id)
+                if(aliases.getValue(role).any { step();it.startsWith(next) })chains(role,i+1,labels+pool[i],next)
             }
         }
-        if(fields.size!=3)return null
-        val proposal=listOf(RecoveryLesson(fields.getValue("subject"),fields.getValue("teacher"),fields.getValue("room"),emptyList(),emptyList()))
-        return try { verify(request,proposal);proposal }catch(_:InvalidRecoveryOutput) { null }
+        roles.forEach { chains(it,0,emptyList(),"") }
+        var accepted:List<RecoveryLesson>?=null
+        var partition:List<Triple<String,List<String>,List<String>>>?=null
+        for(subject in candidates.getValue("subject"))for(teacher in candidates.getValue("teacher"))for(room in candidates.getValue("room")) {
+            step()
+            val proposal=listOf(RecoveryLesson(subject,teacher,room,emptyList(),emptyList()))
+            val verified=try { verify(request,proposal) }catch(_:InvalidRecoveryOutput) { continue }
+            val semantic=verified.sortedBy { it.role }.map { step();Triple(it.role,it.labels.map { u->u.id },it.body.map { u->u.id }) }
+            if(partition!=null && partition!=semantic)throw RecoveryPreparationFailure("表構造の役割候補が一意ではありません")
+            accepted=proposal;partition=semantic
+        }
+        return accepted
     }
     suspend fun resolve(requests:List<RecoveryStructureRequest>,providers:List<LocalRecoveryProvider>,os:String,osMajor:Int,check:()->Unit):RecoveryStructureResolution {
         require(requests.size in 1..32 && requests.map { it.id }.distinct().size==requests.size && requests.all { json.encodeToString(it.prompt).length<=8192 })

@@ -132,7 +132,7 @@ object RecoveryLayout {
                 if(!empty && !proposal && !parallel && !fixed) {
                     val slots=boundPeriods.map { RecoverySlot(cls.first.first,day.first.first,it.first.first.toInt()) }
                     val request=try { RecoveryStructure.request(id,input.page,region.box,slots,owned) }catch(_:IllegalArgumentException) { throw RecoveryPreparationFailure("表構造の候補上限") }
-                    val answer=structureProposals[id]?.also { usedProposals+=id } ?: RecoveryStructure.cheap(request)
+                    val answer=structureProposals[id]?.also { usedProposals+=id } ?: RecoveryStructure.cheap(request,::step)
                     if(answer==null)requests+=request
                     else {
                         val verified=RecoveryStructure.verify(request,answer)

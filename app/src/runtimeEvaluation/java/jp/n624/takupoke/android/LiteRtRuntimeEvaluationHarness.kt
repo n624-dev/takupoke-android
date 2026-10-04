@@ -92,25 +92,28 @@ object LiteRtRuntimeEvaluationHarness {
                     assertFalse(RecoveryValidator.validate(doc,result(doc,cell,corrupt,provider.metadata)).canAdopt);invalidControls++
                 }
             }
-            // A genuine unresolved folded-label case reaches native structure
-            // proposals without suppressing any production Rules path.
+            // Direct native component probe only. The Builder now resolves this
+            // folded-label page deterministically; it is not model-recovery evidence.
             val foldedPage=LiteRtEvaluationFixtures.foldedStructurePage()
-            val preparation=try { RecoveryLayout.prepare(listOf(RecoveryLayoutPage(1,foldedPage)),"b".repeat(64),MaterialKind.TIMETABLE);fail("Folded fixture was already deterministic") }catch(e:RecoveryStructurePreparation){e}
-            val request=preparation.requests.single();assertEquals(null,RecoveryStructure.cheap(request))
+            val pages=listOf(RecoveryLayoutPage(1,foldedPage))
+            val deterministic=RecoveryLayout.prepare(pages,"b".repeat(64),MaterialKind.TIMETABLE)
+            val componentCell=deterministic.cells.single { !it.confirmedEmpty }
+            val request=RecoveryStructure.request(componentCell.id,componentCell.page,componentCell.box,componentCell.slots,deterministic.sources.filter { it.id in componentCell.sourceIds })
+            assertTrue(RecoveryStructure.cheap(request)!=null)
             val structureStart=SystemClock.elapsedRealtime();var structureAccepted=false;var structureFalseAdoption=false
             try {
                 val generated=provider.recoverCell(request.prompt)
                 // The certificate validates raw measured-ID proposals before
                 // original-page rebuild; model text/coordinates are never used.
                 RecoveryStructure.verify(request,generated)
-                val rebuilt=RecoveryLayout.prepare(preparation.pages,preparation.document.pdfHash,MaterialKind.TIMETABLE,mapOf(request.id to generated)).copy(structureMetadata=provider.metadata)
+                val rebuilt=RecoveryLayout.prepare(pages,deterministic.pdfHash,MaterialKind.TIMETABLE,mapOf(request.id to generated)).copy(structureMetadata=provider.metadata)
                 val run=RecoveryEngine.run(rebuilt,"android",Build.VERSION.SDK_INT,true,emptyList(),{null})
                 val result=requireNotNull(run.result);val validation=RecoveryValidator.validate(rebuilt,result)
                 val lessons=result.cells.filter { it.state==RecoveryValueState.PRESENT }.flatMap { it.lessons }
                 val exact=lessons.size==1 && lessons.single().let { it.subject.value=="架空科目A" && it.teacher.value=="架空担当B" && it.room.value=="架空室C" }
                 structureAccepted=validation.canAdopt;structureFalseAdoption=structureAccepted && !exact
-                report("structure_case",mapOf("name" to "body_interleaved_folded_teacher","nativeInvoked" to true,"schemaDecoded" to true,"certificatePassed" to true,"originalPagesRebuilt" to true,"rawSyntheticSample" to json.encodeToString(generated).take(256),"groundedExact" to exact,"validatorAdopt" to structureAccepted,"falseAdoption" to structureFalseAdoption,"validatorErrors" to validation.errors,"elapsedMs" to SystemClock.elapsedRealtime()-structureStart))
-            }catch(e:InvalidRecoveryOutput) { report("structure_case",mapOf("name" to "body_interleaved_folded_teacher","nativeInvoked" to true,"certificatePassed" to false,"schemaDecoded" to (e.cause==null),"validatorAdopt" to false,"falseAdoption" to false,"elapsedMs" to SystemClock.elapsedRealtime()-structureStart)) }
+                report("structure_case",mapOf("name" to "body_interleaved_folded_teacher","componentOnly" to true,"rulesResolved" to true,"nativeInvoked" to true,"schemaDecoded" to true,"certificatePassed" to true,"originalPagesRebuilt" to true,"rawSyntheticSample" to json.encodeToString(generated).take(256),"groundedExact" to exact,"validatorAdopt" to structureAccepted,"falseAdoption" to structureFalseAdoption,"validatorErrors" to validation.errors,"elapsedMs" to SystemClock.elapsedRealtime()-structureStart))
+            }catch(e:InvalidRecoveryOutput) { report("structure_case",mapOf("name" to "body_interleaved_folded_teacher","componentOnly" to true,"rulesResolved" to true,"nativeInvoked" to true,"certificatePassed" to false,"schemaDecoded" to (e.cause==null),"validatorAdopt" to false,"falseAdoption" to false,"elapsedMs" to SystemClock.elapsedRealtime()-structureStart)) }
             assertFalse(structureFalseAdoption)
             val probe=fixture(cases.first());val cell=probe.cells.single { !it.confirmedEmpty }
             val entered=CompletableDeferred<Unit>();val pending=launch(Dispatchers.IO) { entered.complete(Unit);runCatching { provider.recoverCell(prompt(probe,cell).copy(parallelCount=4)) } }
@@ -120,7 +123,7 @@ object LiteRtRuntimeEvaluationHarness {
             provider.close();released=true
             try { provider.recoverCell(prompt(probe,cell));fail("Closed provider still generated") }catch(_:IllegalStateException) {}
             report("release",mapOf("closedProviderRejectedNewCall" to true,"memory" to memory()))
-            report("summary",mapOf("cases" to cases.size,"rawExact" to rawExact,"validatorAccepted" to accepted,"falseAdoptions" to falseAdoptions,"dangerousControlsRejected" to invalidControls,"initialized" to initialized,"nativeCancellationDemonstrated" to cancellation,"released" to released,"peakTotalPssKiB" to peakPss.get(),"peakPrivateFootprintKiB" to peakPrivate.get(),"peakNativePssKiB" to peakNative.get(),"catalogValidated" to false,"qualityApproved" to false,"structureCases" to 1,"structureValidatorAccepted" to structureAccepted,"structureFalseAdoptions" to (if(structureFalseAdoption)1 else 0),"qualification" to "16 synthetic component cases cannot establish real timetable false-adoption rate or physical-device suitability"))
+            report("summary",mapOf("cases" to cases.size,"rawExact" to rawExact,"validatorAccepted" to accepted,"falseAdoptions" to falseAdoptions,"dangerousControlsRejected" to invalidControls,"initialized" to initialized,"nativeCancellationDemonstrated" to cancellation,"released" to released,"peakTotalPssKiB" to peakPss.get(),"peakPrivateFootprintKiB" to peakPrivate.get(),"peakNativePssKiB" to peakNative.get(),"catalogValidated" to false,"qualityApproved" to false,"structureCases" to 1,"structureModelRecoveryCases" to 0,"structureValidatorAccepted" to structureAccepted,"structureFalseAdoptions" to (if(structureFalseAdoption)1 else 0),"qualification" to "16 synthetic component cases cannot establish real timetable false-adoption rate or physical-device suitability"))
             assertEquals(0,falseAdoptions);assertTrue(invalidControls>=10)
         } finally { try { if(!released)provider.close() } finally { sampler.cancelAndJoin();report("cleanup",mapOf("memory" to memory(),"catalogValidated" to RecoveryModelCatalog.candidates.first().validated)) } }
     }

@@ -108,6 +108,42 @@ class RecoveryLayoutTest {
         }
         RecoveryLayoutPage(day,Page(920.0,490.0,glyphs,lines))
     }
+    @Test fun interleavedFoldedLabelsUseRulesAcrossCompleteExamAndReturnDocuments()=runBlocking {
+        for(kind in listOf(MaterialKind.EXAM,MaterialKind.RETURN)) {
+            val pages=specialPages(kind).map { input ->
+                val original=input.layout
+                val glyphs=original.glyphs.filterNot { it.x==130.0 && it.y in listOf(122.0,128.0,134.0) }.toMutableList()
+                fun add(text:String,x:Double,y:Double,w:Double=8.0) { glyphs+=Glyph(text,x,y,w,1.0,glyphs.size) }
+                add("科目:",101.0,122.0);add("架空頁${input.page}I1",130.0,122.0,40.0)
+                add("担当教",101.0,126.0);add("架空頁${input.page}O0",130.0,128.0,40.0);add("員:",101.0,130.0)
+                add("教室:",101.0,134.0);add("架空頁${input.page}同名",130.0,134.0,40.0)
+                input.copy(layout=original.copy(glyphs=glyphs))
+            }
+            val doc=RecoveryLayout.prepare(pages,"d".repeat(64),kind)
+            val expectedSlots=if(kind==MaterialKind.EXAM)510 else 680
+            assertEquals(expectedSlots,doc.requiredSlots.size)
+            val provider=object:LocalRecoveryProvider {
+                override val id="liteRtLm";override val localOnly=true
+                override val metadata get()=error("Complete folded documents are Rules controls")
+                override suspend fun availability():LocalProviderState=error("Rules must not load a model")
+                override suspend fun recoverCell(cell:RecoveryPromptCell):List<RecoveryLesson> = error("Rules must not generate")
+            }
+            val run=RecoveryEngine.run(doc,"android",36,true,listOf(provider),{null})
+            assertEquals(RecoveryJobState.AWAITING_CONFIRMATION,run.state,run.errors.toString())
+            val result=requireNotNull(run.result);assertEquals("rule",result.metadata.provider)
+            assertTrue(RecoveryValidator.validate(doc,result).canAdopt)
+            val analysis=RecoveryAnalysis.convert(doc,result);assertEquals(expectedSlots,analysis.lessons.size)
+            val folded=result.cells.filter { cell->cell.lessons.any { it.subject.value.startsWith("架空頁") } }
+            assertEquals(5,folded.size)
+            folded.forEachIndexed { index,cell ->
+                val lesson=cell.lessons.single();val page=index+1
+                assertEquals("架空頁${page}I1",lesson.subject.value)
+                assertEquals("架空頁${page}O0",lesson.teacher.value)
+                assertEquals("架空頁${page}同名",lesson.room.value)
+                assertEquals(listOf(1),doc.cells.single { it.id==cell.cellId }.slots.map { it.period })
+            }
+        }
+    }
     private fun denseSpecialDocument():RecoveryDocument {
         val pages=specialPages(MaterialKind.RETURN).map { input ->
             val glyphs=mutableListOf<Glyph>()

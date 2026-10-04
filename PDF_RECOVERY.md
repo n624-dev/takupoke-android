@@ -24,7 +24,7 @@ Validator通過後も正式Analysisを保存しない。原文と復旧プレビ
 
 ## 折り返し見出しの有限構造提案
 
-同じ行と原文の隣接行だけで解けるラベルはRulesを優先する。左列の「担当教」/「員:」の間に右列の本文行が挟まる場合など、既知Builderで未解決のセルだけをstructureProposalへ渡す。全ページの年度・学期・クラス・日付・時限・時刻・原文inventoryを先に検証し、保存半期が違えばProviderを作らない。binding検査の一時保留は指定pendingセルだけで、他セルの不正scopeはAI前に拒否する。
+必須の左列ラベルrailは3〜9 group、短いfragmentの候補poolは元測定groupの64件以内とし、各ラベルは原文順の1〜3 fragmentを既知ラベルprefixで枝刈りしてRulesで探索する。右列の本文行が「担当教」/「員:」の間に挟まる場合も、完全な原文ラベルと最寄りの測定cutを組み合わせ、従来の独立certificateで全atomの役割partitionを証明できればRulesで復旧する。等価な空白余白はcanonical cutへ揃え、異なる意味partitionは拒否する。探索は1 requestあたり100,000比較を上限とし、同じ探索量をBuilderの文書全体20M予算へ課金して取消も確認する。RulesのmodelVersion/runtimeVersionは3として来歴を記録し、変更していないpromptVersion/recoveryVersionは2、Schema2/Validator4を維持する。この型の架空fixtureはAI復旧品質の合格例に数えない。Builderで未解決のセルだけをstructureProposalへ渡す。全ページの年度・学期・クラス・日付・時限・時刻・原文inventoryを先に検証し、保存半期が違えばProviderを作らない。binding検査の一時保留は指定pendingセルだけで、他セルの不正scopeはAI前に拒否する。
 
 モデルが選べるものは元文字group IDと、元セル辺/文字のない測定gapからコードが作ったcut IDだけ。自由な文字・座標・boxは使わない。別コードが完全な原文ラベル、左位置、非重複band、ラベル全消費、本文全atomの一度だけのpartition、役割のラベルbbox内への本文位置を証明する。原本ページを候補で再buildし、Rulesと通常Validatorを通してから未採用プレビューへ進む。実Providerのmetadataを結果に残す。偽ID・役割交換・孤立本文・モデルの自由値は拒否する。
 
@@ -58,12 +58,14 @@ Kotlin 2.4のmetadataを扱うため、[Androidの公式互換表](https://devel
 
 2026-10-03の[manual評価37131519065](https://github.com/n624-dev/takupoke-android/actions/runs/37131519065)はParser8・Schema2・Validator4・Prompt3・Recovery2、LiteRT-LM 0.17.1 / x86_64 API36 emulator CPU / context4096で完了した。固定モデル344671744 bytesのsize/SHA、R8 9.1.31のJNI実名6とRunner参照閉包524class/3517member、initialize 15.0秒、smoke、実行中cancel→join、Provider cancel→join、close後の再実行拒否を確認した。peak PSS 2513548 KiB/private footprint 2510684 KiB（約2.40 GiB）から解放後PSS 170451 KiBへ下がった。
 
-16架空ケース中14件でnative構造化出力をdecodeできたが、原文完全一致・Validator採用は0件だった。残り2件は前処理で安全に拒否した。別の本文挟み込み型structure proposal 1件もcertificateで拒否し、誤採用は0件、危険な出力control 13件を拒否した。これはRuntime接続・安全な失敗の実証であり、復旧品質の合格ではない。candidateのvalidated=falseを維持する。今回の実行はParser8であり、後続のParser9 stroke文字対策のnative回帰とは区別する。通常API29/36はそれぞれ54 native testsを通過した。実バンドル日本語OCRは原文「架空科目」と独立空欄を取得したが、一部confidenceが0.8未満のため両APIでPARTIALに保持した。OCRのcomplete復旧成功を証明した結果として扱わない。
+16架空ケース中14件でnative構造化出力をdecodeできたが、原文完全一致・Validator採用は0件だった。残り2件は前処理で安全に拒否した。当時の別の本文挟み込み型structure proposal 1件もcertificateで拒否し、誤採用は0件、危険な出力control 13件を拒否した。これはRuntime接続・安全な失敗の実証であり、復旧品質の合格ではない。candidateのvalidated=falseを維持する。今回の実行はParser8であり、後続のParser9 stroke文字対策のnative回帰とは区別する。通常API29/36はそれぞれ54 native testsを通過した。実バンドル日本語OCRは原文「架空科目」と独立空欄を取得したが、一部confidenceが0.8未満のため両APIでPARTIALに保持した。OCRのcomplete復旧成功を証明した結果として扱わない。
 
 ## Android native candidate評価（manualのみ）
 
 既存[android.yml](.github/workflows/android.yml)の手動入力`evaluatePinnedCandidate=true`で、同じfeature commitの[runtime-evaluation.yml](.github/workflows/runtime-evaluation.yml)を呼び出せる。通常pushの実行対象、OfflineRunnerのsuiteとネット拒否は変更せず、`-Ptakupoke.runtimeEvaluation=true`の時だけ独立の`src/runtimeEvaluationAndroidTest`と評価用target側`src/runtimeEvaluation`を組み込む。最小JUnit入口から固定bridgeを呼び、SDK・schema・Validator・oracleは同じ最適化APK内で実行するため、別APK間で最適化された共有ライブラリ名へ依存しない。この評価用optimized releaseはdebug鍵で署名し、配布物として公開しない。hostが固定Qwen3-0.6B INT4の344671744 bytesだけをHTTPS取得し、size/SHAを検証して端末へコピーする。アプリ側でもsize/SHAを確認する。学校URL、実在資料、学校入力の送信は使わない。
 
-実LiteRT-LM 0.17.1 / CPU / context4096でinitialize、smoke、Structured Outputのdecode、既存Validator、native cancel、Provider cancel、終了後closeを検証する。16ケースは役割順序、ラベルalias、教員/教室の明示空欄、並記2、同じ文字列の別ID、1/I・0/Oの原文、指示を装った本文、欠落とpartial pageを含む。欠落/partialは前処理やValidatorで安全に失敗するかを記録する。原文atomと独立scopeからRulesで一意に解けるセルについて、**モデル単体の評価**としてProviderを直接呼び、製品のRules優先経路を変更しない。原文再構築後の完全一致、raw完全一致、Validator採否、誤採用、危険な役割混入出力の拒否を別々に記録する。加えて、cheap Rulesで未解決の本文挟み込み型ラベル1件を実structureProposal→原文certificate→元ページ再build→Rules/Validatorで評価し、16件のfield評価とは別のmetricsで記録する。
+実LiteRT-LM 0.17.1 / CPU / context4096でinitialize、smoke、Structured Outputのdecode、既存Validator、native cancel、Provider cancel、終了後closeを検証する。16ケースは役割順序、ラベルalias、教員/教室の明示空欄、並記2、同じ文字列の別ID、1/I・0/Oの原文、指示を装った本文、欠落とpartial pageを含む。欠落/partialは前処理やValidatorで安全に失敗するかを記録する。原文atomと独立scopeからRulesで一意に解けるセルについて、**モデル単体の評価**としてProviderを直接呼び、製品のRules優先経路を変更しない。原文再構築後の完全一致、raw完全一致、Validator採否、誤採用、危険な役割混入出力の拒否を別々に記録する。加えて、現在はRulesで解決する本文挟み込み型ラベル1件の元測定requestを、モデル単体のcomponent評価として実structureProposal→原文certificate→元ページ再build→Rules/Validatorへ直接渡し、16件のfield評価とは別のmetricsで記録する。componentOnly=true / rulesResolved=true / structureModelRecoveryCases=0を明示し、製品でAIが必要な復旧例に数えない。
 
 PSS、private footprint、native PSS、native heap、Java heap、初期化/各推論/取消の時間をActionsログへJSON行で出力する。R8後のJNI class名保持と、Test APK入口から参照するclass/memberの閉包を確認する。評価時だけ別APKのOfflineApplicationから呼ぶvirtual repository hook・constructor・Transport interfaceを保持し、起動時に通信拒否transportの注入を実証する。起動前クラッシュでは架空評価専用のAndroidRuntime/crash診断を出力する。モデル、APK、入力、ログをActions artifact/cacheへ永続保存しない。比較候補の`validated=false`はこの評価でも維持する。16架空ケースやx86_64 emulator CPUの成功は、学校資料の誤採用率、ARM端末メモリ、GPU/NPU性能や配信合格の証明にはしない。manual評価はコードを追加した段階と実行済みの結果を区別する。
+
+現在の有限rail Rulesでは、この本文挟み込み型fixtureはモデルなしで解決する。manual harnessで同じ元測定requestをnativeへ直接渡す場合はcomponentOnly=true / rulesResolved=trueを記録し、structureModelRecoveryCases=0とする。上記2026-10-03の実行結果は当時のRulesによる履歴であり、現在のAI復旧成功例ではない。

@@ -375,7 +375,7 @@ object RecoveryEngine {
         val missing = doc.cells.indices.filter { recovered[it] == null }
         fun result(metadata: RecoveryMetadata) = RecoveryResult(doc.pdfHash, doc.kind, doc.schoolYear, doc.term, recovered.map { requireNotNull(it) }, metadata)
         suspend fun validated(value: RecoveryResult): RecoveryRun { alive(); val validation = runInterruptible { RecoveryValidator.validate(doc, value) }; alive(); return RecoveryRun(if (validation.canAdopt) RecoveryJobState.AWAITING_CONFIRMATION else RecoveryJobState.FAILED, value.takeIf { validation.canAdopt }, validation.errors) }
-        if (missing.isEmpty()) return validated(result(doc.structureMetadata ?: RecoveryMetadata("rule", "rules", "2", "2", "2", RecoveryValidator.SCHEMA_VERSION, RecoveryValidator.VERSION, "$os:$osMajor")))
+        if (missing.isEmpty()) return validated(result(doc.structureMetadata ?: RecoveryMetadata("rule", "rules", "3", "3", "2", RecoveryValidator.SCHEMA_VERSION, RecoveryValidator.VERSION, "$os:$osMajor")))
         var runtimeFailed = false
         for (id in RecoveryPolicy.providers(os, osMajor)) {
             alive(); val matching = providers.filter { it.id == id && it.localOnly }
