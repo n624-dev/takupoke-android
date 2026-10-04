@@ -11,4 +11,4 @@ pluginManagement {
 }
 dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
 rootProject.name = "Takupoke"
-include(":app", ":core")
+include(":app", ":core", ":model-evaluation")

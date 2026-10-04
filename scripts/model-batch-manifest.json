@@ -1,0 +1,72 @@
+{
+  "runtime": "litert-lm-api==0.17.1",
+  "nativeLibrarySHA256": "f202ca2351db108105fed241cd731266255c2471f3ed850c265d0c29d27fd841",
+  "models": [
+    {
+      "id": "gemma4-e2b",
+      "repo": "litert-community/gemma-4-E2B-it-litert-lm",
+      "revision": "b3ca0d2f076785a8f4b2219ddbd2bdb99954eae1",
+      "file": "gemma-4-E2B-it.litertlm",
+      "bytes": 2588147712,
+      "sha256": "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c",
+      "license": "apache-2.0",
+      "gated": false,
+      "qualityApproved": false
+    },
+    {
+      "id": "minicpm5-1b",
+      "repo": "litert-community/MiniCPM5-1B",
+      "revision": "8025a9864a6fc31aa2e29db19e5f1a0e4802a4df",
+      "file": "minicpm_wi4b32_wi8_afp32.litertlm",
+      "bytes": 792625152,
+      "sha256": "43f41a837c58408192d703a7cf7bb27a3f8b4f8cc1d34c7f79e54f058f966ccc",
+      "license": "apache-2.0",
+      "gated": false,
+      "qualityApproved": false
+    },
+    {
+      "id": "qwen25-15b",
+      "repo": "litert-community/Qwen2.5-1.5B-Instruct",
+      "revision": "19edb84c69a0212f29a6ef17ba0d6f278b6a1614",
+      "file": "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm",
+      "bytes": 1597931520,
+      "sha256": "faa60663b333290c1496c499828b21d3e3254a788cacd8cce917ce0f761a2dc9",
+      "license": "apache-2.0",
+      "gated": false,
+      "qualityApproved": false
+    },
+    {
+      "id": "phi4-mini",
+      "repo": "litert-community/Phi-4-mini-instruct",
+      "revision": "8cd368be75fdb94d5a6f6f5b40f1ab22a6c2543e",
+      "file": "Phi-4-mini-instruct_multi-prefill-seq_q8_ekv4096.litertlm",
+      "bytes": 3910090752,
+      "sha256": "7764d4deb53800578307be33039476b38a6c370fff71bedb3c0552563e23ab02",
+      "license": "mit",
+      "gated": false,
+      "qualityApproved": false
+    },
+    {
+      "id": "smol2-360m",
+      "repo": "litert-community/SmolLM2-360M-Instruct",
+      "revision": "507c99cfe6541ba2bcd84818786f7b025935e5e1",
+      "file": "SmolLM2_360M_instruct.litertlm",
+      "bytes": 373719040,
+      "sha256": "8e2834da211b439751af968ed650febdde5a8cb8d88bc6c1a3059f049caa5c2e",
+      "license": "apache-2.0",
+      "gated": false,
+      "qualityApproved": false
+    },
+    {
+      "id": "smol3-3b",
+      "repo": "litert-community/SmolLM3-3B",
+      "revision": "c29e7655125fe754c483dfdf5e31a10acf0a51fb",
+      "file": "SmolLM3-3B_q4_block32_ekv4096.litertlm",
+      "bytes": 2002257840,
+      "sha256": "119fc1f266c445e9ffbc8c16695eb325b629da3fd464e73a75e5db14ef3926c3",
+      "license": "apache-2.0",
+      "gated": false,
+      "qualityApproved": false
+    }
+  ]
+}

@@ -8,12 +8,19 @@ on:
         description: Also run the pinned local AI candidate on invented data (manual only, no approval)
         type: boolean
         default: false
+      comparePinnedCandidates:
+        description: Compare six pinned local CPU models on the same invented component inputs
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
   group: android-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  model-batch:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.comparePinnedCandidates }}
+    uses: ./.github/workflows/model-batch.yml
   runtime-evaluation:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.evaluatePinnedCandidate }}
     uses: ./.github/workflows/runtime-evaluation.yml
