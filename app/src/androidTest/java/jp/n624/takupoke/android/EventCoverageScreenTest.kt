@@ -69,7 +69,7 @@ class EventCoverageScreenTest {
         val current = state(monday, 1).copy(events = listOf(payload(schoolYear(monday) - 1)))
         compose.setContent { MaterialTheme { TimetableScreen(current, {}) {} } }
         compose.onNodeWithText(warning).assertIsDisplayed()
-        compose.onNodeWithText("架空通常科目").assertIsDisplayed()
+        compose.onNodeWithText("架空通常科目").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun weekDatePickerRequiresBothSchoolYearsAcrossMarchAprilBoundary() {
