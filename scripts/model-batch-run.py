@@ -60,7 +60,7 @@ def run(args):
     corpus=json.loads(args.corpus.read_text());manifest=json.loads(args.manifest.read_text())
     model=next(m for m in manifest['models'] if m['id']==args.model_id)
     native=args.directory/'native.json';receipt=args.directory/'resource.json'
-    report=dict(model=model,stage='acquisition',host=dict(os=platform.platform(),arch=platform.machine(),cpu=platform.processor(),cpuModel=next((line.split(':',1)[1].strip() for line in pathlib.Path('/proc/cpuinfo').read_text().splitlines() if line.startswith('model name')),None),cpuCount=os.cpu_count(),cpuTopology=sorted({line for line in pathlib.Path('/proc/cpuinfo').read_text().splitlines() if line.startswith(('physical id','cpu cores','siblings'))}),meminfo=pathlib.Path('/proc/meminfo').read_text(),cgroupLimit=pathlib.Path('/sys/fs/cgroup/memory.max').read_text() if pathlib.Path('/sys/fs/cgroup/memory.max').exists() else None),
+    report=dict(model=model,instructionProfile=getattr(args,'instruction_profile','baseline'),stage='acquisition',host=dict(os=platform.platform(),arch=platform.machine(),cpu=platform.processor(),cpuModel=next((line.split(':',1)[1].strip() for line in pathlib.Path('/proc/cpuinfo').read_text().splitlines() if line.startswith('model name')),None),cpuCount=os.cpu_count(),cpuTopology=sorted({line for line in pathlib.Path('/proc/cpuinfo').read_text().splitlines() if line.startswith(('physical id','cpu cores','siblings'))}),meminfo=pathlib.Path('/proc/meminfo').read_text(),cgroupLimit=pathlib.Path('/sys/fs/cgroup/memory.max').read_text() if pathlib.Path('/sys/fs/cgroup/memory.max').exists() else None),
                 hashes={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in [args.corpus,args.manifest,pathlib.Path(__file__),pathlib.Path(__file__).with_name('model-batch-native.py')]},peakChildRSSBytes=0,guardFailure=None,resourceBefore=dict(cgroup=cgroup_snapshot(),diskFreeBytes=shutil.disk_usage(args.directory).free))
     def save():atomic_json(receipt,report)
     def unfinished(stage):
@@ -92,7 +92,7 @@ def run(args):
         card=urllib.request.urlopen('https://huggingface.co/'+model['repo']+'/resolve/'+model['revision']+'/README.md',timeout=120).read()
         report['publisherCard']=card.decode();report['publisherCardSHA256']=hashlib.sha256(card).hexdigest()
         report['stage']='native';save();start=time.monotonic()
-        command=[sys.executable,str(pathlib.Path(__file__).with_name('model-batch-native.py')),'--corpus',str(args.corpus),'--manifest',str(args.manifest),'--model-id',args.model_id,'--model',str(modelpath),'--cache',str(cache),'--output',str(native)]
+        command=[sys.executable,str(pathlib.Path(__file__).with_name('model-batch-native.py')),'--corpus',str(args.corpus),'--manifest',str(args.manifest),'--model-id',args.model_id,'--instruction-profile',getattr(args,'instruction_profile','baseline'),'--model',str(modelpath),'--cache',str(cache),'--output',str(native)]
         with (args.directory/'native-stderr.txt').open('w') as errors:
             child=subprocess.Popen(command,stderr=errors,stdout=errors)
             while child.poll() is None:
@@ -130,4 +130,5 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser()
     for name in ['manifest','corpus','directory']:parser.add_argument('--'+name,type=pathlib.Path,required=True)
     parser.add_argument('--model-id',required=True)
+    parser.add_argument('--instruction-profile',choices=['baseline','clear_v1'],default='baseline')
     run(parser.parse_args())

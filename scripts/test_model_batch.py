@@ -83,4 +83,27 @@ class InterruptedReceiptTest(unittest.TestCase):
             self.assertEqual(b'{"rows":[',base64.b64decode(result['transportStatus']['invalidFiles']['native.json']['base64']))
             self.assertEqual('架空原文I1O0'*6000,result['corpus.json']['text'])
 
+
+class FixedInstructionSelectionTest(unittest.TestCase):
+    def native(self):
+        spec=importlib.util.spec_from_file_location('batch_native',pathlib.Path(__file__).with_name('model-batch-native.py'))
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        return module
+    def test_only_instruction_changes_and_variant_is_case_independent(self):
+        native=self.native()
+        original={'instruction':'exact frozen baseline','prompt':{'sources':['invented-data']},'schema':{'type':'object'}}
+        import copy
+        before=copy.deepcopy(original)
+        self.assertEqual('exact frozen baseline',native.instruction_for(original,'baseline'))
+        clear=native.instruction_for(original,'clear_v1')
+        self.assertEqual(clear,native.instruction_for({'instruction':'other baseline','prompt':{'sources':['different-data']}},'clear_v1'))
+        self.assertEqual(before,original)
+        self.assertIn('If the original body text is present, readable and uniquely assigned',clear)
+        self.assertIn('UNREADABLE only',clear)
+    def test_variant_instruction_guard_fails_closed(self):
+        native=self.native()
+        with patch.object(native,'digest',return_value='modified bytes'):
+            with self.assertRaises(AssertionError):native.instruction_for({'instruction':'baseline'},'clear_v1')
+        with self.assertRaises(AssertionError):native.instruction_for({'instruction':'baseline'},'unreviewed-variant')
+
 if __name__=='__main__':unittest.main()

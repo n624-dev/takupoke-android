@@ -28,6 +28,14 @@ def digest(path):
     return sha.hexdigest()
 
 
+def instruction_for(case, profile):
+    if profile=='baseline':return case['instruction']
+    assert profile=='clear_v1'
+    path=pathlib.Path(__file__).with_name('model-batch-clear-instruction.txt')
+    assert digest(path)=='d829f92b59fffe4dc644f4cb8a19288a1207f60945808181825b83d1d6cba5bb', 'The reviewed research instruction changed'
+    return path.read_text()
+
+
 def run(args):
     import litert_lm
     from litert_lm import (Engine, Backend, ThinkingConfig, SamplerConfig, ConstrainedDecodingConfig,
@@ -41,7 +49,7 @@ def run(args):
     assert args.cache.is_dir(), 'On-disk owned cache must exist before native initialization'
     rows=[dict(name=c['name'],attempted=False,stage='not_attempted') if c['prepared'] else dict(name=c['name'],attempted=False,stage='preparation_rejected') for c in corpus['cases']]
     report=dict(model=model,corpusSHA256=digest(args.corpus),nativeSHA256=digest(native),providerFingerprint=corpus['providerFingerprint'],
-                configuration=dict(runtime=manifest['runtime'],backend='CPU',threads=2,contextTokens=4096,maxOutputTokens=1024,topK=1,topP=.95,temperature=0,seed=42,thinking=False,chatTemplate='unmodified bundle default',automaticToolCalling=False),
+                configuration=dict(runtime=manifest['runtime'],backend='CPU',threads=2,contextTokens=4096,maxOutputTokens=1024,topK=1,topP=.95,temperature=0,seed=42,thinking=False,instructionProfile=args.instruction_profile,chatTemplate='unmodified bundle default',automaticToolCalling=False),
                 initialization='pending',rows=rows)
     def save():atomic_json(args.output,report)
     save();start=time.monotonic()
@@ -56,9 +64,10 @@ def run(args):
     try:
         for case,row in zip(corpus['cases'],rows):
             if not case['prepared']:continue
-            row.update(attempted=True,stage='inference_running');save();start=time.monotonic()
+            instruction=instruction_for(case,args.instruction_profile)
+            row.update(attempted=True,stage='inference_running',instructionSHA256=hashlib.sha256(instruction.encode()).hexdigest());save();start=time.monotonic()
             try:
-                with engine.create_conversation(system_message=case['instruction'],thinking_config=ThinkingConfig(enable_thinking=False),
+                with engine.create_conversation(system_message=instruction,thinking_config=ThinkingConfig(enable_thinking=False),
                     sampler_config=SamplerConfig(top_k=1,top_p=.95,temperature=0,seed=42),max_output_tokens=1024,
                     automatic_tool_calling=False,tools=[],constrained_decoding_config=ConstrainedDecodingConfig(enable=True,provider=LiteRtLmConstraintProviderType.LL_GUIDANCE)) as conversation:
                     response=conversation.send_message(json.dumps(case['prompt'],ensure_ascii=False,separators=(',',':')),response_format=ResponseFormat.json(case['schema']))
@@ -73,4 +82,5 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser()
     for name in ['corpus','manifest','model','cache','output']:parser.add_argument('--'+name,type=pathlib.Path,required=True)
     parser.add_argument('--model-id',required=True)
+    parser.add_argument('--instruction-profile',choices=['baseline','clear_v1'],default='baseline')
     run(parser.parse_args())
