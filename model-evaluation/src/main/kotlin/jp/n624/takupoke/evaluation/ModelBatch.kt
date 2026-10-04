@@ -89,6 +89,8 @@ fun main(args:Array<String>) {
     require(args.size>=2)
     when(args[0]) {
         "export" -> File(args[1]).writeText(ModelBatch.export())
+        "export-micro" -> File(args[1]).writeText(MicroFields.export())
+        "score-micro" -> { require(args.size==3);File(args[2]).writeText(MicroFields.replay(File(args[1]))) }
         "score" -> { require(args.size==3);File(args[2]).writeText(ModelBatch.replay(File(args[1]))) }
         "score-state-evidence" -> { require(args.size==3);File(args[2]).writeText(StateEvidenceScore.replay(File(args[1]))) }
         else -> error("Expected export or score")

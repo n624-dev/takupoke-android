@@ -60,7 +60,7 @@ def run(args):
     corpus=json.loads(args.corpus.read_text());manifest=json.loads(args.manifest.read_text())
     model=next(m for m in manifest['models'] if m['id']==args.model_id)
     native=args.directory/'native.json';receipt=args.directory/'resource.json'
-    report=dict(model=model,instructionProfile=getattr(args,'instruction_profile','baseline'),stage='acquisition',host=dict(os=platform.platform(),arch=platform.machine(),cpu=platform.processor(),cpuModel=next((line.split(':',1)[1].strip() for line in pathlib.Path('/proc/cpuinfo').read_text().splitlines() if line.startswith('model name')),None),cpuCount=os.cpu_count(),cpuTopology=sorted({line for line in pathlib.Path('/proc/cpuinfo').read_text().splitlines() if line.startswith(('physical id','cpu cores','siblings'))}),meminfo=pathlib.Path('/proc/meminfo').read_text(),cgroupLimit=pathlib.Path('/sys/fs/cgroup/memory.max').read_text() if pathlib.Path('/sys/fs/cgroup/memory.max').exists() else None),
+    report=dict(walltimeLimitSeconds=900 if getattr(args,'instruction_profile','baseline')=='micro_field_v1' else 1200,model=model,instructionProfile=getattr(args,'instruction_profile','baseline'),stage='acquisition',host=dict(os=platform.platform(),arch=platform.machine(),cpu=platform.processor(),cpuModel=next((line.split(':',1)[1].strip() for line in pathlib.Path('/proc/cpuinfo').read_text().splitlines() if line.startswith('model name')),None),cpuCount=os.cpu_count(),cpuTopology=sorted({line for line in pathlib.Path('/proc/cpuinfo').read_text().splitlines() if line.startswith(('physical id','cpu cores','siblings'))}),meminfo=pathlib.Path('/proc/meminfo').read_text(),cgroupLimit=pathlib.Path('/sys/fs/cgroup/memory.max').read_text() if pathlib.Path('/sys/fs/cgroup/memory.max').exists() else None),
                 hashes={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in [args.corpus,args.manifest,pathlib.Path(__file__),pathlib.Path(__file__).with_name('model-batch-native.py')]},peakChildRSSBytes=0,guardFailure=None,resourceBefore=dict(cgroup=cgroup_snapshot(),diskFreeBytes=shutil.disk_usage(args.directory).free))
     def save():atomic_json(receipt,report)
     def unfinished(stage):
@@ -103,7 +103,7 @@ def run(args):
                 except (OSError,StopIteration):pass
                 if shutil.disk_usage(args.directory).free<1073741824:report['guardFailure']='disk_reserve'
                 elif memory_available()<1073741824:report['guardFailure']='memory_reserve'
-                elif time.monotonic()-start>1200:report['guardFailure']='walltime_limit'
+                elif time.monotonic()-start>report['walltimeLimitSeconds']:report['guardFailure']='walltime_limit'
                 if report['guardFailure']:
                     child.terminate()
                     try:child.wait(timeout=10)
@@ -130,5 +130,5 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser()
     for name in ['manifest','corpus','directory']:parser.add_argument('--'+name,type=pathlib.Path,required=True)
     parser.add_argument('--model-id',required=True)
-    parser.add_argument('--instruction-profile',choices=['baseline','clear_v1','reference_v1'],default='baseline')
+    parser.add_argument('--instruction-profile',choices=['baseline','clear_v1','reference_v1','micro_field_v1'],default='baseline')
     run(parser.parse_args())

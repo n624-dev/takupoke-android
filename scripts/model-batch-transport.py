@@ -24,7 +24,7 @@ if (root/'primary.json').is_file():
         files['primary.json']=None
         invalid['primary.json']={'sha256':hashlib.sha256(raw).hexdigest(),'base64':base64.b64encode(raw).decode()}
 
-files['transportStatus']={'model':sys.argv[2], 'complete':all(files.values()), 'plannedCases':16, 'missingFiles':[name for name,value in files.items() if value is None], 'invalidFiles':invalid}
+files['transportStatus']={'model':sys.argv[2], 'complete':all(files.values()), 'plannedCases':int(sys.argv[3]) if len(sys.argv)>3 else 16, 'missingFiles':[name for name,value in files.items() if value is None], 'invalidFiles':invalid}
 # Missing setup/native/scorer receipts remain explicit unavailable denominators, never empty successes.
 payload=json.dumps(files,ensure_ascii=False,separators=(',',':')).encode()
 encoded=base64.b64encode(gzip.compress(payload,mtime=0)).decode()

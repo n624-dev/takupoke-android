@@ -18,4 +18,8 @@ dependencies {
     testImplementation(kotlin("test"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.13.4")
 }
-tasks.test { useJUnitPlatform() }
+tasks.test {
+    useJUnitPlatform()
+    workingDir = rootProject.projectDir
+    inputs.file(rootProject.file("scripts/model-batch-micro-instruction.txt"))
+}

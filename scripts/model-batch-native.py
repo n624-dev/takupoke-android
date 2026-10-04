@@ -33,6 +33,12 @@ REFERENCE_INSTRUCTION_SHA256 = '23f711aa564233963fd1a259d0403b45e3d891d6903fc000
 
 
 def instruction_for(case, profile):
+    if profile=='micro_field_v1':
+        path=pathlib.Path(__file__).with_name('model-batch-micro-instruction.txt')
+        expected='c6d1410ebe5de98ad1934627b3f5115ae396087d758814dbc538daafc750998c'
+        assert digest(path)==expected and hashlib.sha256(case['instruction'].encode()).hexdigest()==expected, 'Micro copy instruction changed'
+        assert case['prompt']['mode']=='deterministicBodyIdCopy', 'Micro profile requires its reviewed copy task'
+        return path.read_bytes().decode('utf-8')
     if profile=='baseline':return case['instruction']
     if profile=='reference_v1':
         assert REFERENCE_INSTRUCTION_SHA256 is not None, 'Exact requested reference prompt has not been supplied and reviewed'
@@ -94,5 +100,5 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser()
     for name in ['corpus','manifest','model','cache','output']:parser.add_argument('--'+name,type=pathlib.Path,required=True)
     parser.add_argument('--model-id',required=True)
-    parser.add_argument('--instruction-profile',choices=['baseline','clear_v1','reference_v1'],default='baseline')
+    parser.add_argument('--instruction-profile',choices=['baseline','clear_v1','reference_v1','micro_field_v1'],default='baseline')
     run(parser.parse_args())

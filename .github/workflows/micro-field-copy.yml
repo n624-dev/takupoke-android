@@ -1,0 +1,62 @@
+name: Bounded single-field ID-copy compliance
+on:
+  push:
+    branches: [research/android-micro-fields-20261004]
+    paths: [.github/workflows/micro-field-copy.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: micro-field-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      BATCH_ROOT: /tmp/takupoke-micro-field-${{ matrix.model }}
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        model: [gemma4-e2b, qwen25-15b]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Disposable runner data
+        run: |
+          echo "GRADLE_USER_HOME=$RUNNER_TEMP/model-batch-gradle" >> "$GITHUB_ENV"
+      - name: Exact core scorer and provider extraction tests
+        run: |
+          bash scripts/check-public.sh
+          python3 scripts/test_model_batch.py
+          ./gradlew :model-evaluation:test :model-evaluation:installDist --no-daemon --no-build-cache -Dorg.gradle.jvmargs=-Xmx2g
+          mkdir -p "$BATCH_ROOT"
+          model-evaluation/build/install/model-evaluation/bin/model-evaluation export-micro "$BATCH_ROOT/corpus.json"
+      - name: Pinned native Python runtime
+        run: |
+          python3 -m venv "$RUNNER_TEMP/model-batch-venv"
+          "$RUNNER_TEMP/model-batch-venv/bin/python" -m pip install --no-cache-dir litert-lm-api==0.17.1
+      - name: Actual local CPU inference and bounded owned cache
+        run: |
+          "$RUNNER_TEMP/model-batch-venv/bin/python" scripts/model-batch-run.py --manifest scripts/model-batch-manifest.json --corpus "$BATCH_ROOT/corpus.json" --model-id '${{ matrix.model }}' --instruction-profile micro_field_v1 --directory "$BATCH_ROOT/run"
+          cp "$BATCH_ROOT/run/native.json" "$BATCH_ROOT/native.json"
+          cp "$BATCH_ROOT/run/resource.json" "$BATCH_ROOT/resource.json"
+          model-evaluation/build/install/model-evaluation/bin/model-evaluation score-micro "$BATCH_ROOT/native.json" "$BATCH_ROOT/score.json"
+      - name: Checksummed complete raw receipt through logs
+        if: always()
+        run: |
+          python3 scripts/model-batch-transport.py "$BATCH_ROOT" '${{ matrix.model }}/micro_field_v1' '45'
+      - name: Remove owned runner data
+        if: always()
+        run: |
+          ./gradlew --stop || true
+          rm -rf -- "$RUNNER_TEMP/model-batch-gradle" "$RUNNER_TEMP/model-batch-venv" "$BATCH_ROOT" model-evaluation/build core/build app/build .gradle
