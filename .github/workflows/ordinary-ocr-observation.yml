@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [research/android-native-ocr-ordinary2-20261004]
-    paths: ['.github/workflows/ordinary-ocr-observation.yml']
+    paths: ['.github/workflows/ordinary-ocr-observation.yml', 'app/src/ordinaryOcrObservationAndroidTest/**']
 permissions:
   contents: read
 jobs:

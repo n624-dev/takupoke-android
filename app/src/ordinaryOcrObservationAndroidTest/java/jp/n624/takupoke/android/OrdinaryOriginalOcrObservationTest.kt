@@ -14,6 +14,7 @@ import kotlinx.serialization.json.*
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
+import java.util.zip.ZipFile
 
 class OrdinaryOriginalOcrObservationTest {
     @Test fun acquisitionOnly()=runBlocking {
@@ -30,13 +31,21 @@ class OrdinaryOriginalOcrObservationTest {
             "ordinary-verifiedblank.pdf" to "2625bf49044d59088b53109fc15ba7813073fdedac71bde5eb82925c297050f8")
         val inputs=manifest["inputs"]!!.jsonArray
         require(inputs.map { it.jsonObject["file"]!!.jsonPrimitive.content }==known.keys.toList())
-        require(context.assets.list("")!!.toSet()==known.keys+"inputs.json")
+        require(context.packageName=="jp.n624.takupoke.android.test")
+        val testApkAssets=ZipFile(context.packageCodePath).use { zip ->
+            OcrObservationProtocol.testApkAssets(zip.entries().asSequence().map { it.name }.toList())
+        }
+        // AssetManager may also expose platform/target assets; package ownership
+        // is proved by the actual test APK and PDF byte guards below.
+        val runtimeVisibleAssetNames=context.assets.list("")!!.toList()
         val results=mutableListOf<JsonObject>();var started=0;var returned=0
         val memory=ActivityManager.MemoryInfo().also { (instrumentation.targetContext.getSystemService(android.content.Context.ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(it) }
         fun publish(id:String) {
             val payload=buildJsonObject {
                 put("sourceCommit",source);put("sdkVersion","com.google.mlkit:text-recognition-japanese:16.0.1 bundled")
                 put("inputManifest",manifest);put("androidApi",Build.VERSION.SDK_INT);put("buildFingerprint",Build.FINGERPRINT)
+                put("testApkAssets",JsonArray(testApkAssets.map(::JsonPrimitive)))
+                put("runtimeVisibleAssetNames",JsonArray(runtimeVisibleAssetNames.map(::JsonPrimitive)))
                 put("abis",JsonArray(Build.SUPPORTED_ABIS.map(::JsonPrimitive)));put("deviceTotalRamBytes",memory.totalMem)
                 put("currentProcessPssKiB",Debug.getPss());put("memoryScope","Instantaneous process PSS, not peak or complete process-tree memory")
                 put("productionReadCallsStarted",started);put("productionReadCallsReturned",returned)

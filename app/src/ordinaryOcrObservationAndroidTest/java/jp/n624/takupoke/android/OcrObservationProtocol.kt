@@ -7,6 +7,14 @@ import java.util.zip.GZIPOutputStream
 import kotlinx.serialization.json.*
 
 internal object OcrObservationProtocol {
+    fun testApkAssets(entries:List<String>):List<String> {
+        require(entries.distinct().size==entries.size) { "Duplicate test APK entry" }
+        val assets=entries.filter { it.startsWith("assets/") && !it.endsWith("/") }
+        require(assets.toSet()==setOf("assets/inputs.json","assets/ordinary-literal.pdf","assets/ordinary-verifiedblank.pdf")) {
+            "Unexpected test APK asset inventory: $assets"
+        }
+        return assets
+    }
     fun sha(bytes:ByteArray)=MessageDigest.getInstance("SHA-256").digest(bytes).joinToString(""){"%02x".format(it)}
     fun confidence(value:Float):JsonObject=buildJsonObject {
         put("value",if(value.isFinite())JsonPrimitive(value) else JsonNull)
