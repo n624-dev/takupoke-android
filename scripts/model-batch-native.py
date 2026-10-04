@@ -28,8 +28,17 @@ def digest(path):
     return sha.hexdigest()
 
 
+# Filled only after the user supplies the exact referenced thread prompt and review.
+REFERENCE_INSTRUCTION_SHA256 = '23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c'
+
+
 def instruction_for(case, profile):
     if profile=='baseline':return case['instruction']
+    if profile=='reference_v1':
+        assert REFERENCE_INSTRUCTION_SHA256 is not None, 'Exact requested reference prompt has not been supplied and reviewed'
+        path=pathlib.Path(__file__).with_name('model-batch-reference-instruction.txt')
+        assert digest(path)==REFERENCE_INSTRUCTION_SHA256, 'The exact referenced instruction changed'
+        return path.read_bytes().decode('utf-8')
     assert profile=='clear_v1'
     path=pathlib.Path(__file__).with_name('model-batch-clear-instruction.txt')
     assert digest(path)=='d829f92b59fffe4dc644f4cb8a19288a1207f60945808181825b83d1d6cba5bb', 'The reviewed research instruction changed'
@@ -47,6 +56,9 @@ def run(args):
     native=pathlib.Path(litert_lm.__file__).parent/'liblitert-lm.so'
     assert digest(native)==manifest['nativeLibrarySHA256'], 'Native runtime changed'
     assert args.cache.is_dir(), 'On-disk owned cache must exist before native initialization'
+    # Fail before engine allocation if a requested fixed instruction is missing/unreviewed.
+    for case in corpus['cases']:
+        if case['prepared']:instruction_for(case,args.instruction_profile)
     rows=[dict(name=c['name'],attempted=False,stage='not_attempted') if c['prepared'] else dict(name=c['name'],attempted=False,stage='preparation_rejected') for c in corpus['cases']]
     report=dict(model=model,corpusSHA256=digest(args.corpus),nativeSHA256=digest(native),providerFingerprint=corpus['providerFingerprint'],
                 configuration=dict(runtime=manifest['runtime'],backend='CPU',threads=2,contextTokens=4096,maxOutputTokens=1024,topK=1,topP=.95,temperature=0,seed=42,thinking=False,instructionProfile=args.instruction_profile,chatTemplate='unmodified bundle default',automaticToolCalling=False),
@@ -82,5 +94,5 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser()
     for name in ['corpus','manifest','model','cache','output']:parser.add_argument('--'+name,type=pathlib.Path,required=True)
     parser.add_argument('--model-id',required=True)
-    parser.add_argument('--instruction-profile',choices=['baseline','clear_v1'],default='baseline')
+    parser.add_argument('--instruction-profile',choices=['baseline','clear_v1','reference_v1'],default='baseline')
     run(parser.parse_args())

@@ -106,4 +106,24 @@ class FixedInstructionSelectionTest(unittest.TestCase):
             with self.assertRaises(AssertionError):native.instruction_for({'instruction':'baseline'},'clear_v1')
         with self.assertRaises(AssertionError):native.instruction_for({'instruction':'baseline'},'unreviewed-variant')
 
+class ExactReferencePromptPendingTest(unittest.TestCase):
+    def test_missing_exact_reference_is_not_reconstructed_or_executed(self):
+        native=FixedInstructionSelectionTest().native()
+        with patch.object(native,'REFERENCE_INSTRUCTION_SHA256',None):
+            with self.assertRaisesRegex(AssertionError,'Exact requested reference prompt'):
+                native.instruction_for({'instruction':'truncated preview is not authorized full prompt'},'reference_v1')
+
+class ExactUserReferenceInstructionTest(unittest.TestCase):
+    def test_verbatim_reference_bytes_and_selection_preserve_corpus(self):
+        import hashlib,copy
+        path=pathlib.Path(__file__).with_name('model-batch-reference-instruction.txt')
+        raw=path.read_bytes()
+        self.assertEqual(3927,len(raw));self.assertFalse(raw.endswith(b'\n'))
+        self.assertEqual('23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c',hashlib.sha256(raw).hexdigest())
+        native=FixedInstructionSelectionTest().native()
+        case={'instruction':'baseline','prompt':{'sources':['invented-original']},'schema':{'type':'object'}}
+        original=copy.deepcopy(case)
+        self.assertEqual(raw,native.instruction_for(case,'reference_v1').encode('utf-8'))
+        self.assertEqual(original,case)
+
 if __name__=='__main__':unittest.main()

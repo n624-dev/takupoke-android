@@ -1,25 +1,25 @@
-name: Gemma fixed prompt comparison
+name: Gemma exact reference prompt comparison
 on:
   push:
     branches: [research/gemma-prompt-compare-20261004]
-    paths: [scripts/model-batch-clear-instruction.txt]
+    paths: [scripts/model-batch-reference-instruction.txt]
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: gemma-prompt-${{ github.ref }}
+  group: gemma-reference-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   compare:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
-      BATCH_ROOT: /tmp/takupoke-gemma-prompt-${{ matrix.prompt }}
+      BATCH_ROOT: /tmp/takupoke-gemma-reference-${{ matrix.prompt }}
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 1
       matrix:
-        prompt: [baseline, clear_v1]
+        prompt: [reference_v1]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:

@@ -130,5 +130,5 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser()
     for name in ['manifest','corpus','directory']:parser.add_argument('--'+name,type=pathlib.Path,required=True)
     parser.add_argument('--model-id',required=True)
-    parser.add_argument('--instruction-profile',choices=['baseline','clear_v1'],default='baseline')
+    parser.add_argument('--instruction-profile',choices=['baseline','clear_v1','reference_v1'],default='baseline')
     run(parser.parse_args())
