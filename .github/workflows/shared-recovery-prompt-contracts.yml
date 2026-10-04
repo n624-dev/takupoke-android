@@ -1,0 +1,23 @@
+name: Check shared research recovery prompts
+on:
+  push:
+    branches: [research/android-micro-fields-20261004]
+    paths: ['tools/recovery-prompt-contracts/**', '.github/workflows/shared-recovery-prompt-contracts.yml', 'scripts/model-batch-native.py', 'scripts/test_model_batch.py']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Exact shared bytes and guarded Android COPY loader
+        run: |
+          python3 tools/recovery-prompt-contracts/check_shared_prompts.py
+          python3 tools/recovery-prompt-contracts/test_shared_prompts.py
+          python3 scripts/test_model_batch.py

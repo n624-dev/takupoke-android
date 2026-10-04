@@ -1,0 +1,71 @@
+{
+  "contractVersion": 1,
+  "encoding": "UTF-8 exact bytes; no BOM or newline normalization",
+  "recipes": {
+    "single_header_role": {
+      "promptVersion": 1,
+      "path": "prompts/single-header-role-ja-v1.txt",
+      "sha256": "4827fa46956a14d375792000e9bdba62a7c0bc153a19ceb4c6202063877debc7",
+      "utf8Bytes": 1422,
+      "terminalNewline": false,
+      "status": "research_component_control",
+      "inputSchema": "single_header_role_input",
+      "outputSchema": "original_ids_output",
+      "scope": "HEAD original-ID selection; all source IDs remain eligible; no useful AI case established",
+      "productionEnabled": false,
+      "origin": {
+        "repository": "n624-dev/takupoke-win",
+        "sourceCommit": "ea2e82d53e5e7b7497ea6d6ad872bf60792c8e54",
+        "sourceFile": "tools/label-selection-model-probe/SingleRoleProtocol.cs",
+        "sourceFileSHA256": "0452d63b4419f92e38c1e3ba76cee8b7dbb4ddc8f2d3eefb9938bf54e2c20e6f",
+        "extraction": "C# raw literal: closing indentation removed; no terminal newline"
+      }
+    },
+    "deterministic_body_id_copy_control": {
+      "promptVersion": 1,
+      "path": "prompts/deterministic-body-id-copy-v1.txt",
+      "sha256": "c6d1410ebe5de98ad1934627b3f5115ae396087d758814dbc538daafc750998c",
+      "utf8Bytes": 449,
+      "terminalNewline": true,
+      "status": "research_component_control",
+      "inputSchema": "deterministic_body_id_copy_control_input",
+      "outputSchema": "original_ids_output",
+      "scope": "Known BODY IDs copied after actual Rules ownership; unnecessary COPY compliance; genuine AI choices zero",
+      "productionEnabled": false,
+      "origin": {
+        "repository": "n624-dev/takupoke-android",
+        "sourceCommit": "74b2c06e7142017716f62cefc6bbcd91e34314b2",
+        "sourceFile": "scripts/model-batch-micro-instruction.txt",
+        "extraction": "Exact file bytes, including terminal LF"
+      }
+    },
+    "fieldExtraction_reference": {
+      "promptVersion": 1,
+      "path": "prompts/field-extraction-user-reference-v1.txt",
+      "sha256": "23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c",
+      "utf8Bytes": 3927,
+      "terminalNewline": false,
+      "status": "archived_evaluated_reference",
+      "inputSchema": "fieldExtraction_reference_input",
+      "outputSchema": "field_extraction_output",
+      "scope": "Exact supplied user reference already evaluated; preserved without changing or rerunning its consumed cohort",
+      "productionEnabled": false,
+      "origin": {
+        "kind": "verbatim user-supplied reference already evaluated",
+        "evaluatedRuns": [
+          37192953521,
+          37193926852
+        ],
+        "extraction": "Exact3927UTF8bytes, no terminal newline"
+      }
+    }
+  },
+  "sharedAcross": [
+    "ios",
+    "android",
+    "windows"
+  ],
+  "rankingPolicy": "Compare only the same task/input/schema/runtime recipe; HEAD selection and predetermined BODY COPY are different tasks",
+  "legacyBaselines": "Previously measured poor or ambiguous instructions remain archived with their original results; this change schedules no repeats",
+  "activation": "Research prompt assets only. No model approval or production prompt adoption."
+}

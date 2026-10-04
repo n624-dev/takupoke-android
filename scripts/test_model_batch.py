@@ -127,6 +127,21 @@ class ExactUserReferenceInstructionTest(unittest.TestCase):
         self.assertEqual(original,case)
 
 class MicroCopyProfileTest(unittest.TestCase):
+    def test_canonical_copy_loader_checks_manifest_and_exact_bytes(self):
+        import shutil
+        native=FixedInstructionSelectionTest().native()
+        historical=pathlib.Path(__file__).with_name('model-batch-micro-instruction.txt').read_bytes()
+        self.assertEqual(historical,native.shared_copy_instruction().encode('utf-8'))
+        with tempfile.TemporaryDirectory() as tmp:
+            copied=pathlib.Path(tmp)/'contracts';shutil.copytree(native.COPY_CONTRACT_ROOT,copied)
+            path=copied/'manifest.json';path.write_text(path.read_text().replace('"productionEnabled": false','"productionEnabled": true',1))
+            with patch.object(native,'COPY_CONTRACT_ROOT',copied):
+                with self.assertRaises(ValueError):native.shared_copy_instruction()
+        with tempfile.TemporaryDirectory() as tmp:
+            copied=pathlib.Path(tmp)/'contracts';shutil.copytree(native.COPY_CONTRACT_ROOT,copied)
+            path=copied/'prompts/deterministic-body-id-copy-v1.txt';path.write_bytes(path.read_bytes()+b'\n')
+            with patch.object(native,'COPY_CONTRACT_ROOT',copied):
+                with self.assertRaises(ValueError):native.shared_copy_instruction()
     def test_fixed_copy_instruction_is_guarded_and_not_case_oracle_dependent(self):
         import copy
         native=FixedInstructionSelectionTest().native()

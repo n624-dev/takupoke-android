@@ -21,5 +21,5 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
     workingDir = rootProject.projectDir
-    inputs.file(rootProject.file("scripts/model-batch-micro-instruction.txt"))
+    inputs.file(rootProject.file("tools/recovery-prompt-contracts/prompts/deterministic-body-id-copy-v1.txt"))
 }

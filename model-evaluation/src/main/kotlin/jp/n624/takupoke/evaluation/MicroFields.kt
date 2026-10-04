@@ -43,7 +43,7 @@ object MicroFields {
     }
     fun export():String {
         require(sha(ModelBatch.export().toByteArray())==ORIGINAL_CORPUS_SHA)
-        val instruction=File("scripts/model-batch-micro-instruction.txt").readBytes();require(sha(instruction)==INSTRUCTION_SHA)
+        val instruction=File("tools/recovery-prompt-contracts/prompts/deterministic-body-id-copy-v1.txt").readBytes();require(sha(instruction)==INSTRUCTION_SHA)
         return gson.toJson(mapOf("providerFingerprint" to ProviderContract.fingerprint,"originalCorpusSHA256" to ORIGINAL_CORPUS_SHA,
             "purpose" to "forced unnecessary ID-copy compliance only; original Rules resolve all positive fields; no useful AI qualification",
             "cases" to Fixtures.cases.flatMap { case -> val plan=plan(case)

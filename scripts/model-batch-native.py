@@ -7,6 +7,7 @@ import os
 import resource
 import time
 import tempfile
+import importlib.util
 
 
 def atomic_json(path, value):
@@ -30,15 +31,22 @@ def digest(path):
 
 # Filled only after the user supplies the exact referenced thread prompt and review.
 REFERENCE_INSTRUCTION_SHA256 = '23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c'
+COPY_CONTRACT_ROOT = pathlib.Path(__file__).resolve().parent.parent / 'tools/recovery-prompt-contracts'
+
+
+def shared_copy_instruction():
+    spec=importlib.util.spec_from_file_location('shared_recovery_prompts',COPY_CONTRACT_ROOT/'check_shared_prompts.py')
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    return module.load_prompt('deterministic_body_id_copy_control',COPY_CONTRACT_ROOT)
 
 
 def instruction_for(case, profile):
     if profile=='micro_field_v1':
-        path=pathlib.Path(__file__).with_name('model-batch-micro-instruction.txt')
+        instruction=shared_copy_instruction()
         expected='c6d1410ebe5de98ad1934627b3f5115ae396087d758814dbc538daafc750998c'
-        assert digest(path)==expected and hashlib.sha256(case['instruction'].encode()).hexdigest()==expected, 'Micro copy instruction changed'
+        assert hashlib.sha256(instruction.encode()).hexdigest()==expected and hashlib.sha256(case['instruction'].encode()).hexdigest()==expected, 'Micro copy instruction changed'
         assert case['prompt']['mode']=='deterministicBodyIdCopy', 'Micro profile requires its reviewed copy task'
-        return path.read_bytes().decode('utf-8')
+        return instruction
     if profile=='baseline':return case['instruction']
     if profile=='reference_v1':
         assert REFERENCE_INSTRUCTION_SHA256 is not None, 'Exact requested reference prompt has not been supplied and reviewed'

@@ -1,0 +1,337 @@
+{
+  "contractVersion": 1,
+  "schemas": {
+    "original_ids_output": {
+      "type": "object",
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 48
+        }
+      },
+      "required": [
+        "ids"
+      ],
+      "additionalProperties": false
+    },
+    "single_header_role_input": {
+      "type": "object",
+      "properties": {
+        "targetRole": {
+          "enum": [
+            "subject",
+            "teacher",
+            "room"
+          ]
+        },
+        "cellData": {
+          "type": "object",
+          "properties": {
+            "sources": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "box": {
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "allowedRoleLabels": {
+              "type": "object",
+              "required": [
+                "subject",
+                "teacher",
+                "room"
+              ],
+              "properties": {
+                "subject": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "teacher": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "room": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "sources",
+            "allowedRoleLabels"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "targetRole",
+        "cellData"
+      ],
+      "additionalProperties": false
+    },
+    "deterministic_body_id_copy_control_input": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "const": "deterministicBodyIdCopy"
+        },
+        "lessonIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "role": {
+          "enum": [
+            "subject",
+            "teacher",
+            "room"
+          ]
+        },
+        "bodyCandidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "text"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "mode",
+        "lessonIndex",
+        "role",
+        "bodyCandidates"
+      ],
+      "additionalProperties": false
+    },
+    "fieldExtraction_reference_input": {
+      "type": "object",
+      "required": [
+        "mode",
+        "sources",
+        "parallelCount"
+      ],
+      "properties": {
+        "mode": {
+          "const": "fieldExtraction"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "text"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "box": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "parallelCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "roleScopes": {
+          "type": "array"
+        },
+        "lessonBindings": {
+          "type": "array"
+        },
+        "blankFields": {
+          "type": "array"
+        }
+      },
+      "additionalProperties": true
+    },
+    "field_extraction_output": {
+      "type": "object",
+      "properties": {
+        "lessons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "subject": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "enum": [
+                      "PRESENT",
+                      "EMPTY",
+                      "UNREADABLE",
+                      "MISSING",
+                      "AMBIGUOUS"
+                    ]
+                  },
+                  "value": {
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "state",
+                  "value",
+                  "evidence"
+                ],
+                "additionalProperties": false
+              },
+              "teacher": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "enum": [
+                      "PRESENT",
+                      "EMPTY",
+                      "UNREADABLE",
+                      "MISSING",
+                      "AMBIGUOUS"
+                    ]
+                  },
+                  "value": {
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "state",
+                  "value",
+                  "evidence"
+                ],
+                "additionalProperties": false
+              },
+              "room": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "enum": [
+                      "PRESENT",
+                      "EMPTY",
+                      "UNREADABLE",
+                      "MISSING",
+                      "AMBIGUOUS"
+                    ]
+                  },
+                  "value": {
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "state",
+                  "value",
+                  "evidence"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "subject",
+              "teacher",
+              "room"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "lessons"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "dynamicConstraints": {
+    "original_ids_output": {
+      "enum": "Every original ID from the current cell, identical allowlist for every queried role",
+      "order": "Return original source-array order exactly; reject wrong order, never sort or repair",
+      "uniqueness": "No duplicate IDs; merged HEAD role outputs additionally reject cross-role ownership",
+      "maxRawUTF8Bytes": 16384,
+      "maxItems": 48,
+      "emptyArray": "No HEAD proposal or zero copied candidates; never independent evidence of EMPTY",
+      "adoptionAuthority": "Existing per-OS geometry certificate, source grounding, Rules, full Validator and formal result checks remain required"
+    },
+    "single_header_role_input": {
+      "sourcePayload": "Full original cell sources and public allowedRoleLabels; no expected IDs, role filter, value/state/cut predictions",
+      "targetRole": "Public query, not an annotation on source items"
+    },
+    "deterministic_body_id_copy_control_input": {
+      "sourcePayload": "Application-determined ordered BODY candidates only; known IDs deliberately supplied because this is COPY compliance",
+      "schemaEnumBinding": "Full original cell IDs kept out of the prompt envelope and bound to the native schema by the harness",
+      "sourceOwnership": "Actual existing roleScopes containment or fixed bindings; not fixture oracle",
+      "hostOwned": "Geometry, role, lesson order, state, verified emptiness and value assembly",
+      "usefulAIChoices": 0
+    },
+    "fieldExtraction_reference": {
+      "status": "Archive only; existing original per-OS Validator owns all state, grounding and parallel-count checks",
+      "parallelCount": "Output lessons must match input parallelCount; recorded contract is not an alternative field validator"
+    }
+  },
+  "operationalScoring": "Runtime/no-return rows unassessed; completed malformed outputs wrong; CI/build/export success is not model quality",
+  "inputWireCompatibility": "Each task has one stable envelope and exact instruction on all OS; runtimes/models and group acquisition remain separate measured properties"
+}
