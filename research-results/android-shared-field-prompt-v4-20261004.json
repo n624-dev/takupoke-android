@@ -1,0 +1,122 @@
+{
+  "sourceCommit": "5c4a11529e597f85b5aef72625b04225244c63b3",
+  "sourceCI": {
+    "id": 37200952377,
+    "url": "https://github.com/n624-dev/takupoke-android/actions/runs/37200952377",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 111432344078,
+        "kind": "build",
+        "api": null,
+        "url": "https://github.com/n624-dev/takupoke-android/actions/runs/37200952377/job/111432344078",
+        "conclusion": "success",
+        "decodedLogSha256": "39ba962cfe56f89239a48ce9d8636e58f4dd8bec8a2caf867b50eb98b35466f0",
+        "coreTests": {
+          "tests": 165,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "checks": [
+          "shared prompt SHA/protocol check",
+          "7 shared Python tests and 30 strict fixtures",
+          "screenshot transport round-trip and 5 invalid-log checks",
+          "core165",
+          "Android lint",
+          "debug build",
+          "release/R8 build",
+          "public/cache policy"
+        ]
+      },
+      {
+        "id": 111432344053,
+        "kind": "device",
+        "api": 29,
+        "url": "https://github.com/n624-dev/takupoke-android/actions/runs/37200952377/job/111432344053",
+        "conclusion": "success",
+        "decodedLogSha256": "130ca1be70b0215b2aa83d180d3e663a7ad9fe4bd245d2221770dbe9e3282bd4",
+        "tests": {
+          "tests": 72,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "ocrObservation": {
+          "script": "Japanese",
+          "texts": [
+            "架",
+            "空",
+            "科",
+            "目"
+          ],
+          "confidenceScores": [
+            0.7050781,
+            0.65625,
+            0.6640625,
+            0.89453125,
+            0.60546875
+          ],
+          "confidenceSupported": true,
+          "inputState": "PARTIAL",
+          "rules": 5,
+          "verifiedBlankCells": 1,
+          "syntheticOnly": true
+        }
+      },
+      {
+        "id": 111432343911,
+        "kind": "device",
+        "api": 36,
+        "url": "https://github.com/n624-dev/takupoke-android/actions/runs/37200952377/job/111432343911",
+        "conclusion": "success",
+        "decodedLogSha256": "cccadf7fda9a789d5345e19eb26f11a9e3d7bcac5b5ca81e8624702ed5e95ca3",
+        "tests": {
+          "tests": 72,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "ocrObservation": {
+          "script": "Japanese",
+          "texts": [
+            "架",
+            "空",
+            "科",
+            "目"
+          ],
+          "confidenceScores": [
+            0.765625,
+            0.62890625,
+            0.7265625,
+            0.8984375,
+            0.80859375
+          ],
+          "confidenceSupported": true,
+          "inputState": "PARTIAL",
+          "rules": 5,
+          "verifiedBlankCells": 1,
+          "syntheticOnly": true
+        }
+      }
+    ],
+    "modelInferenceJobs": "skipped"
+  },
+  "featureIntegration": {
+    "head": "5c4a11529e597f85b5aef72625b04225244c63b3",
+    "wrapperSha256": "57931b17dd228e5c24dac90e815d0bf82477e831a4618dfab4136f5446b42a9f",
+    "wrapperPreserved": true,
+    "sourceCI": "https://github.com/n624-dev/takupoke-android/actions/runs/37200952377"
+  },
+  "packagedFieldInstruction": {
+    "bytes": 2939,
+    "sha256": "c24039ae4317a433a14f01697d77813424a3a1c20a70327189964b2fc60bb188",
+    "promptVersion": "4"
+  },
+  "unchangedStructureInstructionPromptVersion": "3",
+  "physicalAndroidVerification": false,
+  "newModelInference": false,
+  "modelCatalogActivation": false,
+  "qualificationClaim": false,
+  "scope": "synthetic emulated Android API29/API36 tests; actual production package/provenance checks, no physical Android or model quality qualification"
+}
