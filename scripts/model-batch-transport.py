@@ -17,6 +17,13 @@ for name in ['corpus.json','native.json','resource.json','score.json']:
         files[name]=None
         invalid[name]={'sha256':hashlib.sha256(raw).hexdigest(),'base64':base64.b64encode(raw).decode()}
 
+if (root/'primary.json').is_file():
+    raw=(root/'primary.json').read_bytes()
+    try:files['primary.json']=json.loads(raw)
+    except (ValueError,UnicodeDecodeError):
+        files['primary.json']=None
+        invalid['primary.json']={'sha256':hashlib.sha256(raw).hexdigest(),'base64':base64.b64encode(raw).decode()}
+
 files['transportStatus']={'model':sys.argv[2], 'complete':all(files.values()), 'plannedCases':16, 'missingFiles':[name for name,value in files.items() if value is None], 'invalidFiles':invalid}
 # Missing setup/native/scorer receipts remain explicit unavailable denominators, never empty successes.
 payload=json.dumps(files,ensure_ascii=False,separators=(',',':')).encode()

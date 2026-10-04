@@ -90,6 +90,7 @@ fun main(args:Array<String>) {
     when(args[0]) {
         "export" -> File(args[1]).writeText(ModelBatch.export())
         "score" -> { require(args.size==3);File(args[2]).writeText(ModelBatch.replay(File(args[1]))) }
+        "score-state-evidence" -> { require(args.size==3);File(args[2]).writeText(StateEvidenceScore.replay(File(args[1]))) }
         else -> error("Expected export or score")
     }
 }
