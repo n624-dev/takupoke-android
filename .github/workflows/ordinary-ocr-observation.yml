@@ -1,0 +1,50 @@
+name: Observe bundled Japanese OCR on two immutable ordinary originals
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/android-native-ocr-ordinary2-20261004]
+    paths: ['.github/workflows/ordinary-ocr-observation.yml']
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Use job-local Gradle and verify public source identity
+        run: |
+          echo "GRADLE_USER_HOME=$RUNNER_TEMP/ordinary-ocr-gradle-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          bash scripts/check-public.sh
+          python3 scripts/test-ordinary-ocr-observation.py
+      - name: Prepare exact two original lossless PDFs; no gold enters test assets
+        run: python3 scripts/prepare-ordinary-ocr-observation.py --output app/build/generated/ordinaryOcrObservationAssets
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: One API36 acquisition observation, two reads, no model or retry
+        uses: ReactiveCircus/android-emulator-runner@4c44018e59b437e86cdfc41da381398f93ed8808
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
+          script: bash scripts/run-ordinary-ocr-observation.sh
+      - name: Remove only job-owned generated files
+        if: always()
+        run: |
+          ./gradlew --stop || true
+          adb uninstall jp.n624.takupoke.android.test || true
+          adb uninstall jp.n624.takupoke.android || true
+          rm -rf -- "$GRADLE_USER_HOME" app/build core/build .gradle
+          rm -f -- "$RUNNER_TEMP/ordinary-ocr-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.log" "$RUNNER_TEMP/ordinary-ocr-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.json"

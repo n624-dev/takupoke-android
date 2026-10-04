@@ -36,6 +36,11 @@ android {
     buildTypes { release { isMinifyEnabled = true; isShrinkResources = true; proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"); if (providers.environmentVariable("TKPK_KEYSTORE").isPresent) signingConfig = signingConfigs.getByName("distribution") } }
     buildFeatures { compose = true; buildConfig = true }
     sourceSets.getByName("main").assets.srcDir(recoveryPromptAssets)
+    // One opt-in acquisition observation; never discovered by normal offline CI.
+    if (providers.gradleProperty("takupoke.ordinaryOcrObservation").orNull == "true") {
+        sourceSets.getByName("androidTest").java.srcDir("src/ordinaryOcrObservationAndroidTest/java")
+        sourceSets.getByName("androidTest").assets.setSrcDirs(listOf(layout.buildDirectory.dir("generated/ordinaryOcrObservationAssets")))
+    }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_21; targetCompatibility = JavaVersion.VERSION_21 }
     packaging { resources.excludes += setOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*") }
     // Manual, synthetic candidate evaluation only. Default tests keep their
