@@ -1,0 +1,31 @@
+{
+  "source": "74b2c06e7142017716f62cefc6bbcd91e34314b2",
+  "run": 37197351809,
+  "all3Required": "success",
+  "core": {
+    "suites": 12,
+    "tests": 165,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0
+  },
+  "api29": {
+    "tests": 69,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0
+  },
+  "api36": {
+    "tests": 69,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0
+  },
+  "lintDebug/R8/public/UItransport": "success",
+  "researchTests": {
+    "kotlin": 12,
+    "python": 12,
+    "failures": 0
+  },
+  "physicalAndroid": "unassessed"
+}

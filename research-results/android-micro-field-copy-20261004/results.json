@@ -1,0 +1,171 @@
+{
+  "date": "2026-10-04",
+  "source": "74b2c06e7142017716f62cefc6bbcd91e34314b2",
+  "run": 37197351755,
+  "task": "Unnecessary ID-COPY compliance, with application-certified candidates",
+  "comparisonLimit": "Task, prompt and application decomposition changed together; no prompt-only attribution, semantic recovery benefit or quality qualification. Original consumed positive controls already Rules-resolve with zero calls.",
+  "originalCorpusSHA256": "d15657770607fbc1910c11bdc7a185b296b683905c5823427e05c39bf128ee5a",
+  "microCorpusSHA256": "59ae9c4ac66b26d27fcd2afb61547a14ba51ccdbb3a67250f0509ae2fc3ea9e2",
+  "instructionSHA256": "c6d1410ebe5de98ad1934627b3f5115ae396087d758814dbc538daafc750998c",
+  "models": [
+    {
+      "model": {
+        "id": "gemma4-e2b",
+        "repo": "litert-community/gemma-4-E2B-it-litert-lm",
+        "revision": "b3ca0d2f076785a8f4b2219ddbd2bdb99954eae1",
+        "file": "gemma-4-E2B-it.litertlm",
+        "bytes": 2588147712,
+        "sha256": "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c",
+        "license": "apache-2.0",
+        "gated": false,
+        "qualityApproved": false
+      },
+      "configuration": {
+        "runtime": "litert-lm-api==0.17.1",
+        "backend": "CPU",
+        "threads": 2,
+        "contextTokens": 4096,
+        "maxOutputTokens": 1024,
+        "topK": 1,
+        "topP": 0.95,
+        "temperature": 0,
+        "seed": 42,
+        "thinking": false,
+        "instructionProfile": "micro_field_v1",
+        "chatTemplate": "unmodified bundle default",
+        "automaticToolCalling": false
+      },
+      "nativeLibrarySHA256": "f202ca2351db108105fed241cd731266255c2471f3ed850c265d0c29d27fd841",
+      "originalFullCellReference": {
+        "rawReceipt": "../android-model-comparison-20261004/raw/android-high-gemma-reference-37192953521-reference_v1.json",
+        "rawReceiptSHA256": "3cc3f6206f3a46a1f2833d51d58061fab43683a2d0ab0a46393c4c5d6a553eef",
+        "plannedPositives": 13,
+        "assessedPositives": 13,
+        "primaryStateEvidenceExact": 0,
+        "actualGroundedValidatorFormalExact": 0
+      },
+      "micro": {
+        "plannedFields": 42,
+        "attemptedFields": 42,
+        "returnedFields": 42,
+        "assessedFields": 42,
+        "exactFields": 42,
+        "fieldExactRate": 1.0,
+        "plannedPositiveCells": 13,
+        "assessedPositiveCells": 13,
+        "executionUnassessedPositiveCells": 0,
+        "primaryExactCells": 13,
+        "actualGroundedExactCells": 13,
+        "actualValidatorAdoptions": 13,
+        "falseAdoptions": 0,
+        "returnedPositiveFailures": 0,
+        "nativeErrors": 0,
+        "originalDeterministicPreflightRejections": 3,
+        "modelNegativeRejectionCredit": 0,
+        "preferredRulesExact": 13,
+        "preferredModelCalls": 0,
+        "genuineAIChoiceFields": 0,
+        "qualityApproved": false,
+        "rawReceipt": "raw/gemma4-e2b.json",
+        "rawReceiptSHA256": "e7b74159dba27fb758ab94d0cfa78ecf6e05a87c465725c47bec9cb1fbd5682e",
+        "localCoreReplayEqualsCI": true,
+        "nativeWallSeconds": 177.08694681,
+        "sampledOwnedChildPeakRSSBytes": 2820960256,
+        "walltimeLimitSeconds": 900,
+        "guardFailure": null,
+        "host": {
+          "os": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+          "arch": "x86_64",
+          "cpuModel": "AMD EPYC 7763 64-Core Processor",
+          "cpuCount": 4,
+          "cpuTopology": [
+            "cpu cores\t: 2",
+            "physical id\t: 0",
+            "siblings\t: 4"
+          ]
+        }
+      }
+    },
+    {
+      "model": {
+        "id": "qwen25-15b",
+        "repo": "litert-community/Qwen2.5-1.5B-Instruct",
+        "revision": "19edb84c69a0212f29a6ef17ba0d6f278b6a1614",
+        "file": "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm",
+        "bytes": 1597931520,
+        "sha256": "faa60663b333290c1496c499828b21d3e3254a788cacd8cce917ce0f761a2dc9",
+        "license": "apache-2.0",
+        "gated": false,
+        "qualityApproved": false
+      },
+      "configuration": {
+        "runtime": "litert-lm-api==0.17.1",
+        "backend": "CPU",
+        "threads": 2,
+        "contextTokens": 4096,
+        "maxOutputTokens": 1024,
+        "topK": 1,
+        "topP": 0.95,
+        "temperature": 0,
+        "seed": 42,
+        "thinking": false,
+        "instructionProfile": "micro_field_v1",
+        "chatTemplate": "unmodified bundle default",
+        "automaticToolCalling": false
+      },
+      "nativeLibrarySHA256": "f202ca2351db108105fed241cd731266255c2471f3ed850c265d0c29d27fd841",
+      "originalFullCellReference": {
+        "rawReceipt": "../android-model-comparison-20261004/raw/android-high-reference-cohort-37193926852-qwen25-15b.json",
+        "rawReceiptSHA256": "699743ee6cd72b3898efdb3c5e9b7a1eb7a8cb0e5902d8c8a9a168dcc9542329",
+        "plannedPositives": 13,
+        "assessedPositives": 13,
+        "primaryStateEvidenceExact": 1,
+        "actualGroundedValidatorFormalExact": 1
+      },
+      "micro": {
+        "plannedFields": 42,
+        "attemptedFields": 42,
+        "returnedFields": 42,
+        "assessedFields": 42,
+        "exactFields": 41,
+        "fieldExactRate": 0.9761904761904762,
+        "plannedPositiveCells": 13,
+        "assessedPositiveCells": 13,
+        "executionUnassessedPositiveCells": 0,
+        "primaryExactCells": 12,
+        "actualGroundedExactCells": 12,
+        "actualValidatorAdoptions": 12,
+        "falseAdoptions": 0,
+        "returnedPositiveFailures": 1,
+        "nativeErrors": 0,
+        "originalDeterministicPreflightRejections": 3,
+        "modelNegativeRejectionCredit": 0,
+        "preferredRulesExact": 13,
+        "preferredModelCalls": 0,
+        "genuineAIChoiceFields": 0,
+        "qualityApproved": false,
+        "rawReceipt": "raw/qwen25-15b.json",
+        "rawReceiptSHA256": "1e0fd4be308a364b5b11dae92bdb655c1d2f3fe9e3ec55f138ffce30cb9976d4",
+        "localCoreReplayEqualsCI": true,
+        "nativeWallSeconds": 147.4315795,
+        "sampledOwnedChildPeakRSSBytes": 2612277248,
+        "walltimeLimitSeconds": 900,
+        "guardFailure": null,
+        "host": {
+          "os": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+          "arch": "x86_64",
+          "cpuModel": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+          "cpuCount": 4,
+          "cpuTopology": [
+            "cpu cores\t: 2",
+            "physical id\t: 0",
+            "siblings\t: 4"
+          ]
+        }
+      }
+    }
+  ],
+  "qualityApproved": false,
+  "physicalAndroidTested": false,
+  "catalogActivated": false
+}

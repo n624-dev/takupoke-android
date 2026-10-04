@@ -1,0 +1,46 @@
+{
+  "README.md": {
+    "bytes": 5297,
+    "sha256": "f333ec51e22f750764a14cb2ad3047cba70dd900ce3dd42aaab97b8976be8e98"
+  },
+  "causes.json": {
+    "bytes": 102604,
+    "sha256": "a8b034f7eaaf0c8bc4d2dbffc5aeaae8f4b16115b4107d97dd28f6b6ecee2944"
+  },
+  "corpus.json": {
+    "bytes": 38677,
+    "sha256": "59ae9c4ac66b26d27fcd2afb61547a14ba51ccdbb3a67250f0509ae2fc3ea9e2"
+  },
+  "independent-gemma.json": {
+    "bytes": 15511,
+    "sha256": "a231f4160498571e0220363e1c52117e0740e9827d55dce19e67a48a4fd792c7"
+  },
+  "independent-qwen.json": {
+    "bytes": 15511,
+    "sha256": "02e13110d4fa400db8e671fd24b54bd8231c91868812e92477b9389cadb7998c"
+  },
+  "independent-third-review.json": {
+    "bytes": 2952,
+    "sha256": "1b76ce893adf9483d9f16785bc95bddb39c4794c875eb478475743afe1ae5206"
+  },
+  "instruction.txt": {
+    "bytes": 449,
+    "sha256": "c6d1410ebe5de98ad1934627b3f5115ae396087d758814dbc538daafc750998c"
+  },
+  "raw/gemma4-e2b.json": {
+    "bytes": 105019,
+    "sha256": "e7b74159dba27fb758ab94d0cfa78ecf6e05a87c465725c47bec9cb1fbd5682e"
+  },
+  "raw/qwen25-15b.json": {
+    "bytes": 80700,
+    "sha256": "1e0fd4be308a364b5b11dae92bdb655c1d2f3fe9e3ec55f138ffce30cb9976d4"
+  },
+  "required-ci.json": {
+    "bytes": 549,
+    "sha256": "68107017584a483f1188516194b15e72174c37c1b1c241d25eed05715e7db85a"
+  },
+  "results.json": {
+    "bytes": 6563,
+    "sha256": "502b9cf36412d1c1d5e012a355e1aec72fdc4be8d91649e089bfb9a88e920a14"
+  }
+}

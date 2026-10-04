@@ -1,0 +1,723 @@
+{
+  "inputSHA256": "59ae9c4ac66b26d27fcd2afb61547a14ba51ccdbb3a67250f0509ae2fc3ea9e2",
+  "fieldPlanned": 42,
+  "fieldAssessed": 42,
+  "fieldExact": 41,
+  "fieldReturnedFailures": 1,
+  "fieldExecutionUnassessed": 0,
+  "positivePlanned": 13,
+  "positiveAssessed": 13,
+  "positiveExact": 12,
+  "positiveReturnedFailures": 1,
+  "positiveExecutionUnassessed": 0,
+  "fields": [
+    {
+      "name": "baseline/0/subject",
+      "case": "baseline",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a10"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a10"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "baseline/0/teacher",
+      "case": "baseline",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a12"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a12"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "baseline/0/room",
+      "case": "baseline",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a14"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a14"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "teacher_first/0/subject",
+      "case": "teacher_first",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a12"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a12"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "teacher_first/0/teacher",
+      "case": "teacher_first",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a10"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a10"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "teacher_first/0/room",
+      "case": "teacher_first",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a14"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a14"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "room_first/0/subject",
+      "case": "room_first",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a14"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a14"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "room_first/0/teacher",
+      "case": "room_first",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a12"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a12"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "room_first/0/room",
+      "case": "room_first",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a10"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a10"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "alias_assigned/0/subject",
+      "case": "alias_assigned",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a10"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a10"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "alias_assigned/0/teacher",
+      "case": "alias_assigned",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a12"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a12"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "alias_assigned/0/room",
+      "case": "alias_assigned",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a14"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a14"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "alias_names/0/subject",
+      "case": "alias_names",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a10"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a10"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "alias_names/0/teacher",
+      "case": "alias_names",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a12"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a12"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "alias_names/0/room",
+      "case": "alias_names",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a14"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a14"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "empty_teacher/0/subject",
+      "case": "empty_teacher",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a10"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a10"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "empty_teacher/0/teacher",
+      "case": "empty_teacher",
+      "stage": "output",
+      "expectedIds": [],
+      "primaryExact": true,
+      "actualIds": [],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "empty_teacher/0/room",
+      "case": "empty_teacher",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a13"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a13"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "empty_room/0/subject",
+      "case": "empty_room",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a10"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a10"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "empty_room/0/teacher",
+      "case": "empty_room",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a12"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a12"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "empty_room/0/room",
+      "case": "empty_room",
+      "stage": "output",
+      "expectedIds": [],
+      "primaryExact": false,
+      "decodeError": "duplicate_id"
+    },
+    {
+      "name": "parallel_two/0/subject",
+      "case": "parallel_two",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a10"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a10"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "parallel_two/0/teacher",
+      "case": "parallel_two",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a14"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a14"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "parallel_two/0/room",
+      "case": "parallel_two",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a18"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a18"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "parallel_two/1/subject",
+      "case": "parallel_two",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a12"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a12"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "parallel_two/1/teacher",
+      "case": "parallel_two",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a16"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a16"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "parallel_two/1/room",
+      "case": "parallel_two",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a20"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a20"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "same_text_distinct_ids/0/subject",
+      "case": "same_text_distinct_ids",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a10"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a10"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "same_text_distinct_ids/0/teacher",
+      "case": "same_text_distinct_ids",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a12"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a12"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "same_text_distinct_ids/0/room",
+      "case": "same_text_distinct_ids",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a14"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a14"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "literal_one_I/0/subject",
+      "case": "literal_one_I",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a10"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a10"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "literal_one_I/0/teacher",
+      "case": "literal_one_I",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a12"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a12"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "literal_one_I/0/room",
+      "case": "literal_one_I",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a14"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a14"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "literal_zero_O/0/subject",
+      "case": "literal_zero_O",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a10"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a10"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "literal_zero_O/0/teacher",
+      "case": "literal_zero_O",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a12"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a12"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "literal_zero_O/0/room",
+      "case": "literal_zero_O",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a14"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a14"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "instruction_in_subject/0/subject",
+      "case": "instruction_in_subject",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a10"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a10"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "instruction_in_subject/0/teacher",
+      "case": "instruction_in_subject",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a12"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a12"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "instruction_in_subject/0/room",
+      "case": "instruction_in_subject",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a14"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a14"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "instruction_in_room/0/subject",
+      "case": "instruction_in_room",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a10"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a10"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "instruction_in_room/0/teacher",
+      "case": "instruction_in_room",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a12"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a12"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    },
+    {
+      "name": "instruction_in_room/0/room",
+      "case": "instruction_in_room",
+      "stage": "output",
+      "expectedIds": [
+        "p1-a14"
+      ],
+      "primaryExact": true,
+      "actualIds": [
+        "p1-a14"
+      ],
+      "missingIds": [],
+      "extraIds": []
+    }
+  ],
+  "cases": [
+    {
+      "name": "baseline",
+      "assessed": true,
+      "primaryExact": true
+    },
+    {
+      "name": "teacher_first",
+      "assessed": true,
+      "primaryExact": true
+    },
+    {
+      "name": "room_first",
+      "assessed": true,
+      "primaryExact": true
+    },
+    {
+      "name": "alias_assigned",
+      "assessed": true,
+      "primaryExact": true
+    },
+    {
+      "name": "alias_names",
+      "assessed": true,
+      "primaryExact": true
+    },
+    {
+      "name": "empty_teacher",
+      "assessed": true,
+      "primaryExact": true
+    },
+    {
+      "name": "empty_room",
+      "assessed": true,
+      "primaryExact": false
+    },
+    {
+      "name": "parallel_two",
+      "assessed": true,
+      "primaryExact": true
+    },
+    {
+      "name": "same_text_distinct_ids",
+      "assessed": true,
+      "primaryExact": true
+    },
+    {
+      "name": "literal_one_I",
+      "assessed": true,
+      "primaryExact": true
+    },
+    {
+      "name": "literal_zero_O",
+      "assessed": true,
+      "primaryExact": true
+    },
+    {
+      "name": "instruction_in_subject",
+      "assessed": true,
+      "primaryExact": true
+    },
+    {
+      "name": "instruction_in_room",
+      "assessed": true,
+      "primaryExact": true
+    }
+  ],
+  "originalPreflightControls": [
+    {
+      "name": "missing_subject",
+      "stage": "preparation_rejected",
+      "modelSafeRejectionCredit": false
+    },
+    {
+      "name": "missing_teacher_unverified",
+      "stage": "preparation_rejected",
+      "modelSafeRejectionCredit": false
+    },
+    {
+      "name": "partial_page",
+      "stage": "preparation_rejected",
+      "modelSafeRejectionCredit": false
+    }
+  ],
+  "usefulAIDenominator": 0,
+  "qualityApproved": false,
+  "scope": "Forced deterministic COPY compliance; unchanged core replay must independently confirm any composite acceptance. No source-role selection remains.",
+  "rawReceiptSHA256": "1e0fd4be308a364b5b11dae92bdb655c1d2f3fe9e3ec55f138ffce30cb9976d4",
+  "coreReplayExactlyMatchesCI": true,
+  "groundedValidatorFormalSuccesses": 12,
+  "incorrectValidatorAcceptances": 0,
+  "preferredRulesExact": 13,
+  "verifiedNativePins": {
+    "model": {
+      "id": "qwen25-15b",
+      "repo": "litert-community/Qwen2.5-1.5B-Instruct",
+      "revision": "19edb84c69a0212f29a6ef17ba0d6f278b6a1614",
+      "file": "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm",
+      "bytes": 1597931520,
+      "sha256": "faa60663b333290c1496c499828b21d3e3254a788cacd8cce917ce0f761a2dc9",
+      "license": "apache-2.0",
+      "gated": false,
+      "qualityApproved": false
+    },
+    "nativeSHA256": "f202ca2351db108105fed241cd731266255c2471f3ed850c265d0c29d27fd841",
+    "configuration": {
+      "runtime": "litert-lm-api==0.17.1",
+      "backend": "CPU",
+      "threads": 2,
+      "contextTokens": 4096,
+      "maxOutputTokens": 1024,
+      "topK": 1,
+      "topP": 0.95,
+      "temperature": 0,
+      "seed": 42,
+      "thinking": false,
+      "instructionProfile": "micro_field_v1",
+      "chatTemplate": "unmodified bundle default",
+      "automaticToolCalling": false
+    }
+  },
+  "allInstructionHashesMatch": true,
+  "confirmedFailureCause": {
+    "case": "empty_room",
+    "role": "room",
+    "sourceCandidateIDs": [],
+    "returnedIDs": "48 items repeating four known IDs12times",
+    "cause": "Duplicate-ID parser rejection; original certified EMPTY is not inferred from this response.",
+    "causalityLimit": "Observed compliance failure; weights-only explanation unestablished."
+  }
+}
