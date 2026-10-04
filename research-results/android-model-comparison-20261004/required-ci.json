@@ -1,0 +1,25 @@
+{
+  "commit": "1190ed045314565ffb03f5677d9a60af7d71314d",
+  "run": 37193926916,
+  "all3Required": "success",
+  "core": {
+    "suites": 12,
+    "tests": 165,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0
+  },
+  "api29": {
+    "tests": 69,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0
+  },
+  "api36": {
+    "tests": 69,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0
+  },
+  "lint/R8/public/UItransportChecks": "success"
+}

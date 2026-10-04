@@ -1,0 +1,94 @@
+{
+  "README.md": {
+    "sha256": "16a7f955000fbf4471051cacc09208ef45081527776b9071de52c335ac3bbcc6",
+    "bytes": 6843
+  },
+  "causes.json": {
+    "sha256": "9b0bfc176a44d463ad881f185fa046fa64ced9590dffb2791bf8ad2183ae17a4",
+    "bytes": 2868414
+  },
+  "causes.md": {
+    "sha256": "76968f3dc1551c263b4df723e830fe0bef095fb393ddeef6032d1e03d810ee01",
+    "bytes": 3990
+  },
+  "corpus.json": {
+    "sha256": "d15657770607fbc1910c11bdc7a185b296b683905c5823427e05c39bf128ee5a",
+    "bytes": 56050
+  },
+  "independent-core-replay.json": {
+    "sha256": "e5fc7f86a3b6a64f47bc07794a7dbe15e238a5224c48524098bce0ef3bbf3158",
+    "bytes": 2690
+  },
+  "independent-reference-score.json": {
+    "sha256": "c96df5022cdc9007882c3c9d2a46d494c44464f6c6c08a9382367d3cc32693ca",
+    "bytes": 40610
+  },
+  "minicpm-compiled-capacity.json": {
+    "sha256": "d34f9f3e0ca511fb9698b5b19fd7b40b09cb527b9d406dc56e6c9e6497fa8beb",
+    "bytes": 45609
+  },
+  "raw/android-high-batch-37191302621-gemma4-e2b.json": {
+    "sha256": "01d47ed5d4590a19441e80763a386f24c846d82811ff36ff2cc8799b3a7c09bc",
+    "bytes": 104556
+  },
+  "raw/android-high-batch-37191302621-minicpm5-1b.json": {
+    "sha256": "e5bccafd264d960d266a80e84bbd270e6c5a4d19ddb2874953e8f2bc13d9923e",
+    "bytes": 87731
+  },
+  "raw/android-high-batch-37191302621-phi4-mini.json": {
+    "sha256": "d74e7f89f6a28c7a89eab40f2aaca428e2ef042a12792176c91567dd20459a03",
+    "bytes": 93640
+  },
+  "raw/android-high-batch-37191302621-qwen25-15b.json": {
+    "sha256": "75c8378d2711cdbff2a87a3837a28dd217415880eaa57acbe6df867728c1409e",
+    "bytes": 90387
+  },
+  "raw/android-high-batch-37191302621-smol2-360m.json": {
+    "sha256": "f3a8fb6f68022039e870cc22597c61d0c50131a91095fb635ba3dca0395df8bf",
+    "bytes": 92365
+  },
+  "raw/android-high-batch-37191302621-smol3-3b.json": {
+    "sha256": "7dab89ef9787e0443e41513118c3088dda5f98bb2d12cc2e96a9643fbb09121d",
+    "bytes": 100400
+  },
+  "raw/android-high-gemma-prompt-37191845244-baseline.json": {
+    "sha256": "cf88a5a15dd0b135b9ebaca9b947b9113a022f3a306142af0d064f55a7dd5bcb",
+    "bytes": 105961
+  },
+  "raw/android-high-gemma-prompt-37191845244-clear_v1.json": {
+    "sha256": "544430e762f4007ec135506f815d19f82f92e542255f723fd68798cc9fb1bd47",
+    "bytes": 106347
+  },
+  "raw/android-high-gemma-reference-37192953521-reference_v1.json": {
+    "sha256": "3cc3f6206f3a46a1f2833d51d58061fab43683a2d0ab0a46393c4c5d6a553eef",
+    "bytes": 105927
+  },
+  "raw/android-high-reference-cohort-37193926852-minicpm5-1b.json": {
+    "sha256": "441615e8f6b2bed75c5a45362c708dc680160dfe146918ff7227c9ada9199429",
+    "bytes": 89059
+  },
+  "raw/android-high-reference-cohort-37193926852-phi4-mini.json": {
+    "sha256": "b7e107aac1314fb1152a0fcc21dc62dbbef5eae5dcded482b64e9813ae0ea7bc",
+    "bytes": 102252
+  },
+  "raw/android-high-reference-cohort-37193926852-qwen25-15b.json": {
+    "sha256": "699743ee6cd72b3898efdb3c5e9b7a1eb7a8cb0e5902d8c8a9a168dcc9542329",
+    "bytes": 103856
+  },
+  "raw/android-high-reference-cohort-37193926852-smol2-360m.json": {
+    "sha256": "d7a071a312cdfc5739806e8cb8f8b5b68ff98a33ed0312d9cc166fa187eae82b",
+    "bytes": 106436
+  },
+  "raw/android-high-reference-cohort-37193926852-smol3-3b.json": {
+    "sha256": "3959c87a2702b985453905954663a7b21d47ed071102a8d2f91a0925cd9b54d6",
+    "bytes": 110696
+  },
+  "required-ci.json": {
+    "sha256": "d6cdc12902a538169c11239608565e857930ce724f3a55fb4d99af171a7a230c",
+    "bytes": 434
+  },
+  "results.json": {
+    "sha256": "2ce50ea2e72f050e8010eb0060804aa1c802ca2b5a1620f9f731646ed37b6463",
+    "bytes": 54079
+  }
+}

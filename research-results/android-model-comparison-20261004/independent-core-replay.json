@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "receipt": "/workspace/review-notes/android-high-batch-37191302621-gemma4-e2b.json",
+      "originalCoreReplayIdentical": true
+    },
+    {
+      "receipt": "/workspace/review-notes/android-high-batch-37191302621-minicpm5-1b.json",
+      "originalCoreReplayIdentical": true
+    },
+    {
+      "receipt": "/workspace/review-notes/android-high-batch-37191302621-qwen25-15b.json",
+      "originalCoreReplayIdentical": true
+    },
+    {
+      "receipt": "/workspace/review-notes/android-high-batch-37191302621-phi4-mini.json",
+      "originalCoreReplayIdentical": true
+    },
+    {
+      "receipt": "/workspace/review-notes/android-high-batch-37191302621-smol2-360m.json",
+      "originalCoreReplayIdentical": true
+    },
+    {
+      "receipt": "/workspace/review-notes/android-high-batch-37191302621-smol3-3b.json",
+      "originalCoreReplayIdentical": true
+    },
+    {
+      "receipt": "/workspace/review-notes/android-high-gemma-prompt-37191845244-baseline.json",
+      "originalCoreReplayIdentical": true
+    },
+    {
+      "receipt": "/workspace/review-notes/android-high-gemma-prompt-37191845244-clear_v1.json",
+      "originalCoreReplayIdentical": true
+    },
+    {
+      "receipt": "/workspace/review-notes/android-high-gemma-reference-37192953521-reference_v1.json",
+      "originalCoreReplayIdentical": true
+    },
+    {
+      "receipt": "/workspace/review-notes/android-high-reference-cohort-37193926852-minicpm5-1b.json",
+      "receiptSHA256": "441615e8f6b2bed75c5a45362c708dc680160dfe146918ff7227c9ada9199429",
+      "originalCoreReplayIdentical": true
+    },
+    {
+      "receipt": "/workspace/review-notes/android-high-reference-cohort-37193926852-phi4-mini.json",
+      "receiptSHA256": "b7e107aac1314fb1152a0fcc21dc62dbbef5eae5dcded482b64e9813ae0ea7bc",
+      "originalCoreReplayIdentical": true
+    },
+    {
+      "receipt": "/workspace/review-notes/android-high-reference-cohort-37193926852-smol2-360m.json",
+      "receiptSHA256": "d7a071a312cdfc5739806e8cb8f8b5b68ff98a33ed0312d9cc166fa187eae82b",
+      "originalCoreReplayIdentical": true
+    },
+    {
+      "receipt": "/workspace/review-notes/android-high-reference-cohort-37193926852-qwen25-15b.json",
+      "receiptSHA256": "699743ee6cd72b3898efdb3c5e9b7a1eb7a8cb0e5902d8c8a9a168dcc9542329",
+      "originalCoreReplayIdentical": true
+    },
+    {
+      "receipt": "/workspace/review-notes/android-high-reference-cohort-37193926852-smol3-3b.json",
+      "receiptSHA256": "3959c87a2702b985453905954663a7b21d47ed071102a8d2f91a0925cd9b54d6",
+      "originalCoreReplayIdentical": true
+    }
+  ],
+  "scope": "No model execution; current core replays old immutable raw",
+  "allIdentical": true
+}

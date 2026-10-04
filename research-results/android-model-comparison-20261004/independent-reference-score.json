@@ -1,0 +1,1154 @@
+{
+  "scope": "Final independent fixed exact-user-reference consumed fictional fieldExtraction development comparison. Five new models parallel plus previously completed Gemma reference reused transparently. No generation rerun, source/scorer/schema/Validator mutation or per-model instruction tuning.",
+  "metrics": "Primary exact field state+complete original BODY IDs in sources-array order. Reconstructed original values, actual unchanged Validator/full result/formal equality separate. Generated literal text diagnostic. Errors/interruption/unstarted are unassessed, never readable wrong predictions or safe rejection.",
+  "fairness": "Same frozen corpus/instruction/native runtime artifact/configuration verified against each raw receipt. Model weight/revision/license recorded individually; bundle-default template differs by model. Requested context is not proof of converted model effective capacity. CPU/RAM/elapsed memory differ across remote hosts; no controlled latency or mobile qualification ranking.",
+  "totals": {
+    "plannedRows": 96,
+    "startedCalls": 88,
+    "returnedOutputs": 72,
+    "plannedPositives": 78,
+    "assessedPositives": 64,
+    "positiveExecutionUnassessed": 14,
+    "successfulPositiveComponents": 1,
+    "readablePositiveRecoveryFailures": 63,
+    "correctReturnedUnsafeRejections": 8,
+    "unsafeExecutionUnassessed": 4,
+    "preparationRejections": 6,
+    "runtimeErrors": 15,
+    "interruptedCalls": 1,
+    "notStartedPrepared": 2
+  },
+  "rows": [
+    {
+      "model": "gemma4-e2b",
+      "profile": "reference_v1",
+      "receipt": "/workspace/review-notes/android-high-gemma-reference-37192953521-reference_v1.json",
+      "receiptSHA256": "3cc3f6206f3a46a1f2833d51d58061fab43683a2d0ab0a46393c4c5d6a553eef",
+      "corpusSHA256": "d15657770607fbc1910c11bdc7a185b296b683905c5823427e05c39bf128ee5a",
+      "plannedCases": 16,
+      "positiveDenominator": 13,
+      "nativePreparedDenominator": 15,
+      "nativeOutputs": 15,
+      "nativeErrors": 0,
+      "positiveReturned": 13,
+      "positiveExecutionErrors": 0,
+      "positiveRecoveryFailures": 13,
+      "safeNegativeRejects": 2,
+      "preparationRejects": 1,
+      "primaryStateEvidenceExact": 0,
+      "generatedValueScope": "Diagnostic only: primary state and complete ordered original IDs ignore generated text; actual unchanged Validator/grounded/formal result remain separate",
+      "rawExact": 0,
+      "groundedExact": 0,
+      "validatorAdoptions": 0,
+      "falseAdoptions": 0,
+      "actualCoreReplayIdentical": true,
+      "selectedInstructionHashes": {
+        "23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c": 15
+      },
+      "roleDiagnosticsOnly": {
+        "roleObligations": 42,
+        "exactBodyEvidence": 3,
+        "exactLiteralValue": 6,
+        "exactState": 41,
+        "exactStateAndEvidence": 3
+      },
+      "stateHistogram": {
+        "PRESENT": 39,
+        "EMPTY": 3
+      },
+      "details": [
+        {
+          "name": "baseline",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "teacher_first",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "room_first",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "alias_assigned",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "alias_names",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "empty_teacher",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "empty_room",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "parallel_two",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "same_text_distinct_ids",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "literal_one_I",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "literal_zero_O",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "instruction_in_subject",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "instruction_in_room",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        }
+      ],
+      "primaryActualCoreReplayIdentical": true,
+      "actualArtifactIdentity": {
+        "id": "gemma4-e2b",
+        "repo": "litert-community/gemma-4-E2B-it-litert-lm",
+        "revision": "b3ca0d2f076785a8f4b2219ddbd2bdb99954eae1",
+        "file": "gemma-4-E2B-it.litertlm",
+        "bytes": 2588147712,
+        "sha256": "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c",
+        "license": "apache-2.0",
+        "gated": false,
+        "qualityApproved": false
+      },
+      "nativeArtifactSHA256": "f202ca2351db108105fed241cd731266255c2471f3ed850c265d0c29d27fd841",
+      "instructionSHA256": "23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c",
+      "assessedPositiveDenominator": 13,
+      "assessedFieldDenominator": 42,
+      "positiveExecutionUnassessed": 0,
+      "primaryAccuracyOnReturned": 0.0,
+      "nativeCallsStarted": 15,
+      "nativeReturnedOutputs": 15,
+      "runtimeErrors": 0,
+      "interruptedCalls": 0,
+      "notStartedPrepared": 0
+    },
+    {
+      "model": "minicpm5-1b",
+      "profile": "reference_v1",
+      "receipt": "/workspace/review-notes/android-high-reference-cohort-37193926852-minicpm5-1b.json",
+      "receiptSHA256": "441615e8f6b2bed75c5a45362c708dc680160dfe146918ff7227c9ada9199429",
+      "corpusSHA256": "d15657770607fbc1910c11bdc7a185b296b683905c5823427e05c39bf128ee5a",
+      "plannedCases": 16,
+      "positiveDenominator": 13,
+      "nativePreparedDenominator": 15,
+      "nativeOutputs": 0,
+      "nativeErrors": 15,
+      "positiveReturned": 0,
+      "positiveExecutionErrors": 13,
+      "positiveRecoveryFailures": 0,
+      "safeNegativeRejects": 0,
+      "preparationRejects": 1,
+      "primaryStateEvidenceExact": 0,
+      "generatedValueScope": "Diagnostic only: primary state and complete ordered original IDs ignore generated text; actual unchanged Validator/grounded/formal result remain separate",
+      "rawExact": 0,
+      "groundedExact": 0,
+      "validatorAdoptions": 0,
+      "falseAdoptions": 0,
+      "actualCoreReplayIdentical": true,
+      "selectedInstructionHashes": {
+        "23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c": 15
+      },
+      "roleDiagnosticsOnly": {
+        "roleObligations": 42,
+        "exactBodyEvidence": 0,
+        "exactLiteralValue": 0,
+        "exactState": 0,
+        "exactStateAndEvidence": 0
+      },
+      "stateHistogram": {},
+      "details": [
+        {
+          "name": "baseline",
+          "stage": "inference_error",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": null,
+          "outcome": "execution_unassessed"
+        },
+        {
+          "name": "teacher_first",
+          "stage": "inference_error",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": null,
+          "outcome": "execution_unassessed"
+        },
+        {
+          "name": "room_first",
+          "stage": "inference_error",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": null,
+          "outcome": "execution_unassessed"
+        },
+        {
+          "name": "alias_assigned",
+          "stage": "inference_error",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": null,
+          "outcome": "execution_unassessed"
+        },
+        {
+          "name": "alias_names",
+          "stage": "inference_error",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": null,
+          "outcome": "execution_unassessed"
+        },
+        {
+          "name": "empty_teacher",
+          "stage": "inference_error",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": null,
+          "outcome": "execution_unassessed"
+        },
+        {
+          "name": "empty_room",
+          "stage": "inference_error",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": null,
+          "outcome": "execution_unassessed"
+        },
+        {
+          "name": "parallel_two",
+          "stage": "inference_error",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": null,
+          "outcome": "execution_unassessed"
+        },
+        {
+          "name": "same_text_distinct_ids",
+          "stage": "inference_error",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": null,
+          "outcome": "execution_unassessed"
+        },
+        {
+          "name": "literal_one_I",
+          "stage": "inference_error",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": null,
+          "outcome": "execution_unassessed"
+        },
+        {
+          "name": "literal_zero_O",
+          "stage": "inference_error",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": null,
+          "outcome": "execution_unassessed"
+        },
+        {
+          "name": "instruction_in_subject",
+          "stage": "inference_error",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": null,
+          "outcome": "execution_unassessed"
+        },
+        {
+          "name": "instruction_in_room",
+          "stage": "inference_error",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": null,
+          "outcome": "execution_unassessed"
+        }
+      ],
+      "primaryActualCoreReplayIdentical": true,
+      "qualityAssessment": "UNASSESSED: no native completions returned",
+      "assessedPositiveDenominator": 0,
+      "positiveExecutionUnassessed": 13,
+      "unsafeExecutionUnassessed": 2,
+      "confirmedNativeError": "15/15 prepared calls: FAILED_PRECONDITION Prefill input length exceeds available state entries (remaining capacity:1024), requested engine context4096; frozen model/runtime input compatibility failure, not assessed wrong proposals",
+      "successfulOverPlanned": "0/13 operational-inclusive attempts only; semantic accuracy undefined with0 assessed",
+      "actualArtifactIdentity": {
+        "id": "minicpm5-1b",
+        "repo": "litert-community/MiniCPM5-1B",
+        "revision": "8025a9864a6fc31aa2e29db19e5f1a0e4802a4df",
+        "file": "minicpm_wi4b32_wi8_afp32.litertlm",
+        "bytes": 792625152,
+        "sha256": "43f41a837c58408192d703a7cf7bb27a3f8b4f8cc1d34c7f79e54f058f966ccc",
+        "license": "apache-2.0",
+        "gated": false,
+        "qualityApproved": false
+      },
+      "nativeArtifactSHA256": "f202ca2351db108105fed241cd731266255c2471f3ed850c265d0c29d27fd841",
+      "instructionSHA256": "23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c",
+      "assessedFieldDenominator": 0,
+      "primaryAccuracyOnReturned": null,
+      "nativeCallsStarted": 15,
+      "nativeReturnedOutputs": 0,
+      "runtimeErrors": 15,
+      "interruptedCalls": 0,
+      "notStartedPrepared": 0
+    },
+    {
+      "model": "qwen25-15b",
+      "profile": "reference_v1",
+      "receipt": "/workspace/review-notes/android-high-reference-cohort-37193926852-qwen25-15b.json",
+      "receiptSHA256": "699743ee6cd72b3898efdb3c5e9b7a1eb7a8cb0e5902d8c8a9a168dcc9542329",
+      "corpusSHA256": "d15657770607fbc1910c11bdc7a185b296b683905c5823427e05c39bf128ee5a",
+      "plannedCases": 16,
+      "positiveDenominator": 13,
+      "nativePreparedDenominator": 15,
+      "nativeOutputs": 15,
+      "nativeErrors": 0,
+      "positiveReturned": 13,
+      "positiveExecutionErrors": 0,
+      "positiveRecoveryFailures": 12,
+      "safeNegativeRejects": 2,
+      "preparationRejects": 1,
+      "primaryStateEvidenceExact": 1,
+      "generatedValueScope": "Diagnostic only: primary state and complete ordered original IDs ignore generated text; actual unchanged Validator/grounded/formal result remain separate",
+      "rawExact": 0,
+      "groundedExact": 1,
+      "validatorAdoptions": 1,
+      "falseAdoptions": 0,
+      "actualCoreReplayIdentical": true,
+      "selectedInstructionHashes": {
+        "23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c": 15
+      },
+      "roleDiagnosticsOnly": {
+        "roleObligations": 42,
+        "exactBodyEvidence": 11,
+        "exactLiteralValue": 32,
+        "exactState": 40,
+        "exactStateAndEvidence": 11
+      },
+      "stateHistogram": {
+        "PRESENT": 40,
+        "EMPTY": 2
+      },
+      "details": [
+        {
+          "name": "baseline",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "teacher_first",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": true,
+          "primaryStateEvidenceExact": true
+        },
+        {
+          "name": "room_first",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "alias_assigned",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "alias_names",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "empty_teacher",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "empty_room",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "parallel_two",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "same_text_distinct_ids",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "literal_one_I",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "literal_zero_O",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "instruction_in_subject",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "instruction_in_room",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        }
+      ],
+      "primaryActualCoreReplayIdentical": true,
+      "successfulCase": {
+        "name": "teacher_first",
+        "positive": true,
+        "nativeAttempted": true,
+        "stage": "output",
+        "schemaDecoded": true,
+        "rawExact": false,
+        "groundedExact": true,
+        "validatorAdopt": true,
+        "falseAdoption": false,
+        "validatorErrors": []
+      },
+      "successfulRawUnchanged": {
+        "name": "teacher_first",
+        "attempted": true,
+        "stage": "output",
+        "instructionSHA256": "23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c",
+        "completeResponse": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"lessons\":[{\"subject\":{\"state\":\"PRESENT\",\"value\":\"架空電気回路\",\"evidence\":[\"p1-a12\"]},\"teacher\":{\"state\":\"PRESENT\",\"value\":\"架空担当\",\"evidence\":[\"p1-a10\"]},\"room\":{\"state\":\"PRESENT\",\"value\":\"架空教室\",\"evidence\":[\"p1-a14\"]}}]}"
+            }
+          ]
+        },
+        "raw": "{\"lessons\":[{\"subject\":{\"state\":\"PRESENT\",\"value\":\"架空電気回路\",\"evidence\":[\"p1-a12\"]},\"teacher\":{\"state\":\"PRESENT\",\"value\":\"架空担当\",\"evidence\":[\"p1-a10\"]},\"room\":{\"state\":\"PRESENT\",\"value\":\"架空教室\",\"evidence\":[\"p1-a14\"]}}]}",
+        "seconds": 38.45128196100001,
+        "peakRSSKiB": 2855880
+      },
+      "successfulOriginalSources": [
+        {
+          "id": "p1-a9",
+          "text": "教員",
+          "box": {
+            "x": 102.0,
+            "y": 102.0,
+            "width": 12.0,
+            "height": 3.0
+          },
+          "sourceOrder": 16
+        },
+        {
+          "id": "p1-a10",
+          "text": "架空担当",
+          "box": {
+            "x": 118.0,
+            "y": 102.0,
+            "width": 24.0,
+            "height": 3.0
+          },
+          "sourceOrder": 17
+        },
+        {
+          "id": "p1-a11",
+          "text": "科目",
+          "box": {
+            "x": 102.0,
+            "y": 108.0,
+            "width": 12.0,
+            "height": 3.0
+          },
+          "sourceOrder": 18
+        },
+        {
+          "id": "p1-a12",
+          "text": "架空電気回路",
+          "box": {
+            "x": 118.0,
+            "y": 108.0,
+            "width": 24.0,
+            "height": 3.0
+          },
+          "sourceOrder": 19
+        },
+        {
+          "id": "p1-a13",
+          "text": "教室",
+          "box": {
+            "x": 102.0,
+            "y": 114.0,
+            "width": 12.0,
+            "height": 3.0
+          },
+          "sourceOrder": 20
+        },
+        {
+          "id": "p1-a14",
+          "text": "架空室",
+          "box": {
+            "x": 118.0,
+            "y": 114.0,
+            "width": 24.0,
+            "height": 3.0
+          },
+          "sourceOrder": 21
+        }
+      ],
+      "successfulOriginalRoleScopes": [
+        {
+          "lessonIndex": 0,
+          "role": "teacher",
+          "page": 1,
+          "box": {
+            "x": 114.0,
+            "y": 102.0,
+            "width": 86.0,
+            "height": 6.0
+          },
+          "labelSourceIds": [
+            "p1-a9"
+          ],
+          "labelRegion": {
+            "page": 1,
+            "box": {
+              "x": 102.0,
+              "y": 102.0,
+              "width": 12.0,
+              "height": 3.0
+            },
+            "axis": "LEFT"
+          },
+          "proof": "inlineLabel",
+          "emptyVerified": false
+        },
+        {
+          "lessonIndex": 0,
+          "role": "subject",
+          "page": 1,
+          "box": {
+            "x": 114.0,
+            "y": 108.0,
+            "width": 86.0,
+            "height": 6.0
+          },
+          "labelSourceIds": [
+            "p1-a11"
+          ],
+          "labelRegion": {
+            "page": 1,
+            "box": {
+              "x": 102.0,
+              "y": 108.0,
+              "width": 12.0,
+              "height": 3.0
+            },
+            "axis": "LEFT"
+          },
+          "proof": "inlineLabel",
+          "emptyVerified": false
+        },
+        {
+          "lessonIndex": 0,
+          "role": "room",
+          "page": 1,
+          "box": {
+            "x": 114.0,
+            "y": 114.0,
+            "width": 86.0,
+            "height": 6.0
+          },
+          "labelSourceIds": [
+            "p1-a13"
+          ],
+          "labelRegion": {
+            "page": 1,
+            "box": {
+              "x": 102.0,
+              "y": 114.0,
+              "width": 12.0,
+              "height": 3.0
+            },
+            "axis": "LEFT"
+          },
+          "proof": "inlineLabel",
+          "emptyVerified": false
+        }
+      ],
+      "scope": "Consumed fieldExtraction component dev, correct full40slot result/formal equality replay established by actual untouched core scorer; original fixture Rules zero-provider, no model utility or originalPDF qualification.",
+      "actualArtifactIdentity": {
+        "id": "qwen25-15b",
+        "repo": "litert-community/Qwen2.5-1.5B-Instruct",
+        "revision": "19edb84c69a0212f29a6ef17ba0d6f278b6a1614",
+        "file": "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm",
+        "bytes": 1597931520,
+        "sha256": "faa60663b333290c1496c499828b21d3e3254a788cacd8cce917ce0f761a2dc9",
+        "license": "apache-2.0",
+        "gated": false,
+        "qualityApproved": false
+      },
+      "nativeArtifactSHA256": "f202ca2351db108105fed241cd731266255c2471f3ed850c265d0c29d27fd841",
+      "instructionSHA256": "23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c",
+      "assessedPositiveDenominator": 13,
+      "assessedFieldDenominator": 42,
+      "positiveExecutionUnassessed": 0,
+      "primaryAccuracyOnReturned": 0.07692307692307693,
+      "nativeCallsStarted": 15,
+      "nativeReturnedOutputs": 15,
+      "runtimeErrors": 0,
+      "interruptedCalls": 0,
+      "notStartedPrepared": 0
+    },
+    {
+      "model": "phi4-mini",
+      "profile": "reference_v1",
+      "receipt": "/workspace/review-notes/android-high-reference-cohort-37193926852-phi4-mini.json",
+      "receiptSHA256": "b7e107aac1314fb1152a0fcc21dc62dbbef5eae5dcded482b64e9813ae0ea7bc",
+      "corpusSHA256": "d15657770607fbc1910c11bdc7a185b296b683905c5823427e05c39bf128ee5a",
+      "plannedCases": 16,
+      "positiveDenominator": 13,
+      "nativePreparedDenominator": 15,
+      "nativeOutputs": 15,
+      "nativeErrors": 0,
+      "positiveReturned": 13,
+      "positiveExecutionErrors": 0,
+      "positiveRecoveryFailures": 13,
+      "safeNegativeRejects": 2,
+      "preparationRejects": 1,
+      "primaryStateEvidenceExact": 0,
+      "generatedValueScope": "Diagnostic only: primary state and complete ordered original IDs ignore generated text; actual unchanged Validator/grounded/formal result remain separate",
+      "rawExact": 0,
+      "groundedExact": 0,
+      "validatorAdoptions": 0,
+      "falseAdoptions": 0,
+      "actualCoreReplayIdentical": true,
+      "selectedInstructionHashes": {
+        "23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c": 15
+      },
+      "roleDiagnosticsOnly": {
+        "roleObligations": 42,
+        "exactBodyEvidence": 9,
+        "exactLiteralValue": 26,
+        "exactState": 32,
+        "exactStateAndEvidence": 6
+      },
+      "stateHistogram": {
+        "PRESENT": 30,
+        "UNREADABLE": 6,
+        "EMPTY": 6
+      },
+      "details": [
+        {
+          "name": "baseline",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "teacher_first",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "room_first",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "alias_assigned",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "alias_names",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "empty_teacher",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "empty_room",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "parallel_two",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "same_text_distinct_ids",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "literal_one_I",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "literal_zero_O",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "instruction_in_subject",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "instruction_in_room",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        }
+      ],
+      "primaryActualCoreReplayIdentical": true,
+      "qualityAssessment": "Assessed returned positive failures under frozen reference recipe; no capacity-only cause attribution",
+      "assessedPositiveDenominator": 13,
+      "actualArtifactIdentity": {
+        "id": "phi4-mini",
+        "repo": "litert-community/Phi-4-mini-instruct",
+        "revision": "8cd368be75fdb94d5a6f6f5b40f1ab22a6c2543e",
+        "file": "Phi-4-mini-instruct_multi-prefill-seq_q8_ekv4096.litertlm",
+        "bytes": 3910090752,
+        "sha256": "7764d4deb53800578307be33039476b38a6c370fff71bedb3c0552563e23ab02",
+        "license": "mit",
+        "gated": false,
+        "qualityApproved": false
+      },
+      "nativeArtifactSHA256": "f202ca2351db108105fed241cd731266255c2471f3ed850c265d0c29d27fd841",
+      "instructionSHA256": "23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c",
+      "assessedFieldDenominator": 42,
+      "positiveExecutionUnassessed": 0,
+      "primaryAccuracyOnReturned": 0.0,
+      "nativeCallsStarted": 15,
+      "nativeReturnedOutputs": 15,
+      "runtimeErrors": 0,
+      "interruptedCalls": 0,
+      "notStartedPrepared": 0
+    },
+    {
+      "model": "smol2-360m",
+      "profile": "reference_v1",
+      "receipt": "/workspace/review-notes/android-high-reference-cohort-37193926852-smol2-360m.json",
+      "receiptSHA256": "d7a071a312cdfc5739806e8cb8f8b5b68ff98a33ed0312d9cc166fa187eae82b",
+      "corpusSHA256": "d15657770607fbc1910c11bdc7a185b296b683905c5823427e05c39bf128ee5a",
+      "plannedCases": 16,
+      "positiveDenominator": 13,
+      "nativePreparedDenominator": 15,
+      "nativeOutputs": 15,
+      "nativeErrors": 0,
+      "positiveReturned": 13,
+      "positiveExecutionErrors": 0,
+      "positiveRecoveryFailures": 13,
+      "safeNegativeRejects": 2,
+      "preparationRejects": 1,
+      "primaryStateEvidenceExact": 0,
+      "generatedValueScope": "Diagnostic only: primary state and complete ordered original IDs ignore generated text; actual unchanged Validator/grounded/formal result remain separate",
+      "rawExact": 0,
+      "groundedExact": 0,
+      "validatorAdoptions": 0,
+      "falseAdoptions": 0,
+      "actualCoreReplayIdentical": true,
+      "selectedInstructionHashes": {
+        "23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c": 15
+      },
+      "roleDiagnosticsOnly": {
+        "roleObligations": 42,
+        "exactBodyEvidence": 0,
+        "exactLiteralValue": 0,
+        "exactState": 37,
+        "exactStateAndEvidence": 0
+      },
+      "stateHistogram": {
+        "PRESENT": 39,
+        "AMBIGUOUS": 3
+      },
+      "details": [
+        {
+          "name": "baseline",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "teacher_first",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "room_first",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "alias_assigned",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "alias_names",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "empty_teacher",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "empty_room",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "parallel_two",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "same_text_distinct_ids",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "literal_one_I",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "literal_zero_O",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "instruction_in_subject",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "instruction_in_room",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        }
+      ],
+      "primaryActualCoreReplayIdentical": true,
+      "qualityAssessment": "Assessed returned positive failures under frozen reference recipe; no capacity-only cause attribution",
+      "assessedPositiveDenominator": 13,
+      "actualArtifactIdentity": {
+        "id": "smol2-360m",
+        "repo": "litert-community/SmolLM2-360M-Instruct",
+        "revision": "507c99cfe6541ba2bcd84818786f7b025935e5e1",
+        "file": "SmolLM2_360M_instruct.litertlm",
+        "bytes": 373719040,
+        "sha256": "8e2834da211b439751af968ed650febdde5a8cb8d88bc6c1a3059f049caa5c2e",
+        "license": "apache-2.0",
+        "gated": false,
+        "qualityApproved": false
+      },
+      "nativeArtifactSHA256": "f202ca2351db108105fed241cd731266255c2471f3ed850c265d0c29d27fd841",
+      "instructionSHA256": "23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c",
+      "assessedFieldDenominator": 42,
+      "positiveExecutionUnassessed": 0,
+      "primaryAccuracyOnReturned": 0.0,
+      "nativeCallsStarted": 15,
+      "nativeReturnedOutputs": 15,
+      "runtimeErrors": 0,
+      "interruptedCalls": 0,
+      "notStartedPrepared": 0
+    },
+    {
+      "model": "smol3-3b",
+      "profile": "reference_v1",
+      "receipt": "/workspace/review-notes/android-high-reference-cohort-37193926852-smol3-3b.json",
+      "receiptSHA256": "3959c87a2702b985453905954663a7b21d47ed071102a8d2f91a0925cd9b54d6",
+      "corpusSHA256": "d15657770607fbc1910c11bdc7a185b296b683905c5823427e05c39bf128ee5a",
+      "plannedCases": 16,
+      "positiveDenominator": 13,
+      "nativePreparedDenominator": 15,
+      "nativeOutputs": 12,
+      "nativeErrors": 0,
+      "positiveReturned": 12,
+      "positiveExecutionErrors": 0,
+      "positiveRecoveryFailures": 12,
+      "safeNegativeRejects": 0,
+      "preparationRejects": 1,
+      "primaryStateEvidenceExact": 0,
+      "generatedValueScope": "Diagnostic only: primary state and complete ordered original IDs ignore generated text; actual unchanged Validator/grounded/formal result remain separate",
+      "rawExact": 0,
+      "groundedExact": 0,
+      "validatorAdoptions": 0,
+      "falseAdoptions": 0,
+      "actualCoreReplayIdentical": true,
+      "selectedInstructionHashes": {
+        "23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c": 13
+      },
+      "roleDiagnosticsOnly": {
+        "roleObligations": 42,
+        "exactBodyEvidence": 12,
+        "exactLiteralValue": 12,
+        "exactState": 37,
+        "exactStateAndEvidence": 11
+      },
+      "stateHistogram": {
+        "PRESENT": 37,
+        "EMPTY": 2
+      },
+      "details": [
+        {
+          "name": "baseline",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "teacher_first",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "room_first",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "alias_assigned",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "alias_names",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "empty_teacher",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "empty_room",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "parallel_two",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "same_text_distinct_ids",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "literal_one_I",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "literal_zero_O",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "instruction_in_subject",
+          "stage": "output",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": false
+        },
+        {
+          "name": "instruction_in_room",
+          "stage": "resource_stop",
+          "independentRawExact": false,
+          "independentGroundedExact": false,
+          "primaryStateEvidenceExact": null,
+          "outcome": "execution_unassessed"
+        }
+      ],
+      "primaryActualCoreReplayIdentical": true,
+      "assessedPositiveDenominator": 12,
+      "positiveExecutionUnassessed": 1,
+      "unsafeExecutionUnassessed": 2,
+      "nativeCallsStarted": 13,
+      "resourceInterruptedPositive": 1,
+      "unsafeNotStarted": 2,
+      "confirmedResourceGuard": "walltime_limit at1200.047seconds, one started positive no completion and2 unsafe not started; no quality false/true assumption for these three",
+      "qualityAssessment": "0/12 returned positives,13 planned with1 unassessed; no unsafe rejection credit",
+      "actualArtifactIdentity": {
+        "id": "smol3-3b",
+        "repo": "litert-community/SmolLM3-3B",
+        "revision": "c29e7655125fe754c483dfdf5e31a10acf0a51fb",
+        "file": "SmolLM3-3B_q4_block32_ekv4096.litertlm",
+        "bytes": 2002257840,
+        "sha256": "119fc1f266c445e9ffbc8c16695eb325b629da3fd464e73a75e5db14ef3926c3",
+        "license": "apache-2.0",
+        "gated": false,
+        "qualityApproved": false
+      },
+      "nativeArtifactSHA256": "f202ca2351db108105fed241cd731266255c2471f3ed850c265d0c29d27fd841",
+      "instructionSHA256": "23f711aa564233963fd1a259d0403b45e3d891d6903fc0009dd6853a32371d9c",
+      "assessedFieldDenominator": 39,
+      "primaryAccuracyOnReturned": 0.0,
+      "nativeReturnedOutputs": 12,
+      "runtimeErrors": 0,
+      "interruptedCalls": 1,
+      "notStartedPrepared": 2
+    }
+  ],
+  "qualityApproved": false,
+  "catalogActivation": false,
+  "usefulAIRecoveryDenominator": 0,
+  "limitation": "Original finite-contract fixtures already resolve through current Rules with zero provider calls. Existing success is a consumed component correctness control, not useful new recovery or original PDF/OCR/17class-heldout/device qualification. Current failure evidence does not isolate weights/capacity from prompt/template/runtime/input contract.",
+  "ownerConsolidatedReceiptSHA256": "f6fa489211fa82335ccc6cf22673de474b069c21d5d12aa9b84eee430d06a577"
+}

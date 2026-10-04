@@ -1,0 +1,2340 @@
+{
+  "artifact": "/workspace/recovery-research/artifacts/android-high-minicpm5-1B-int4.litertlm",
+  "artifactSHA256": "43f41a837c58408192d703a7cf7bb27a3f8b4f8cc1d34c7f79e54f058f966ccc",
+  "tfliteSectionOffset": 2097152,
+  "readOnlyFlatbufferMetadata": true,
+  "subgraphs": [
+    {
+      "subgraph": "prefill_128",
+      "subgraphIndex": 0,
+      "ioCount": 99,
+      "relevantTensorShapes": [
+        {
+          "name": "prefill_128_tokens",
+          "shape": [
+            1,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_0",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_0",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_1",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_1",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_2",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_2",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_3",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_3",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_4",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_4",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_5",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_5",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_6",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_6",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_7",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_7",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_8",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_8",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_9",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_9",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_10",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_10",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_11",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_11",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_12",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_12",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_13",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_13",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_14",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_14",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_15",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_15",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_16",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_16",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_17",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_17",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_18",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_18",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_19",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_19",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_20",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_20",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_21",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_21",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_22",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_22",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_23",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_23",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_0_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_0_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_1_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_1_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_2_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_2_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_3_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_3_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_4_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_4_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_5_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_5_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_6_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_6_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_7_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_7_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_8_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_8_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_9_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_9_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_10_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_10_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_11_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_11_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_12_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_12_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_13_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_13_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_14_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_14_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_15_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_15_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_16_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_16_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_17_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_17_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_18_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_18_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_19_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_19_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_20_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_20_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_21_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_21_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_22_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_22_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_k_23_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "prefill_128_kv_cache_v_23_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        }
+      ]
+    },
+    {
+      "subgraph": "decode",
+      "subgraphIndex": 1,
+      "ioCount": 100,
+      "relevantTensorShapes": [
+        {
+          "name": "decode_tokens",
+          "shape": [
+            1,
+            1
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_0",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_0",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_1",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_1",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_2",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_2",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_3",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_3",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_4",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_4",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_5",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_5",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_6",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_6",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_7",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_7",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_8",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_8",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_9",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_9",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_10",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_10",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_11",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_11",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_12",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_12",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_13",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_13",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_14",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_14",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_15",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_15",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_16",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_16",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_17",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_17",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_18",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_18",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_19",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_19",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_20",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_20",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_21",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_21",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_22",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_22",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_23",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_23",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_0_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_0_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_1_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_1_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_2_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_2_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_3_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_3_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_4_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_4_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_5_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_5_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_6_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_6_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_7_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_7_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_8_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_8_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_9_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_9_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_10_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_10_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_11_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_11_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_12_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_12_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_13_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_13_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_14_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_14_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_15_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_15_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_16_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_16_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_17_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_17_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_18_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_18_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_19_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_19_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_20_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_20_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_21_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_21_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_22_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_22_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        },
+        {
+          "name": "decode_kv_cache_k_23_output",
+          "shape": [
+            1,
+            2,
+            1024,
+            128
+          ]
+        },
+        {
+          "name": "decode_kv_cache_v_23_output",
+          "shape": [
+            1,
+            2,
+            128,
+            1024
+          ]
+        }
+      ]
+    },
+    {
+      "subgraph": "odml.rms_norm.impl",
+      "subgraphIndex": 2,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_0",
+      "subgraphIndex": 3,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_1",
+      "subgraphIndex": 4,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_2",
+      "subgraphIndex": 5,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_3",
+      "subgraphIndex": 6,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_4",
+      "subgraphIndex": 7,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_5",
+      "subgraphIndex": 8,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_6",
+      "subgraphIndex": 9,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_7",
+      "subgraphIndex": 10,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_8",
+      "subgraphIndex": 11,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_9",
+      "subgraphIndex": 12,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_10",
+      "subgraphIndex": 13,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_11",
+      "subgraphIndex": 14,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_12",
+      "subgraphIndex": 15,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_13",
+      "subgraphIndex": 16,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_14",
+      "subgraphIndex": 17,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_15",
+      "subgraphIndex": 18,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_16",
+      "subgraphIndex": 19,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_17",
+      "subgraphIndex": 20,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_18",
+      "subgraphIndex": 21,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_19",
+      "subgraphIndex": 22,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_20",
+      "subgraphIndex": 23,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_21",
+      "subgraphIndex": 24,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_22",
+      "subgraphIndex": 25,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_23",
+      "subgraphIndex": 26,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_24",
+      "subgraphIndex": 27,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_25",
+      "subgraphIndex": 28,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_26",
+      "subgraphIndex": 29,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_27",
+      "subgraphIndex": 30,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_28",
+      "subgraphIndex": 31,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_29",
+      "subgraphIndex": 32,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_30",
+      "subgraphIndex": 33,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_31",
+      "subgraphIndex": 34,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_32",
+      "subgraphIndex": 35,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_33",
+      "subgraphIndex": 36,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_34",
+      "subgraphIndex": 37,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_35",
+      "subgraphIndex": 38,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_36",
+      "subgraphIndex": 39,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_37",
+      "subgraphIndex": 40,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_38",
+      "subgraphIndex": 41,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_39",
+      "subgraphIndex": 42,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_40",
+      "subgraphIndex": 43,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_41",
+      "subgraphIndex": 44,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_42",
+      "subgraphIndex": 45,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_43",
+      "subgraphIndex": 46,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_44",
+      "subgraphIndex": 47,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_45",
+      "subgraphIndex": 48,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_46",
+      "subgraphIndex": 49,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_47",
+      "subgraphIndex": 50,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_48",
+      "subgraphIndex": 51,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_49",
+      "subgraphIndex": 52,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_50",
+      "subgraphIndex": 53,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_51",
+      "subgraphIndex": 54,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_52",
+      "subgraphIndex": 55,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_53",
+      "subgraphIndex": 56,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_54",
+      "subgraphIndex": 57,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_55",
+      "subgraphIndex": 58,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_56",
+      "subgraphIndex": 59,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_57",
+      "subgraphIndex": 60,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_58",
+      "subgraphIndex": 61,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_59",
+      "subgraphIndex": 62,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_60",
+      "subgraphIndex": 63,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_61",
+      "subgraphIndex": 64,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_62",
+      "subgraphIndex": 65,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_63",
+      "subgraphIndex": 66,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_64",
+      "subgraphIndex": 67,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_65",
+      "subgraphIndex": 68,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_66",
+      "subgraphIndex": 69,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_67",
+      "subgraphIndex": 70,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_68",
+      "subgraphIndex": 71,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_69",
+      "subgraphIndex": 72,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_70",
+      "subgraphIndex": 73,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_71",
+      "subgraphIndex": 74,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_72",
+      "subgraphIndex": 75,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_73",
+      "subgraphIndex": 76,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_74",
+      "subgraphIndex": 77,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_75",
+      "subgraphIndex": 78,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_76",
+      "subgraphIndex": 79,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_77",
+      "subgraphIndex": 80,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_78",
+      "subgraphIndex": 81,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_79",
+      "subgraphIndex": 82,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_80",
+      "subgraphIndex": 83,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_81",
+      "subgraphIndex": 84,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_82",
+      "subgraphIndex": 85,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_83",
+      "subgraphIndex": 86,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_84",
+      "subgraphIndex": 87,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_85",
+      "subgraphIndex": 88,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_86",
+      "subgraphIndex": 89,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_87",
+      "subgraphIndex": 90,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_88",
+      "subgraphIndex": 91,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_89",
+      "subgraphIndex": 92,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_90",
+      "subgraphIndex": 93,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_91",
+      "subgraphIndex": 94,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_92",
+      "subgraphIndex": 95,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_93",
+      "subgraphIndex": 96,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    },
+    {
+      "subgraph": "odml.rms_norm.impl_94",
+      "subgraphIndex": 97,
+      "ioCount": 3,
+      "relevantTensorShapes": []
+    }
+  ]
+}
